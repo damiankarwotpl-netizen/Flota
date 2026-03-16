@@ -1,0 +1,4 @@
+kivy
+gspread
+oauth2client
+requests
