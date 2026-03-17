@@ -1,12 +1,33 @@
 [app]
 
-title = Fleet Driver
-package.name = fleetdriver
+title = FleetMileageDriver
+package.name = fleetmileage
 package.domain = org.fleet
 
 source.dir = .
-source.include_exts = py,kv,json
+source.include_exts = py,kv,png,jpg
 
-requirements = python3,kivy,gspread,oauth2client,requests
+version = 1.0
+
+requirements = python3,kivy,requests,plyer
 
 orientation = portrait
+
+fullscreen = 0
+
+android.permissions = INTERNET
+
+android.api = 31
+android.minapi = 21
+android.sdk = 31
+
+android.ndk = 25b
+
+android.archs = armeabi-v7a, arm64-v8a
+
+log_level = 2
+
+
+[buildozer]
+
+warn_on_root = 1
