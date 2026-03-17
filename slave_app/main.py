@@ -7,7 +7,7 @@ from kivy.uix.textinput import TextInput
 from kivy.uix.button import Button
 
 
-API_URL = "TU_WKLEJ_URL_APPS_SCRIPT"
+API_URL = https://script.google.com/macros/s/AKfycbxFQLZU-sg8Gg58J2dE-Bbt2jTyXrdcd1DOUM78vcqFLa789gpeOC9S4MyjGHpQ12_l/exec
 
 
 class LoginScreen(BoxLayout):
