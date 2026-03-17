@@ -2409,11 +2409,12 @@ class FutureApp(App):
                             reg = self._clean_excel_number_text(self._cell_str(r, m.get('registration', -1))).upper()
                             car_name = self._clean_excel_number_text(self._cell_str(r, m.get('car_name', -1)))
                             driver = self._clean_excel_number_text(self._cell_str(r, m.get('driver', -1)))
-                            login, password = create_driver(driver, registration)
-
-                            print("Driver login created:")
-                            print("LOGIN:", login)
-                            print("PASSWORD:", password)
+                            if driver and reg:
+                                login, password = create_driver(driver, reg)
+                                if login and password:
+                                    print("Driver login created:")
+                                    print("LOGIN:", login)
+                                    print("PASSWORD:", password)
                             
                             mileage_raw = self._clean_excel_number_text(self._cell_str(r, m.get('mileage', -1)))
                             interval_raw = self._clean_excel_number_text(self._cell_str(r, m.get('service_interval', -1)))
@@ -3214,6 +3215,16 @@ class FutureApp(App):
         px = Popup(title='Wybierz kierowcę', content=box, size_hint=(0.92, 0.8), auto_dismiss=False)
         px.open()
 
+    def _sync_driver_account(self, driver_name, registration):
+        driver_name = str(driver_name or '').strip()
+        registration = str(registration or '').strip().upper()
+        if not driver_name or not registration:
+            return
+
+        login, password = create_driver(driver_name, registration)
+        if login and password:
+            self.log(f"Driver account synced: {driver_name} ({registration}) login={login}")
+
     def add_car_popup(self):
         """Popup dodawania nowego samochodu."""
         box = BoxLayout(orientation='vertical', padding=dp(12), spacing=dp(8))
@@ -3235,11 +3246,13 @@ class FutureApp(App):
                 return self.msg('Błąd', 'Nazwa i rejestracja są wymagane')
 
             self.init_cars_db()
+            driver_name = ti_driver.text.strip()
             self.conn.execute(
                 "INSERT INTO cars(name, registration, driver, mileage, service_interval, last_service) VALUES(?,?,?,?,?,?)",
-                (name, reg, ti_driver.text.strip(), 0, max(1, interval), 0)
+                (name, reg, driver_name, 0, max(1, interval), 0)
             )
             self.conn.commit()
+            self._sync_driver_account(driver_name, reg)
             px.dismiss()
             self.refresh_cars_list()
 
@@ -3259,8 +3272,12 @@ class FutureApp(App):
         box.add_widget(ModernButton(text='Wybierz z kontaktów/pracowników', size_hint_y=None, height=dp(44), on_press=lambda x: self._open_driver_picker(ti_driver)))
 
         def save(_):
-            self.conn.execute('UPDATE cars SET driver=? WHERE id=?', (ti_driver.text.strip(), car_id))
+            driver_name = ti_driver.text.strip()
+            reg_row = self.conn.execute('SELECT registration FROM cars WHERE id=?', (car_id,)).fetchone()
+            registration = (reg_row[0] if reg_row else '')
+            self.conn.execute('UPDATE cars SET driver=? WHERE id=?', (driver_name, car_id))
             self.conn.commit()
+            self._sync_driver_account(driver_name, registration)
             px.dismiss()
             self.refresh_cars_list()
 
