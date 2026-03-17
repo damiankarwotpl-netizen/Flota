@@ -7,7 +7,7 @@ from kivy.uix.textinput import TextInput
 from kivy.uix.button import Button
 from notification import start_weekly_notification
 
-API_URL = https://script.google.com/macros/s/AKfycbxFQLZU-sg8Gg58J2dE-Bbt2jTyXrdcd1DOUM78vcqFLa789gpeOC9S4MyjGHpQ12_l/exec
+API_URL = "https://script.google.com/macros/s/AKfycbxFQLZU-sg8Gg58J2dE-Bbt2jTyXrdcd1DOUM78vcqFLa789gpeOC9S4MyjGHpQ12_l/exec"
 
 
 class LoginScreen(BoxLayout):
