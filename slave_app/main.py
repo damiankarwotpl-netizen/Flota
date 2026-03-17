@@ -123,7 +123,7 @@ class MileageScreen(BoxLayout):
             mileage = int(self.mileage.text.strip())
             api_post({
                 "action": "add_mileage",
-                "driver": self.app.driver,
+                "driver": self.app.login,
                 "registration": self.app.registration,
                 "mileage": mileage,
             })
