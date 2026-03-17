@@ -1,64 +1,146 @@
+import requests
+
 from kivy.app import App
-from kivy.lang import Builder
-from slave_sync import SlaveSync
+from kivy.uix.boxlayout import BoxLayout
+from kivy.uix.label import Label
+from kivy.uix.textinput import TextInput
+from kivy.uix.button import Button
 
-KV = '''
 
-BoxLayout:
+API_URL = "TU_WKLEJ_URL_APPS_SCRIPT"
 
-    orientation: "vertical"
-    padding: 20
-    spacing: 10
 
-    TextInput:
-        id: name
-        hint_text: "Imię"
+class LoginScreen(BoxLayout):
 
-    TextInput:
-        id: surname
-        hint_text: "Nazwisko"
+    def __init__(self, app, **kwargs):
+        super().__init__(orientation="vertical", **kwargs)
 
-    Button:
-        text: "Zaloguj"
-        on_press: app.login()
+        self.app = app
 
-    Label:
-        id: car
-        text: "Samochód: -"
+        self.add_widget(Label(text="Login"))
 
-    TextInput:
-        id: mileage
-        hint_text: "Przebieg"
+        self.login = TextInput()
+        self.add_widget(self.login)
 
-    Button:
-        text: "Wyślij przebieg"
-        on_press: app.send()
+        self.add_widget(Label(text="Password"))
 
-'''
+        self.password = TextInput(password=True)
+        self.add_widget(self.password)
 
-class DriverApp(App):
+        btn = Button(text="Login")
+        btn.bind(on_press=self.do_login)
+
+        self.add_widget(btn)
+
+    def do_login(self, instance):
+
+        r = requests.post(API_URL, json={
+
+            "action": "login",
+            "login": self.login.text,
+            "password": self.password.text
+
+        })
+
+        data = r.json()
+
+        if data["status"] == "ok":
+
+            self.app.driver = data["name"]
+            self.app.registration = data["registration"]
+
+            if data["change_password"] == 1:
+
+                self.app.root.clear_widgets()
+                self.app.root.add_widget(ChangePassword(self.app))
+
+            else:
+
+                self.app.root.clear_widgets()
+                self.app.root.add_widget(MileageScreen(self.app))
+
+
+class ChangePassword(BoxLayout):
+
+    def __init__(self, app, **kwargs):
+
+        super().__init__(orientation="vertical", **kwargs)
+
+        self.app = app
+
+        self.add_widget(Label(text="Change password"))
+
+        self.password = TextInput(password=True)
+        self.add_widget(self.password)
+
+        btn = Button(text="Save")
+        btn.bind(on_press=self.change)
+
+        self.add_widget(btn)
+
+    def change(self, instance):
+
+        requests.post(API_URL, json={
+
+            "action": "change_password",
+            "login": self.app.driver.lower().replace(" ", "."),
+            "password": self.password.text
+
+        })
+
+        self.app.root.clear_widgets()
+        self.app.root.add_widget(MileageScreen(self.app))
+
+
+class MileageScreen(BoxLayout):
+
+    def __init__(self, app, **kwargs):
+
+        super().__init__(orientation="vertical", **kwargs)
+
+        self.app = app
+
+        self.add_widget(Label(text="Car"))
+
+        self.add_widget(Label(text=self.app.registration))
+
+        self.add_widget(Label(text="Mileage"))
+
+        self.mileage = TextInput()
+        self.add_widget(self.mileage)
+
+        btn = Button(text="Save mileage")
+        btn.bind(on_press=self.save)
+
+        self.add_widget(btn)
+
+    def save(self, instance):
+
+        requests.post(API_URL, json={
+
+            "action": "add_mileage",
+            "driver": self.app.driver,
+            "registration": self.app.registration,
+            "mileage": int(self.mileage.text)
+
+        })
+
+        self.mileage.text = ""
+
+
+class SlaveApp(App):
+
+    driver = None
+    registration = None
 
     def build(self):
 
-        self.sync = SlaveSync()
+        root = BoxLayout()
 
-        return Builder.load_string(KV)
+        root.add_widget(LoginScreen(self))
 
-    def login(self):
+        return root
 
-        name = self.root.ids.name.text
-        surname = self.root.ids.surname.text
 
-        car = self.sync.get_car(name, surname)
-
-        self.car = car
-
-        self.root.ids.car.text = "Samochód: " + str(car)
-
-    def send(self):
-
-        mileage = self.root.ids.mileage.text
-
-        self.sync.send(self.car, mileage)
-
-DriverApp().run()
+if __name__ == "__main__":
+    SlaveApp().run()
