@@ -2409,11 +2409,12 @@ class FutureApp(App):
                             reg = self._clean_excel_number_text(self._cell_str(r, m.get('registration', -1))).upper()
                             car_name = self._clean_excel_number_text(self._cell_str(r, m.get('car_name', -1)))
                             driver = self._clean_excel_number_text(self._cell_str(r, m.get('driver', -1)))
-                            login, password = create_driver(driver, registration)
-
-                            print("Driver login created:")
-                            print("LOGIN:", login)
-                            print("PASSWORD:", password)
+                            if driver and reg:
+                                login, password = create_driver(driver, reg)
+                                if login and password:
+                                    print("Driver login created:")
+                                    print("LOGIN:", login)
+                                    print("PASSWORD:", password)
                             
                             mileage_raw = self._clean_excel_number_text(self._cell_str(r, m.get('mileage', -1)))
                             interval_raw = self._clean_excel_number_text(self._cell_str(r, m.get('service_interval', -1)))
