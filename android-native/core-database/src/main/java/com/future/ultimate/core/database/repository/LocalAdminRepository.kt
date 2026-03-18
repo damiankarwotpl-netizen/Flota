@@ -480,11 +480,23 @@ class LocalAdminRepository(
         combine(dao.observeContacts(), dao.observeWorkers()) { contacts, workers -> contacts.size to workers.size }
             .combine(dao.observeCars()) { (contactCount, workerCount), cars -> Triple(contactCount, workerCount, cars.size) }
             .combine(dao.observePlants()) { (contactCount, workerCount, carCount), plants ->
+                arrayOf(contactCount, workerCount, carCount, plants.size)
+            }
+            .combine(dao.observeClothesSizes()) { stats, clothesSizes ->
+                stats + clothesSizes.size
+            }
+            .combine(dao.observeClothesOrders()) { stats, clothesOrders ->
+                stats + clothesOrders.size
+            }
+            .combine(dao.observeClothesHistory()) { stats, clothesHistory ->
                 DashboardStats(
-                    contactCount = contactCount,
-                    workerCount = workerCount,
-                    carCount = carCount,
-                    plantCount = plants.size,
+                    contactCount = stats[0],
+                    workerCount = stats[1],
+                    carCount = stats[2],
+                    plantCount = stats[3],
+                    clothesSizeCount = stats[4],
+                    clothesOrderCount = stats[5],
+                    clothesHistoryCount = clothesHistory.size,
                 )
             }
 

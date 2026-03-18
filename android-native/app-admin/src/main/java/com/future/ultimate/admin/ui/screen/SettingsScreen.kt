@@ -27,6 +27,8 @@ fun SettingsScreen(navController: NavController) {
             Column {
                 Text("Kontakty: ${uiState.stats.contactCount}   Pracownicy: ${uiState.stats.workerCount}")
                 Text("Auta: ${uiState.stats.carCount}   Zakłady: ${uiState.stats.plantCount}")
+                Text("Rozmiary odzieży: ${uiState.stats.clothesSizeCount}   Zamówienia: ${uiState.stats.clothesOrderCount}")
+                Text("Historia wydań odzieży: ${uiState.stats.clothesHistoryCount}")
                 Button(onClick = { navController.navigate(AdminRoute.Reports.route) }, modifier = Modifier.fillMaxWidth()) { Text("Pokaż raporty sesji") }
                 Button(onClick = {}, modifier = Modifier.fillMaxWidth()) { Text("Wczytaj arkusz płac") }
                 Button(onClick = {}, modifier = Modifier.fillMaxWidth()) { Text("Dodaj bazę danych") }

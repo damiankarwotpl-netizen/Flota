@@ -122,6 +122,9 @@ data class DashboardStats(
     val workerCount: Int = 0,
     val carCount: Int = 0,
     val plantCount: Int = 0,
+    val clothesSizeCount: Int = 0,
+    val clothesOrderCount: Int = 0,
+    val clothesHistoryCount: Int = 0,
 )
 
 interface AdminRepository {

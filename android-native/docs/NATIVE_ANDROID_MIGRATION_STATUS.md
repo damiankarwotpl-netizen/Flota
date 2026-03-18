@@ -7,7 +7,7 @@ This repository now contains a native Android migration foundation in `android-n
 - shared feature contracts and navigation skeletons
 - local driver-account handoff between admin car management and the driver app login/mileage/report flows
 - real PDF export of the vehicle report in both Android apps
-- local SMTP/template persistence plus native session-report and dashboard-count screens in admin
+- local SMTP/template persistence plus native session-report and dashboard-count screens in admin, including clothes counters in settings
 - the first clothes-module slices: native size management plus order headers/items/history, basic issue actions, and CSV exports backed by Room
 
 ## Important
