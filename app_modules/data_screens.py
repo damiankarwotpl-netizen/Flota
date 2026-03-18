@@ -1,7 +1,7 @@
 from kivy.metrics import dp
 from kivy.uix.boxlayout import BoxLayout
-from kivy.uix.button import Button
 from kivy.uix.gridlayout import GridLayout
+from kivy.uix.label import Label
 from kivy.uix.screenmanager import ScreenManager, SlideTransition
 from kivy.uix.scrollview import ScrollView
 
@@ -12,7 +12,8 @@ def setup_table_screen(app, AppLayout, SecondaryButton, PrimaryButton, ModernInp
     shell.nav_tabs.add_action(SecondaryButton(text="Wróć", on_press=lambda x: setattr(app.sm, 'current', 'paski')))
     shell.nav_tabs.add_action(PrimaryButton(text="Kolumny", on_press=app.popup_columns, size_hint_x=None, width=dp(150)))
 
-    root = BoxLayout(orientation="vertical", spacing=dp(8))
+    root = BoxLayout(orientation="vertical", spacing=dp(10), padding=[dp(4), dp(2), dp(4), dp(4)])
+    root.add_widget(Label(text="Tabela danych i eksport", size_hint_y=None, height=dp(24), color=(0.72, 0.80, 0.92, 1), bold=True))
     app.ti_tab_search = ModernInput(hint_text="Szukaj w tabeli...")
     app.ti_tab_search.bind(text=app.filter_table)
     root.add_widget(app.ti_tab_search)
@@ -52,7 +53,8 @@ def setup_clothes_screen(app, AppLayout, AppActionBar, SecondaryButton, PrimaryB
     app._clothes_nav_bound = False
     app._bind_clothes_navigation()
 
-    body = BoxLayout(orientation='vertical', spacing=dp(8))
+    body = BoxLayout(orientation='vertical', spacing=dp(10), padding=[dp(4), dp(2), dp(4), dp(4)])
+    body.add_widget(Label(text="Ubranie robocze • moduły", size_hint_y=None, height=dp(24), color=(0.72, 0.80, 0.92, 1), bold=True))
     body.add_widget(tabs)
     body.add_widget(app.clothes_sm)
     shell.set_content(body)

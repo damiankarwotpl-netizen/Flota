@@ -12,8 +12,9 @@ def setup_vehicle_report_screen(app, AppLayout, SecondaryButton, PrimaryButton, 
     shell.nav_tabs.add_action(SecondaryButton(text="Wróć", on_press=lambda x: setattr(app.sm, 'current', 'home')))
 
     root = ScrollView()
-    form = GridLayout(cols=1, spacing=dp(8), padding=dp(10), size_hint_y=None)
+    form = GridLayout(cols=1, spacing=dp(10), padding=dp(12), size_hint_y=None)
     form.bind(minimum_height=form.setter('height'))
+    form.add_widget(Label(text="Raport stanu pojazdu • formularz", size_hint_y=None, height=dp(24), color=(0.72, 0.80, 0.92, 1), bold=True))
 
     app.vehicle_report_inputs = {}
     app.vehicle_report_checks = {}
