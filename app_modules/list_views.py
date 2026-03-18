@@ -22,13 +22,13 @@ def refresh_contacts_list_view(app, ButtonContainer, ModernButton, COLOR_CARD):
         if sv_city and sv_city not in str(d[6]).lower():
             continue
 
-        card = BoxLayout(orientation="vertical", size_hint_y=None, height=dp(250), padding=dp(10), spacing=dp(8))
+        card = BoxLayout(orientation="vertical", size_hint_y=None, height=dp(262), padding=dp(12), spacing=dp(10))
         with card.canvas.before:
             Color(*COLOR_CARD)
             rect = RoundedRectangle(pos=card.pos, size=card.size, radius=[dp(12)])
         card.bind(pos=lambda inst, val, r=rect: setattr(r, 'pos', val), size=lambda inst, val, r=rect: setattr(r, 'size', val))
 
-        name_lbl = Label(text=f"{d[0]} {d[1]}".title(), bold=True, halign="left", valign='middle', size_hint_y=None, height=dp(38))
+        name_lbl = Label(text=f"{d[0]} {d[1]}".title(), bold=True, halign="left", valign='middle', size_hint_y=None, height=dp(40), color=(0.94, 0.97, 1, 1))
         name_lbl.bind(size=lambda inst, val: setattr(inst, 'text_size', (inst.width - dp(6), None)))
         card.add_widget(name_lbl)
 
@@ -40,11 +40,11 @@ def refresh_contacts_list_view(app, ButtonContainer, ModernButton, COLOR_CARD):
             f"Adres: {d[6] if d[6] else '-'}\n"
             f"Notatka: {d[7] if d[7] else '-'}"
         )
-        info_lbl = Label(text=info_text, font_size='12sp', halign="left", valign='top', color=(0.84, 0.86, 0.92, 1))
+        info_lbl = Label(text=info_text, font_size='12sp', halign="left", valign='top', color=(0.82, 0.88, 0.97, 1))
         info_lbl.bind(size=lambda inst, val: setattr(inst, 'text_size', (inst.width - dp(6), None)))
         card.add_widget(info_lbl)
 
-        actions = ButtonContainer(orientation='horizontal', size_hint_y=None, height=dp(60), min_button_width=dp(132), min_button_height=dp(44))
+        actions = ButtonContainer(orientation='horizontal', size_hint_y=None, height=dp(62), min_button_width=dp(132), min_button_height=dp(44))
         phone_txt = str(d[4]).strip() if d[4] else ""
         actions.add_action(ModernButton(text="Zadzwoń", on_press=lambda x, ph=phone_txt: app._call_contact(ph), bg_color=(0.16, 0.6, 0.3, 1)))
         actions.add_action(ModernButton(text="WhatsApp", on_press=lambda x, ph=phone_txt, nm=d[0]: app._whatsapp_contact(ph, nm), bg_color=(0.06, 0.55, 0.25, 1)))
@@ -58,10 +58,10 @@ def refresh_reports_list_view(app, Card, Label, PrimaryButton, COLOR_PRIMARY):
     app.r_grid.clear_widgets()
     rows = app.conn.execute("SELECT date, ok, fail, skip, details FROM reports ORDER BY id DESC").fetchall()
     for d, ok, fl, sk, det in rows:
-        row = Card(orientation="vertical", size_hint_y=None, height=dp(120), padding=dp(10), spacing=dp(8))
+        row = Card(orientation="vertical", size_hint_y=None, height=dp(128), padding=dp(12), spacing=dp(8))
         row.add_widget(Label(text=f"Sesja: {d}", bold=True, color=COLOR_PRIMARY))
         row.add_widget(Label(text=f"OK: {ok}  BŁĘDY: {fl}  POMINIĘTE: {sk}", color=(0.8, 0.85, 0.92, 1), size_hint_y=None, height=dp(26)))
-        row.add_widget(PrimaryButton(text="Pokaż logi", size_hint_y=None, height=dp(42), on_press=lambda x, t=det: app.show_details(t)))
+        row.add_widget(PrimaryButton(text="Pokaż logi", size_hint_y=None, height=dp(44), on_press=lambda x, t=det: app.show_details(t)))
         app.r_grid.add_widget(row)
 
 

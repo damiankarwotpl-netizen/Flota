@@ -8,12 +8,12 @@ from kivy.uix.textinput import TextInput
 
 
 def show_message_popup(title, text, PrimaryButton):
-    b = BoxLayout(orientation="vertical", padding=dp(18), spacing=dp(10))
+    b = BoxLayout(orientation="vertical", padding=dp(20), spacing=dp(12))
     l = Label(text=text, halign="center", valign="middle")
     l.bind(size=lambda inst, val: setattr(inst, 'text_size', (inst.width - dp(8), None)))
     b.add_widget(l)
-    b.add_widget(PrimaryButton(text="OK", on_press=lambda x: p.dismiss(), height=dp(54), size_hint_y=None))
-    p = Popup(title=title, content=b, size_hint=(0.92, 0.55), auto_dismiss=False)
+    b.add_widget(PrimaryButton(text="OK", on_press=lambda x: p.dismiss(), height=dp(56), size_hint_y=None))
+    p = Popup(title=title, content=b, size_hint=(0.92, 0.52), auto_dismiss=False)
     p.open()
 
 
@@ -45,12 +45,12 @@ def update_progress_labels(app, done):
 
 
 def popup_columns_selector(app, ModernButton, CheckBox):
-    box = BoxLayout(orientation="vertical", padding=dp(10))
+    box = BoxLayout(orientation="vertical", padding=dp(12), spacing=dp(8))
     gr = GridLayout(cols=1, size_hint_y=None, spacing=dp(5))
     checks = []
     gr.bind(minimum_height=gr.setter('height'))
     for i, h in enumerate(app.full_data[0]):
-        r = BoxLayout(size_hint_y=None, height=dp(45))
+        r = BoxLayout(size_hint_y=None, height=dp(48), spacing=dp(6))
         cb = CheckBox(active=(i in app.export_indices), size_hint_x=None, width=dp(50))
         checks.append((i, cb))
         r.add_widget(cb)
@@ -67,7 +67,7 @@ def popup_columns_selector(app, ModernButton, CheckBox):
                 p.dismiss(),
                 app.refresh_table(),
             ],
-            height=dp(50),
+            height=dp(52),
             size_hint_y=None,
         )
     )
@@ -83,7 +83,7 @@ def show_logs_popup(app, Button):
                 text = f.read()[-40000:]
         else:
             text = "\n".join(app._log_buffer)
-        b = BoxLayout(orientation="vertical", padding=dp(10))
+        b = BoxLayout(orientation="vertical", padding=dp(12), spacing=dp(8))
         ti = TextInput(text=text, readonly=True, font_size='11sp')
         b.add_widget(ti)
         b.add_widget(Button(text="ZAMKNIJ", size_hint_y=0.2, on_press=lambda x: p.dismiss()))
