@@ -228,6 +228,13 @@ class AppTheme:
         return DARK_THEME if cls.current == "dark" else LIGHT_THEME
 
 
+def load_fpdf_class():
+    import importlib
+
+    module = importlib.import_module("fpdf")
+    return module.FPDF
+
+
 class Card(BoxLayout):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -1560,10 +1567,6 @@ class FutureApp(App):
         self.sc_ref["vehicle_report"].add_widget(shell)
 
     def save_vehicle_report_pdf(self, *_):
-        if FPDF is None:
-            self.msg("Błąd", "Brak biblioteki fpdf - nie mogę wygenerować PDF")
-            return
-
         data = {k: v.text for k, v in self.vehicle_report_inputs.items()}
         data.update({k: v.active for k, v in self.vehicle_report_checks.items()})
 
@@ -1580,6 +1583,7 @@ class FutureApp(App):
         out_dir.mkdir(parents=True, exist_ok=True)
         file_path = out_dir / "protokol_stanu_pojazdu.pdf"
 
+        FPDF = load_fpdf_class()
         pdf = FPDF(unit="pt", format="A4")
         pdf.set_auto_page_break(auto=False)
         pdf.add_page()

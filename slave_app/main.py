@@ -14,11 +14,6 @@ from kivy.uix.textinput import TextInput
 from kivy.uix.checkbox import CheckBox
 
 try:
-    from fpdf import FPDF
-except Exception:
-    FPDF = None
-
-try:
     from android.storage import app_storage_path
 except Exception:
     app_storage_path = None
@@ -29,6 +24,13 @@ except Exception:
     from notification import MileageReminder
 
 API_URL = "https://script.google.com/macros/s/AKfycbxFQLZU-sg8Gg58J2dE-Bbt2jTyXrdcd1DOUM78vcqFLa789gpeOC9S4MyjGHpQ12_l/exec"
+
+
+def load_fpdf_class():
+    import importlib
+
+    module = importlib.import_module("fpdf")
+    return module.FPDF
 
 
 def api_post(payload):
@@ -239,15 +241,13 @@ class VehicleReportScreen(BoxLayout):
         self.add_widget(self.status)
 
     def save(self, _instance):
-        if FPDF is None:
-            self.status.text = "Brak fpdf - nie mogę wygenerować PDF"
-            return
-
         data = {k: w.text for k, w in self.inputs.items()}
         data.update({k: w.active for k, w in self.checks.items()})
         try:
             output = self._generate_pdf(data)
             self.status.text = f"Zapisano: {output}"
+        except ModuleNotFoundError:
+            self.status.text = "Brak biblioteki fpdf - sprawdź zależności APK"
         except Exception as exc:
             self.status.text = f"Błąd PDF: {str(exc)[:60]}"
 
@@ -256,6 +256,7 @@ class VehicleReportScreen(BoxLayout):
         base_dir.mkdir(parents=True, exist_ok=True)
         file_path = base_dir / "protokol_stanu_pojazdu.pdf"
 
+        FPDF = load_fpdf_class()
         pdf = FPDF(unit="pt", format="A4")
         pdf.set_auto_page_break(auto=False)
         pdf.add_page()
