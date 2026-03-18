@@ -1209,45 +1209,47 @@ class VehicleReportScreen(BoxLayout):
             if checked:
                 txt(x + 3, y0 + 10, "X", 9, True)
         txt(427, 436, d["przeglad"], 8)
-        txt(336, 472, "Kiedy nalezy dokonac", 9)
-        txt(336, 485, "przegladu / Service?", 9)
-        box(424, 460, 56, 24)
         txt(427, 476, d["serwis"], 8)
-
-        questions = [
-            ("Czy dostepny jest dowod rejestracyjny pojazdu?", d["dowod"]),
-            ("Czy w samochodzie znajduje sie trojkat ostrzegawczy?", d["trojkat"]),
-            ("Czy w samochodzie jest wystarczajaco duzo kamizelek", d["kamizelki"]),
-            ("odblaskowych?", None),
-            ("Czy dostepna jest apteczka pierwszej pomocy?", d["apteczka"]),
-            ("Czy w pojezdzie znajduje sie kolo zapasowe?", d["kolo"]),
-            ("Czy na wyswietlaczu aktywne sa jakies lampki", None),
-            ("ostrzegawcze - jesli tak, to ktore i od kiedy?", None),
-        ]
-        yq = 520
-        for label, state in questions:
-            txt(66, yq, label, 8)
-            if state is not None:
-                txt(260, yq - 8, "TAK / NIE", 8, True)
-                box(258, yq - 2, 56, 18)
-                if state:
-                    txt(262, yq + 10, "TAK", 8, True)
-            yq += 26
-
-        txt(312, 520, "Inne uwagi / komentarze:", 9, True)
-        box(366, 532, 190, 142)
-        txt(316, 704, "Od kiedy?", 8, True)
-        box(366, 690, 110, 22)
         txt(370, 705, d["od_kiedy"], 8)
         txt(261, 154, d["uszkodzenia"], 8)
         txt(372, 546, d["uwagi"], 8)
 
-        hline(38, W - 38, 728)
-        txt(170, 748, "Protokoly sa przekazywane w kazdy pierwszy poniedzialek miesiaca na adres email:", 8, True)
-        txt(40, 780, "WAZNA INFORMACJA", 9, True)
-        txt(290, 780, "magdalena.matusiewicz@future-group.pl", 8)
-        txt(372, 796, "oraz", 8, True)
-        txt(304, 812, "justyna.kucharska@future-group.pl", 8)
+        if not is_pdf_template:
+            txt(336, 472, "Kiedy nalezy dokonac", 9)
+            txt(336, 485, "przegladu / Service?", 9)
+            box(424, 460, 56, 24)
+
+            questions = [
+                ("Czy dostepny jest dowod rejestracyjny pojazdu?", d["dowod"]),
+                ("Czy w samochodzie znajduje sie trojkat ostrzegawczy?", d["trojkat"]),
+                ("Czy w samochodzie jest wystarczajaco duzo kamizelek", d["kamizelki"]),
+                ("odblaskowych?", None),
+                ("Czy dostepna jest apteczka pierwszej pomocy?", d["apteczka"]),
+                ("Czy w pojezdzie znajduje sie kolo zapasowe?", d["kolo"]),
+                ("Czy na wyswietlaczu aktywne sa jakies lampki", None),
+                ("ostrzegawcze - jesli tak, to ktore i od kiedy?", None),
+            ]
+            yq = 520
+            for label, state in questions:
+                txt(66, yq, label, 8)
+                if state is not None:
+                    txt(260, yq - 8, "TAK / NIE", 8, True)
+                    box(258, yq - 2, 56, 18)
+                    if state:
+                        txt(262, yq + 10, "TAK", 8, True)
+                yq += 26
+
+            txt(312, 520, "Inne uwagi / komentarze:", 9, True)
+            box(366, 532, 190, 142)
+            txt(316, 704, "Od kiedy?", 8, True)
+            box(366, 690, 110, 22)
+
+            hline(38, W - 38, 728)
+            txt(170, 748, "Protokoly sa przekazywane w kazdy pierwszy poniedzialek miesiaca na adres email:", 8, True)
+            txt(40, 780, "WAZNA INFORMACJA", 9, True)
+            txt(290, 780, "magdalena.matusiewicz@future-group.pl", 8)
+            txt(372, 796, "oraz", 8, True)
+            txt(304, 812, "justyna.kucharska@future-group.pl", 8)
 
         if is_pdf_template:
             overlay_path = file_path.with_name(f"{file_path.stem}_overlay.pdf")
