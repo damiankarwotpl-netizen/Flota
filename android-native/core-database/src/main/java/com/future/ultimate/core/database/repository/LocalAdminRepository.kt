@@ -15,6 +15,7 @@ import com.future.ultimate.core.common.repository.CarListItem
 import com.future.ultimate.core.common.repository.ClothesOrderItemListItem
 import com.future.ultimate.core.common.repository.ClothesOrderListItem
 import com.future.ultimate.core.common.repository.ClothesSizeListItem
+import com.future.ultimate.core.common.repository.ClothesHistoryListItem
 import com.future.ultimate.core.common.repository.ContactListItem
 import com.future.ultimate.core.common.repository.DashboardStats
 import com.future.ultimate.core.common.repository.EmailTemplateData
@@ -336,6 +337,20 @@ class LocalAdminRepository(
 
     override suspend fun markClothesOrderOrdered(orderId: Long) {
         dao.updateClothesOrderStatus(orderId, "Zamówione")
+    }
+
+    override fun observeClothesHistory(): Flow<List<ClothesHistoryListItem>> = dao.observeClothesHistory().map { items ->
+        items.map {
+            ClothesHistoryListItem(
+                id = it.id,
+                workerId = it.workerId,
+                name = it.name,
+                surname = it.surname,
+                item = it.item,
+                size = it.size,
+                date = it.date,
+            )
+        }
     }
 
     override fun observeSmtpSettings(): Flow<SmtpSettingsData> = dao.observeSettings().map { settings ->

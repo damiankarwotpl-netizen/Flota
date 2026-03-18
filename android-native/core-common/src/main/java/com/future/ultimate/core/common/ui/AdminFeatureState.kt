@@ -12,6 +12,7 @@ import com.future.ultimate.core.common.repository.CarListItem
 import com.future.ultimate.core.common.repository.ClothesOrderItemListItem
 import com.future.ultimate.core.common.repository.ClothesOrderListItem
 import com.future.ultimate.core.common.repository.ClothesSizeListItem
+import com.future.ultimate.core.common.repository.ClothesHistoryListItem
 import com.future.ultimate.core.common.repository.ContactListItem
 import com.future.ultimate.core.common.repository.DashboardStats
 import com.future.ultimate.core.common.repository.EmailTemplateData
@@ -82,6 +83,12 @@ data class ClothesOrdersUiState(
     val itemEditor: ClothesOrderItemDraft = ClothesOrderItemDraft(),
     val isSaving: Boolean = false,
     val isSavingItem: Boolean = false,
+)
+
+data class ClothesReportsUiState(
+    val year: String = "",
+    val history: List<ClothesHistoryListItem> = emptyList(),
+    val yearlySummary: List<String> = emptyList(),
 )
 
 data class SmtpUiState(

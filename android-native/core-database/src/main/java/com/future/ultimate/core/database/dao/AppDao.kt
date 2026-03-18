@@ -8,6 +8,7 @@ import com.future.ultimate.core.database.entity.CarEntity
 import com.future.ultimate.core.database.entity.ClothesOrderEntity
 import com.future.ultimate.core.database.entity.ClothesOrderItemEntity
 import com.future.ultimate.core.database.entity.ClothesSizeEntity
+import com.future.ultimate.core.database.entity.ClothesHistoryEntity
 import com.future.ultimate.core.database.entity.ContactEntity
 import com.future.ultimate.core.database.entity.DriverAccountEntity
 import com.future.ultimate.core.database.entity.PlantEntity
@@ -134,6 +135,9 @@ interface AppDao {
 
     @Query("UPDATE clothes_orders SET status = :status WHERE id = :orderId")
     suspend fun updateClothesOrderStatus(orderId: Long, status: String)
+
+    @Query("SELECT * FROM clothes_history ORDER BY date DESC, id DESC")
+    fun observeClothesHistory(): Flow<List<ClothesHistoryEntity>>
 
     @Query("SELECT * FROM reports ORDER BY id DESC")
     fun observeReports(): Flow<List<ReportEntity>>

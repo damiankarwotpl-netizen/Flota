@@ -87,6 +87,16 @@ data class ClothesOrderItemListItem(
     val issued: Boolean,
 )
 
+data class ClothesHistoryListItem(
+    val id: Long,
+    val workerId: Long,
+    val name: String,
+    val surname: String,
+    val item: String,
+    val size: String,
+    val date: String,
+)
+
 data class SmtpSettingsData(
     val host: String = "",
     val port: String = "587",
@@ -144,6 +154,7 @@ interface AdminRepository {
     suspend fun saveClothesOrderItem(orderId: Long, draft: ClothesOrderItemDraft)
     suspend fun deleteClothesOrderItem(id: Long)
     suspend fun markClothesOrderOrdered(orderId: Long)
+    fun observeClothesHistory(): Flow<List<ClothesHistoryListItem>>
 
     fun observeSmtpSettings(): Flow<SmtpSettingsData>
     suspend fun saveSmtpSettings(settings: SmtpSettingsData)

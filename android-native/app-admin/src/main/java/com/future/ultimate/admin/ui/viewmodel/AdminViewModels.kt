@@ -16,6 +16,7 @@ import com.future.ultimate.core.common.repository.EmailTemplateData
 import com.future.ultimate.core.common.repository.SmtpSettingsData
 import com.future.ultimate.core.common.ui.CarsUiState
 import com.future.ultimate.core.common.ui.ClothesOrdersUiState
+import com.future.ultimate.core.common.ui.ClothesReportsUiState
 import com.future.ultimate.core.common.ui.ClothesSizesUiState
 import com.future.ultimate.core.common.ui.ContactsUiState
 import com.future.ultimate.core.common.ui.PayrollUiState
@@ -33,6 +34,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
+import java.time.LocalDate
 
 class ContactsViewModel(private val repository: AdminRepository) : ViewModel() {
     private val _uiState = MutableStateFlow(ContactsUiState())
@@ -237,6 +239,43 @@ class ClothesOrdersViewModel(private val repository: AdminRepository) : ViewMode
     }
 }
 
+class ClothesReportsViewModel(private val repository: AdminRepository) : ViewModel() {
+    private val _uiState = MutableStateFlow(ClothesReportsUiState(year = LocalDate.now().year.toString()))
+    val uiState: StateFlow<ClothesReportsUiState> = _uiState.asStateFlow()
+
+    init {
+        repository.observeClothesHistory().onEach { history ->
+            _uiState.value = _uiState.value.copy(
+                history = history,
+                yearlySummary = buildYearlySummary(history, _uiState.value.year),
+            )
+        }.launchIn(viewModelScope)
+    }
+
+    fun updateYear(value: String) {
+        _uiState.value = _uiState.value.copy(
+            year = value,
+            yearlySummary = buildYearlySummary(_uiState.value.history, value),
+        )
+    }
+
+    private fun buildYearlySummary(history: List<com.future.ultimate.core.common.repository.ClothesHistoryListItem>, year: String): List<String> {
+        val normalizedYear = year.trim()
+        if (normalizedYear.isBlank()) return emptyList()
+        return history
+            .filter { it.date.startsWith(normalizedYear) }
+            .groupBy { Triple(it.workerId, it.name.trim(), it.surname.trim()) }
+            .map { (worker, entries) ->
+                val workerLabel = "${worker.second} ${worker.third}".trim().ifBlank { "Pracownik #${worker.first}" }
+                val lastIssueDate = entries.maxOfOrNull { it.date }.orEmpty()
+                "$workerLabel • ${entries.size} wydań • ostatnie: $lastIssueDate"
+            }
+            .sortedByDescending { summary ->
+                summary.substringAfter("• ").substringBefore(" wydań").toIntOrNull() ?: 0
+            }
+    }
+}
+
 class SmtpViewModel(private val repository: AdminRepository) : ViewModel() {
     private val _uiState = MutableStateFlow(SmtpUiState())
     val uiState: StateFlow<SmtpUiState> = _uiState.asStateFlow()
@@ -321,6 +360,7 @@ class AdminViewModelFactory(private val repository: AdminRepository) : ViewModel
         modelClass.isAssignableFrom(PlantsViewModel::class.java) -> PlantsViewModel(repository) as T
         modelClass.isAssignableFrom(ClothesSizesViewModel::class.java) -> ClothesSizesViewModel(repository) as T
         modelClass.isAssignableFrom(ClothesOrdersViewModel::class.java) -> ClothesOrdersViewModel(repository) as T
+        modelClass.isAssignableFrom(ClothesReportsViewModel::class.java) -> ClothesReportsViewModel(repository) as T
         modelClass.isAssignableFrom(SmtpViewModel::class.java) -> SmtpViewModel(repository) as T
         modelClass.isAssignableFrom(TemplateViewModel::class.java) -> TemplateViewModel(repository) as T
         modelClass.isAssignableFrom(ReportsViewModel::class.java) -> ReportsViewModel(repository) as T

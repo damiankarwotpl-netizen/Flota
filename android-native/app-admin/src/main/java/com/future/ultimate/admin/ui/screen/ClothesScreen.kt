@@ -22,6 +22,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.future.ultimate.admin.AdminApp
 import com.future.ultimate.admin.ui.viewmodel.AdminViewModelFactory
 import com.future.ultimate.admin.ui.viewmodel.ClothesOrdersViewModel
+import com.future.ultimate.admin.ui.viewmodel.ClothesReportsViewModel
 import com.future.ultimate.admin.ui.viewmodel.ClothesSizesViewModel
 
 @Composable
@@ -33,6 +34,8 @@ fun ClothesScreen() {
     val sizesUiState by sizesViewModel.uiState.collectAsStateWithLifecycle()
     val ordersViewModel: ClothesOrdersViewModel = viewModel(factory = AdminViewModelFactory(app.container.repository))
     val ordersUiState by ordersViewModel.uiState.collectAsStateWithLifecycle()
+    val reportsViewModel: ClothesReportsViewModel = viewModel(factory = AdminViewModelFactory(app.container.repository))
+    val reportsUiState by reportsViewModel.uiState.collectAsStateWithLifecycle()
 
     ScreenColumn("Ubranie robocze", "Moduły odzieżowe 1:1") {
         item {
@@ -64,8 +67,13 @@ fun ClothesScreen() {
                         Text("Po zapisaniu zamówienia rozwiń kartę poniżej, aby dodać pozycje i oznaczyć status.")
                     }
                     else -> {
-                        Button(onClick = {}, modifier = Modifier.fillMaxWidth()) { Text("Export CSV") }
-                        Text("Raporty wydanych ubrań i statystyki")
+                        OutlinedTextField(
+                            reportsUiState.year,
+                            reportsViewModel::updateYear,
+                            label = { Text("Rok statystyk") },
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                        Text("Podsumowanie wydań dla roku ${reportsUiState.year.ifBlank { "----" }}")
                     }
                 }
             }
@@ -146,6 +154,27 @@ fun ClothesScreen() {
                                         }
                                     }
                                 }
+                            }
+                        }
+                    }
+                }
+            }
+            else -> {
+                reportsUiState.yearlySummary.forEach { summary ->
+                    item {
+                        Card(modifier = Modifier.fillMaxWidth()) {
+                            Column(modifier = Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                Text(summary)
+                            }
+                        }
+                    }
+                }
+                reportsUiState.history.forEach { historyItem ->
+                    item {
+                        Card(modifier = Modifier.fillMaxWidth()) {
+                            Column(modifier = Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                Text("${historyItem.date} • ${historyItem.name} ${historyItem.surname}".trim())
+                                Text("${historyItem.item} • rozmiar: ${historyItem.size.ifBlank { "-" }}")
                             }
                         }
                     }
