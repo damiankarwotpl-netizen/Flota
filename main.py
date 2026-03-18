@@ -228,19 +228,71 @@ class AppTheme:
         return DARK_THEME if cls.current == "dark" else LIGHT_THEME
 
 
-def load_fpdf_class():
-    import importlib
-
-    module = importlib.import_module("fpdf")
-    return module.FPDF
-
-
 def pdf_safe_text(value):
     import unicodedata
 
     text = "" if value is None else str(value)
     normalized = unicodedata.normalize("NFKD", text)
     return normalized.encode("latin-1", "ignore").decode("latin-1")
+
+
+class SimplePdfDocument:
+    def __init__(self, width=595.28, height=841.89):
+        self.width = width
+        self.height = height
+        self.operations = []
+        self.font_family = "Helvetica"
+        self.font_size = 12
+        self.line_width = 1
+
+    def set_font(self, family="Helvetica", style="", size=12):
+        self.font_family = family
+        self.font_size = size
+
+    def set_line_width(self, width):
+        self.line_width = width
+
+    def line(self, x1, y1, x2, y2):
+        self.operations.append(f"{self.line_width:.2f} w {x1:.2f} {y1:.2f} m {x2:.2f} {y2:.2f} l S")
+
+    def rect(self, x, y, w, h):
+        self.operations.append(f"{self.line_width:.2f} w {x:.2f} {y:.2f} {w:.2f} {h:.2f} re S")
+
+    def text(self, x, y, value):
+        txt = pdf_safe_text(value).replace("\\", "\\\\").replace("(", "\\(").replace(")", "\\)")
+        self.operations.append(f"BT /F1 {self.font_size:.2f} Tf 1 0 0 1 {x:.2f} {y:.2f} Tm ({txt}) Tj ET")
+
+    def save(self, file_path):
+        stream = "\n".join(self.operations).encode("latin-1", "ignore")
+        objects = [
+            b"<< /Type /Catalog /Pages 2 0 R >>",
+            b"<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+            (
+                f"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 {self.width:.2f} {self.height:.2f}] "
+                f"/Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >>"
+            ).encode("latin-1"),
+            b"<< /Length " + str(len(stream)).encode("ascii") + b" >>\nstream\n" + stream + b"\nendstream",
+            b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
+        ]
+
+        pdf = bytearray(b"%PDF-1.4\n%\xe2\xe3\xcf\xd3\n")
+        offsets = [0]
+        for idx, obj in enumerate(objects, start=1):
+            offsets.append(len(pdf))
+            pdf.extend(f"{idx} 0 obj\n".encode("ascii"))
+            pdf.extend(obj)
+            pdf.extend(b"\nendobj\n")
+
+        xref_start = len(pdf)
+        pdf.extend(f"xref\n0 {len(objects) + 1}\n".encode("ascii"))
+        pdf.extend(b"0000000000 65535 f \n")
+        for off in offsets[1:]:
+            pdf.extend(f"{off:010d} 00000 n \n".encode("ascii"))
+        pdf.extend(
+            f"trailer\n<< /Size {len(objects) + 1} /Root 1 0 R >>\nstartxref\n{xref_start}\n%%EOF\n".encode("ascii")
+        )
+
+        Path(file_path).write_bytes(pdf)
 
 
 class Card(BoxLayout):
@@ -1591,12 +1643,9 @@ class FutureApp(App):
         out_dir.mkdir(parents=True, exist_ok=True)
         file_path = out_dir / "protokol_stanu_pojazdu.pdf"
 
-        FPDF = load_fpdf_class()
-        pdf = FPDF(unit="pt", format="A4")
-        pdf.set_auto_page_break(auto=False)
-        pdf.add_page()
+        pdf = SimplePdfDocument()
 
-        W, H = 595.28, 841.89
+        W, H = pdf.width, pdf.height
         L, R = 40, W - 40
         y = H - 40
 
