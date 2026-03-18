@@ -1644,112 +1644,148 @@ class FutureApp(App):
         file_path = out_dir / "protokol_stanu_pojazdu.pdf"
 
         pdf = SimplePdfDocument()
-
         W, H = pdf.width, pdf.height
-        L, R = 40, W - 40
-        y = H - 40
-
-        pdf.set_font("Helvetica", "B", 14)
-        pdf.text(L, y, pdf_safe_text("Miesięczny Protokół Stanu Pojazdu"))
-        y -= 20
-
-        pdf.set_font("Helvetica", "", 9)
+        L = 36
 
         def box(x, y0, w, h):
             pdf.rect(x, H - y0 - h, w, h)
 
-        def vline(x, y1, y2):
-            pdf.line(x, H - y1, x, H - y2)
+        def hline(x1, x2, y0):
+            pdf.line(x1, H - y0, x2, H - y0)
 
-        def txt(x, y0, t):
+        def vline(x0, y1, y2):
+            pdf.line(x0, H - y1, x0, H - y2)
+
+        def txt(x, y0, t, size=9, bold=False):
+            pdf.set_font("Helvetica", "B" if bold else "", size)
             pdf.text(x, H - y0, pdf_safe_text(t))
 
         def checkbox(x, y0, checked):
-            box(x, y0, 10, 10)
+            box(x, y0, 12, 12)
             if checked:
-                txt(x + 2, y0 + 8, "X")
+                txt(x + 3, y0 + 10, "X", 9, True)
 
-        sec_top = y
-        box(L, sec_top - 60, R - L, 60)
-        v = L + (R - L) / 2
-        vline(v, sec_top, sec_top - 60)
+        def field(label_x, label_y, label, value="", value_x=0, value_w=56, field_h=16):
+            txt(label_x, label_y, label, 8)
+            box(value_x, label_y - 12, value_w, field_h)
+            if value:
+                txt(value_x + 3, label_y, value, 8)
 
-        txt(L + 5, sec_top - 15, "Marka:")
-        txt(L + 80, sec_top - 15, d['marka'])
-        txt(v + 5, sec_top - 15, "Rejestracja:")
-        txt(v + 100, sec_top - 15, d['rej'])
-        txt(L + 5, sec_top - 35, "Liczba miejsc:")
-        txt(v + 5, sec_top - 35, "Wypełnione przez:")
+        txt(180, 44, "Miesieczny Protokol Stanu Pojazdu", 15, True)
+        txt(180, 58, "(Minor Damage Register)", 9)
 
-        y = sec_top - 70
+        box(38, 74, 96, 96)
+        txt(55, 124, "FUTURE", 16, True)
+        txt(48, 142, "GROUP", 16, True)
 
-        box(L, y - 60, R - L, 60)
-        vline(v, y, y - 60)
-        txt(L + 5, y - 15, "Przebieg:")
-        txt(L + 80, y - 15, d['przebieg'])
-        txt(v + 5, y - 15, "Poziom oleju:")
-        txt(v + 110, y - 15, d['olej'])
-        txt(L + 5, y - 35, "Wskaźnik paliwa:")
-        txt(L + 110, y - 35, d['paliwo'])
-        txt(v + 5, y - 35, "Rodzaj paliwa:")
-        txt(v + 110, y - 35, d['rodzaj_paliwa'])
+        top_x = 314
+        top_y = 70
+        col_w = [52, 52, 58, 90]
+        labels = [("Marka", d["marka"]), ("Rejestracja", d["rej"]), ("Liczba miejsc", ""), ("Wypelnione przez", "")]
+        x = top_x
+        for idx, (label, value) in enumerate(labels):
+            box(x, top_y, col_w[idx], 36)
+            txt(x + 4, top_y + 11, label, 7)
+            if value:
+                txt(x + 4, top_y + 26, value, 8)
+            x += col_w[idx]
 
-        y -= 70
+        left_label_x = 188
+        left_box_x = 258
+        txt(left_label_x, 125, "Bez uszkodzen", 9)
+        box(left_box_x, 112, 28, 18)
+        box(left_box_x + 28, 112, 28, 18)
+        txt(left_box_x + 6, 125, "TAK", 8, True)
+        txt(left_box_x + 34, 125, "NIE", 8, True)
+        txt(left_label_x, 154, "Nowe uszkodzenia", 9)
+        box(left_box_x, 142, 56, 18)
+        txt(left_label_x, 184, "Przebieg", 9)
+        box(left_box_x, 172, 56, 18)
+        txt(left_box_x + 3, 185, d["przebieg"], 8)
+        txt(left_label_x, 213, "Wskaznik paliwa", 9)
+        box(left_box_x, 201, 56, 18)
+        txt(left_box_x + 3, 214, d["paliwo"], 8)
+        txt(left_label_x, 242, "Rodzaj paliwa", 9)
+        box(left_box_x, 230, 56, 18)
+        txt(left_box_x + 3, 243, d["rodzaj_paliwa"], 8)
+        txt(left_label_x, 271, "Poziom oleju", 9)
+        box(left_box_x, 259, 56, 18)
+        txt(left_box_x + 3, 272, d["olej"], 8)
+        txt(left_label_x, 300, "Czy autobus wysprzatany?", 9)
+        box(left_box_x, 288, 56, 18)
+        txt(left_label_x, 329, "Czy autobus jest umyty?", 9)
+        box(left_box_x, 317, 56, 18)
+        txt(left_label_x, 366, "Producent i typ opony", 9)
+        box(left_box_x, 346, 56, 42)
 
-        box(L, y - 60, R - L, 60)
-        vline(v, y, y - 60)
-        txt(L + 5, y - 15, "Lewy przedni:")
-        txt(L + 120, y - 15, d['lp'])
-        txt(v + 5, y - 15, "Prawy przedni:")
-        txt(v + 120, y - 15, d['pp'])
-        txt(L + 5, y - 35, "Lewy tylny:")
-        txt(L + 120, y - 35, d['lt'])
-        txt(v + 5, y - 35, "Prawy tylny:")
-        txt(v + 120, y - 35, d['pt'])
+        car_x = 312
+        box(car_x, 112, 214, 86)
+        txt(car_x + 78, 155, "WIDOK BOK", 12, True)
+        box(car_x + 10, 208, 94, 70)
+        txt(car_x + 26, 246, "WIDOK PRZOD", 10, True)
+        box(car_x + 118, 208, 94, 70)
+        txt(car_x + 140, 246, "WIDOK TYL", 10, True)
+        box(car_x + 10, 290, 202, 98)
+        txt(car_x + 72, 340, "WIDOK GORA", 12, True)
 
-        y -= 70
+        box(38, 402, 250, 86)
+        txt(44, 446, "Stan opon:", 10, True)
+        tire_rows = [
+            ("Lewy przedni", d["lp"]),
+            ("Prawy przedni", d["pp"]),
+            ("Prawy tylny", d["pt"]),
+            ("Lewy tylny", d["lt"]),
+        ]
+        row_y = 416
+        for label, value in tire_rows:
+            txt(168, row_y + 12, label, 9)
+            box(258, row_y, 56, 18)
+            txt(261, row_y + 12, value, 8)
+            row_y += 20
 
-        box(L, y - 80, R - L, 80)
-        txt(L + 5, y - 15, "Bez uszkodzeń:")
-        checkbox(L + 120, y - 18, False)
-        txt(L + 150, y - 15, "TAK / NIE")
-        txt(L + 5, y - 35, "Od kiedy:")
-        txt(L + 120, y - 35, d['od_kiedy'])
-        txt(L + 5, y - 55, "Nowe uszkodzenia:")
-        txt(L + 150, y - 55, d['uszkodzenia'])
+        txt(336, 432, "Kiedy nalezy dokonac", 9)
+        txt(336, 445, "przegladu technicznego?", 9)
+        box(424, 420, 56, 24)
+        txt(427, 436, d["przeglad"], 8)
+        txt(336, 472, "Kiedy nalezy dokonac", 9)
+        txt(336, 485, "przegladu / Service?", 9)
+        box(424, 460, 56, 24)
+        txt(427, 476, d["serwis"], 8)
 
-        y -= 90
+        questions = [
+            ("Czy dostepny jest dowod rejestracyjny pojazdu?", d["dowod"]),
+            ("Czy w samochodzie znajduje sie trojkat ostrzegawczy?", d["trojkat"]),
+            ("Czy w samochodzie jest wystarczajaco duzo kamizelek", d["kamizelki"]),
+            ("odblaskowych?", None),
+            ("Czy dostepna jest apteczka pierwszej pomocy?", d["apteczka"]),
+            ("Czy w pojezdzie znajduje sie kolo zapasowe?", d["kolo"]),
+            ("Czy na wyswietlaczu aktywne sa jakies lampki", None),
+            ("ostrzegawcze - jesli tak, to ktore i od kiedy?", None),
+        ]
+        yq = 520
+        for label, state in questions:
+            txt(66, yq, label, 8)
+            if state is not None:
+                txt(260, yq - 8, "TAK / NIE", 8, True)
+                box(258, yq - 2, 56, 18)
+                if state:
+                    txt(262, yq + 10, "TAK", 8, True)
+            yq += 26
 
-        box(L, y - 80, R - L, 80)
-        checkbox(L + 5, y - 20, d['trojkat'])
-        txt(L + 20, y - 18, "Trójkąt")
-        checkbox(L + 150, y - 20, d['kamizelki'])
-        txt(L + 165, y - 18, "Kamizelki")
-        checkbox(L + 300, y - 20, d['kolo'])
-        txt(L + 315, y - 18, "Koło zapasowe")
-        checkbox(L + 5, y - 50, d['dowod'])
-        txt(L + 20, y - 48, "Dowód rejestracyjny")
-        checkbox(L + 300, y - 50, d['apteczka'])
-        txt(L + 315, y - 48, "Apteczka")
+        txt(312, 520, "Inne uwagi / komentarze:", 9, True)
+        box(366, 532, 190, 142)
+        txt(316, 704, "Od kiedy?", 8, True)
+        box(366, 690, 110, 22)
+        txt(370, 705, d["od_kiedy"], 8)
+        txt(261, 154, d["uszkodzenia"], 8)
+        txt(372, 546, d["uwagi"], 8)
 
-        y -= 90
-
-        box(L, y - 50, R - L, 50)
-        txt(L + 5, y - 20, "Przegląd / Service:")
-        txt(L + 150, y - 20, d['serwis'])
-        txt(L + 5, y - 40, "Przegląd techniczny:")
-        txt(L + 150, y - 40, d['przeglad'])
-
-        y -= 60
-
-        box(L, y - 80, R - L, 80)
-        txt(L + 5, y - 20, "Uwagi:")
-        txt(L + 80, y - 20, d['uwagi'])
-
-        y -= 100
-
-        pdf.set_font("Helvetica", "", 8)
-        txt(L, y, "Protokoly przekazywane w pierwszy poniedzialek miesiaca")
+        hline(38, W - 38, 728)
+        txt(170, 748, "Protokoly sa przekazywane w kazdy pierwszy poniedzialek miesiaca na adres email:", 8, True)
+        txt(40, 780, "WAZNA INFORMACJA", 9, True)
+        txt(290, 780, "magdalena.matusiewicz@future-group.pl", 8)
+        txt(372, 796, "oraz", 8, True)
+        txt(304, 812, "justyna.kucharska@future-group.pl", 8)
 
         pdf.save(file_path)
         return file_path
