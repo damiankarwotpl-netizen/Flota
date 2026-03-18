@@ -2,3 +2,4 @@ kivy
 gspread
 oauth2client
 requests
+fpdf2
