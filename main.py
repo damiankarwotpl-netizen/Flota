@@ -1751,7 +1751,7 @@ class FutureApp(App):
         pdf.set_font("Helvetica", "", 8)
         txt(L, y, "Protokoly przekazywane w pierwszy poniedzialek miesiaca")
 
-        pdf.output(str(file_path))
+        pdf.save(file_path)
         return file_path
 
     def setup_table_ui(self):
