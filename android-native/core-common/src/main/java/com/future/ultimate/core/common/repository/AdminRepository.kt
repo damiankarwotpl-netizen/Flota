@@ -2,6 +2,7 @@ package com.future.ultimate.core.common.repository
 
 import com.future.ultimate.core.common.model.CarDraft
 import com.future.ultimate.core.common.model.ClothesOrderDraft
+import com.future.ultimate.core.common.model.ClothesOrderItemDraft
 import com.future.ultimate.core.common.model.ClothesSizeDraft
 import com.future.ultimate.core.common.model.ContactDraft
 import com.future.ultimate.core.common.model.PlantDraft
@@ -74,6 +75,18 @@ data class ClothesOrderListItem(
     val orderDesc: String,
 )
 
+data class ClothesOrderItemListItem(
+    val id: Long,
+    val orderId: Long,
+    val workerId: Long,
+    val name: String,
+    val surname: String,
+    val item: String,
+    val size: String,
+    val qty: Int,
+    val issued: Boolean,
+)
+
 data class SmtpSettingsData(
     val host: String = "",
     val port: String = "587",
@@ -127,6 +140,10 @@ interface AdminRepository {
 
     fun observeClothesOrders(): Flow<List<ClothesOrderListItem>>
     suspend fun saveClothesOrder(draft: ClothesOrderDraft)
+    fun observeClothesOrderItems(orderId: Long): Flow<List<ClothesOrderItemListItem>>
+    suspend fun saveClothesOrderItem(orderId: Long, draft: ClothesOrderItemDraft)
+    suspend fun deleteClothesOrderItem(id: Long)
+    suspend fun markClothesOrderOrdered(orderId: Long)
 
     fun observeSmtpSettings(): Flow<SmtpSettingsData>
     suspend fun saveSmtpSettings(settings: SmtpSettingsData)

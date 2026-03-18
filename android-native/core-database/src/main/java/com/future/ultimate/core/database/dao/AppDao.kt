@@ -126,6 +126,15 @@ interface AppDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsertClothesOrderItems(entities: List<ClothesOrderItemEntity>)
 
+    @Query("SELECT * FROM clothes_order_items WHERE orderId = :orderId ORDER BY surname, name, item")
+    fun observeClothesOrderItems(orderId: Long): Flow<List<ClothesOrderItemEntity>>
+
+    @Query("DELETE FROM clothes_order_items WHERE id = :id")
+    suspend fun deleteClothesOrderItem(id: Long)
+
+    @Query("UPDATE clothes_orders SET status = :status WHERE id = :orderId")
+    suspend fun updateClothesOrderStatus(orderId: Long, status: String)
+
     @Query("SELECT * FROM reports ORDER BY id DESC")
     fun observeReports(): Flow<List<ReportEntity>>
 

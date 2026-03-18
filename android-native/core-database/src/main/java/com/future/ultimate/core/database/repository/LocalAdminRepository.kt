@@ -3,6 +3,7 @@ package com.future.ultimate.core.database.repository
 import android.content.Context
 import com.future.ultimate.core.common.model.CarDraft
 import com.future.ultimate.core.common.model.ClothesOrderDraft
+import com.future.ultimate.core.common.model.ClothesOrderItemDraft
 import com.future.ultimate.core.common.model.ClothesSizeDraft
 import com.future.ultimate.core.common.model.ContactDraft
 import com.future.ultimate.core.common.model.PlantDraft
@@ -11,6 +12,7 @@ import com.future.ultimate.core.common.model.WorkerDraft
 import com.future.ultimate.core.common.pdf.VehicleReportPdfExporter
 import com.future.ultimate.core.common.repository.AdminRepository
 import com.future.ultimate.core.common.repository.CarListItem
+import com.future.ultimate.core.common.repository.ClothesOrderItemListItem
 import com.future.ultimate.core.common.repository.ClothesOrderListItem
 import com.future.ultimate.core.common.repository.ClothesSizeListItem
 import com.future.ultimate.core.common.repository.ContactListItem
@@ -280,6 +282,60 @@ class LocalAdminRepository(
                 orderDesc = draft.orderDesc.trim(),
             ),
         )
+    }
+
+    override fun observeClothesOrderItems(orderId: Long): Flow<List<ClothesOrderItemListItem>> =
+        dao.observeClothesOrderItems(orderId).map { items ->
+            items.map {
+                ClothesOrderItemListItem(
+                    id = it.id,
+                    orderId = it.orderId,
+                    workerId = it.workerId,
+                    name = it.name,
+                    surname = it.surname,
+                    item = it.item,
+                    size = it.size,
+                    qty = it.qty,
+                    issued = it.issued != 0,
+                )
+            }
+        }
+
+    override suspend fun saveClothesOrderItem(orderId: Long, draft: ClothesOrderItemDraft) {
+        val cleanName = draft.name.trim()
+        val cleanSurname = draft.surname.trim()
+        val cleanItem = draft.item.trim()
+        val worker = dao.getWorkerByName(cleanName, cleanSurname)
+        val sizeEntity = dao.getClothesSizeByName(cleanName, cleanSurname)
+        val resolvedSize = draft.size.trim().ifBlank {
+            when (cleanItem.lowercase()) {
+                "koszulka", "shirt", "t-shirt", "tshirt" -> sizeEntity?.shirt.orEmpty()
+                "bluza", "hoodie" -> sizeEntity?.hoodie.orEmpty()
+                "spodnie", "pants" -> sizeEntity?.pants.orEmpty()
+                "kurtka", "jacket" -> sizeEntity?.jacket.orEmpty()
+                "buty", "shoes" -> sizeEntity?.shoes.orEmpty()
+                else -> ""
+            }
+        }
+        dao.upsertClothesOrderItems(
+            listOf(
+                ClothesOrderItemEntity(
+                    orderId = orderId,
+                    workerId = worker?.id ?: 0,
+                    name = cleanName,
+                    surname = cleanSurname,
+                    item = cleanItem,
+                    size = resolvedSize,
+                    qty = draft.qty.toIntOrNull()?.coerceAtLeast(1) ?: 1,
+                ),
+            ),
+        )
+    }
+
+    override suspend fun deleteClothesOrderItem(id: Long) = dao.deleteClothesOrderItem(id)
+
+    override suspend fun markClothesOrderOrdered(orderId: Long) {
+        dao.updateClothesOrderStatus(orderId, "Zamówione")
     }
 
     override fun observeSmtpSettings(): Flow<SmtpSettingsData> = dao.observeSettings().map { settings ->

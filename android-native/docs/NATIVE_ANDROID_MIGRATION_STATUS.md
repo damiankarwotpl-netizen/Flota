@@ -8,7 +8,7 @@ This repository now contains a native Android migration foundation in `android-n
 - local driver-account handoff between admin car management and the driver app login/mileage/report flows
 - real PDF export of the vehicle report in both Android apps
 - local SMTP/template persistence plus native session-report and dashboard-count screens in admin
-- the first clothes-module slices: native size management and basic order headers backed by Room
+- the first clothes-module slices: native size management plus basic order headers/items backed by Room
 
 ## Important
 This is **not yet a finished 1:1 replacement** of the Python/Kivy application. It is the structural migration baseline required to continue safely.
@@ -17,5 +17,5 @@ This is **not yet a finished 1:1 replacement** of the Python/Kivy application. I
 1. finish the remaining car workflows end-to-end, especially remote driver-account API sync and background mileage sync
 2. workbook import/export adapters and payroll/table flows
 3. SMTP send/attachment pipeline and remaining mailing actions
-4. finish the remaining clothes workflow pieces: issue flow, order items, exports, and yearly stats
+4. finish the remaining clothes workflow pieces: issue flow, exports, and yearly stats on top of the now-native order items flow
 5. remote API wiring, QA, notifications, and release hardening

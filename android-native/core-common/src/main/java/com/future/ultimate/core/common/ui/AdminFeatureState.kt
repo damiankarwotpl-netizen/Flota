@@ -2,12 +2,14 @@ package com.future.ultimate.core.common.ui
 
 import com.future.ultimate.core.common.model.CarDraft
 import com.future.ultimate.core.common.model.ClothesOrderDraft
+import com.future.ultimate.core.common.model.ClothesOrderItemDraft
 import com.future.ultimate.core.common.model.ClothesSizeDraft
 import com.future.ultimate.core.common.model.ContactDraft
 import com.future.ultimate.core.common.model.PlantDraft
 import com.future.ultimate.core.common.model.VehicleReportDraft
 import com.future.ultimate.core.common.model.WorkerDraft
 import com.future.ultimate.core.common.repository.CarListItem
+import com.future.ultimate.core.common.repository.ClothesOrderItemListItem
 import com.future.ultimate.core.common.repository.ClothesOrderListItem
 import com.future.ultimate.core.common.repository.ClothesSizeListItem
 import com.future.ultimate.core.common.repository.ContactListItem
@@ -74,8 +76,12 @@ data class ClothesSizesUiState(
 
 data class ClothesOrdersUiState(
     val items: List<ClothesOrderListItem> = emptyList(),
+    val selectedOrderId: Long? = null,
+    val selectedOrderItems: List<ClothesOrderItemListItem> = emptyList(),
     val editor: ClothesOrderDraft = ClothesOrderDraft(),
+    val itemEditor: ClothesOrderItemDraft = ClothesOrderItemDraft(),
     val isSaving: Boolean = false,
+    val isSavingItem: Boolean = false,
 )
 
 data class SmtpUiState(

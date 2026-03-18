@@ -56,6 +56,14 @@ data class ClothesOrderDraft(
     val orderDesc: String = "",
 )
 
+data class ClothesOrderItemDraft(
+    val name: String = "",
+    val surname: String = "",
+    val item: String = "",
+    val size: String = "",
+    val qty: String = "1",
+)
+
 data class VehicleReportDraft(
     val marka: String = "",
     val rej: String = "",

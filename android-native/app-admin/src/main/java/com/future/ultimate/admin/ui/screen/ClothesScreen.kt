@@ -61,6 +61,7 @@ fun ClothesScreen() {
                         OutlinedTextField(ordersUiState.editor.status, { ordersViewModel.updateEditor(ordersUiState.editor.copy(status = it)) }, label = { Text("Status") }, modifier = Modifier.fillMaxWidth())
                         OutlinedTextField(ordersUiState.editor.orderDesc, { ordersViewModel.updateEditor(ordersUiState.editor.copy(orderDesc = it)) }, label = { Text("Opis zamówienia") }, modifier = Modifier.fillMaxWidth(), minLines = 3)
                         Button(onClick = ordersViewModel::save, modifier = Modifier.fillMaxWidth()) { Text(if (ordersUiState.isSaving) "Zapisywanie..." else "Nowe zamówienie") }
+                        Text("Po zapisaniu zamówienia rozwiń kartę poniżej, aby dodać pozycje i oznaczyć status.")
                     }
                     else -> {
                         Button(onClick = {}, modifier = Modifier.fillMaxWidth()) { Text("Export CSV") }
@@ -92,6 +93,60 @@ fun ClothesScreen() {
                             Text("${itemData.date} • ${itemData.plant.ifBlank { "Bez zakładu" }}")
                             Text("Status: ${itemData.status}")
                             Text(if (itemData.orderDesc.isBlank()) "Brak opisu" else itemData.orderDesc)
+                            Button(onClick = { ordersViewModel.toggleOrderSelection(itemData.id) }, modifier = Modifier.fillMaxWidth()) {
+                                Text(if (ordersUiState.selectedOrderId == itemData.id) "Ukryj pozycje" else "Pokaż pozycje")
+                            }
+                            Button(onClick = { ordersViewModel.markOrdered(itemData.id) }, modifier = Modifier.fillMaxWidth()) {
+                                Text("Oznacz jako zamówione")
+                            }
+                            if (ordersUiState.selectedOrderId == itemData.id) {
+                                OutlinedTextField(
+                                    ordersUiState.itemEditor.name,
+                                    { ordersViewModel.updateItemEditor(ordersUiState.itemEditor.copy(name = it)) },
+                                    label = { Text("Imię pracownika") },
+                                    modifier = Modifier.fillMaxWidth(),
+                                )
+                                OutlinedTextField(
+                                    ordersUiState.itemEditor.surname,
+                                    { ordersViewModel.updateItemEditor(ordersUiState.itemEditor.copy(surname = it)) },
+                                    label = { Text("Nazwisko pracownika") },
+                                    modifier = Modifier.fillMaxWidth(),
+                                )
+                                OutlinedTextField(
+                                    ordersUiState.itemEditor.item,
+                                    { ordersViewModel.updateItemEditor(ordersUiState.itemEditor.copy(item = it)) },
+                                    label = { Text("Pozycja") },
+                                    modifier = Modifier.fillMaxWidth(),
+                                )
+                                OutlinedTextField(
+                                    ordersUiState.itemEditor.size,
+                                    { ordersViewModel.updateItemEditor(ordersUiState.itemEditor.copy(size = it)) },
+                                    label = { Text("Rozmiar (opcjonalnie)") },
+                                    modifier = Modifier.fillMaxWidth(),
+                                )
+                                OutlinedTextField(
+                                    ordersUiState.itemEditor.qty,
+                                    { ordersViewModel.updateItemEditor(ordersUiState.itemEditor.copy(qty = it)) },
+                                    label = { Text("Ilość") },
+                                    modifier = Modifier.fillMaxWidth(),
+                                )
+                                Text("Gdy rozmiar zostanie pusty, aplikacja spróbuje pobrać go z zapisanych rozmiarów pracownika.")
+                                Button(onClick = ordersViewModel::saveItem, modifier = Modifier.fillMaxWidth()) {
+                                    Text(if (ordersUiState.isSavingItem) "Zapisywanie pozycji..." else "Dodaj pozycję")
+                                }
+                                ordersUiState.selectedOrderItems.forEach { orderItem ->
+                                    Card(modifier = Modifier.fillMaxWidth()) {
+                                        Column(modifier = Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                            Text("${orderItem.name} ${orderItem.surname}".trim().ifBlank { "Pracownik nieuzupełniony" })
+                                            Text("${orderItem.item} • rozmiar: ${orderItem.size.ifBlank { "-" }} • ilość: ${orderItem.qty}")
+                                            Text(if (orderItem.issued) "Status pozycji: wydane" else "Status pozycji: niewydane")
+                                            Button(onClick = { ordersViewModel.deleteItem(orderItem.id) }, modifier = Modifier.fillMaxWidth()) {
+                                                Text("Usuń pozycję")
+                                            }
+                                        }
+                                    }
+                                }
+                            }
                         }
                     }
                 }

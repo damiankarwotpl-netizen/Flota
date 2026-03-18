@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.future.ultimate.core.common.model.CarDraft
 import com.future.ultimate.core.common.model.ClothesOrderDraft
+import com.future.ultimate.core.common.model.ClothesOrderItemDraft
 import com.future.ultimate.core.common.model.ClothesSizeDraft
 import com.future.ultimate.core.common.model.ContactDraft
 import com.future.ultimate.core.common.model.PlantDraft
@@ -25,6 +26,7 @@ import com.future.ultimate.core.common.ui.SmtpUiState
 import com.future.ultimate.core.common.ui.TemplateUiState
 import com.future.ultimate.core.common.ui.VehicleReportUiState
 import com.future.ultimate.core.common.ui.WorkersUiState
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -182,15 +184,56 @@ class ClothesSizesViewModel(private val repository: AdminRepository) : ViewModel
 class ClothesOrdersViewModel(private val repository: AdminRepository) : ViewModel() {
     private val _uiState = MutableStateFlow(ClothesOrdersUiState())
     val uiState: StateFlow<ClothesOrdersUiState> = _uiState.asStateFlow()
+    private var orderItemsJob: Job? = null
 
     init { repository.observeClothesOrders().onEach { _uiState.value = _uiState.value.copy(items = it) }.launchIn(viewModelScope) }
 
     fun updateEditor(draft: ClothesOrderDraft) { _uiState.value = _uiState.value.copy(editor = draft) }
+    fun updateItemEditor(draft: ClothesOrderItemDraft) { _uiState.value = _uiState.value.copy(itemEditor = draft) }
 
     fun save() = viewModelScope.launch {
         _uiState.value = _uiState.value.copy(isSaving = true)
         repository.saveClothesOrder(_uiState.value.editor)
         _uiState.value = _uiState.value.copy(isSaving = false, editor = ClothesOrderDraft())
+    }
+
+    fun toggleOrderSelection(orderId: Long) {
+        val current = _uiState.value.selectedOrderId
+        if (current == orderId) {
+            orderItemsJob?.cancel()
+            _uiState.value = _uiState.value.copy(
+                selectedOrderId = null,
+                selectedOrderItems = emptyList(),
+                itemEditor = ClothesOrderItemDraft(),
+            )
+            return
+        }
+        orderItemsJob?.cancel()
+        _uiState.value = _uiState.value.copy(
+            selectedOrderId = orderId,
+            selectedOrderItems = emptyList(),
+            itemEditor = ClothesOrderItemDraft(),
+        )
+        orderItemsJob = repository.observeClothesOrderItems(orderId).onEach { items ->
+            _uiState.value = _uiState.value.copy(selectedOrderItems = items)
+        }.launchIn(viewModelScope)
+    }
+
+    fun saveItem() = viewModelScope.launch {
+        val selectedOrderId = _uiState.value.selectedOrderId ?: return@launch
+        val draft = _uiState.value.itemEditor
+        if (draft.name.isBlank() || draft.surname.isBlank() || draft.item.isBlank()) return@launch
+        _uiState.value = _uiState.value.copy(isSavingItem = true)
+        repository.saveClothesOrderItem(selectedOrderId, draft)
+        _uiState.value = _uiState.value.copy(isSavingItem = false, itemEditor = ClothesOrderItemDraft())
+    }
+
+    fun deleteItem(id: Long) = viewModelScope.launch {
+        repository.deleteClothesOrderItem(id)
+    }
+
+    fun markOrdered(orderId: Long) = viewModelScope.launch {
+        repository.markClothesOrderOrdered(orderId)
     }
 }
 
