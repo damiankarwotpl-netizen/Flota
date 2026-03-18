@@ -235,6 +235,14 @@ def load_fpdf_class():
     return module.FPDF
 
 
+def pdf_safe_text(value):
+    import unicodedata
+
+    text = "" if value is None else str(value)
+    normalized = unicodedata.normalize("NFKD", text)
+    return normalized.encode("latin-1", "ignore").decode("latin-1")
+
+
 class Card(BoxLayout):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -1576,7 +1584,7 @@ class FutureApp(App):
                 self.vehicle_report_status.text = f"Zapisano: {pdf_path}"
             self.msg("Sukces", f"PDF zapisany:\n{pdf_path}")
         except Exception as exc:
-            self.msg("Błąd", f"Nie udało się zapisać PDF: {str(exc)[:120]}")
+            self.msg("Błąd", f"Nie udało się zapisać PDF: {pdf_safe_text(str(exc))[:120]}")
 
     def generate_vehicle_protocol_pdf(self, d):
         out_dir = Path(self.user_data_dir)
@@ -1593,7 +1601,7 @@ class FutureApp(App):
         y = H - 40
 
         pdf.set_font("Helvetica", "B", 14)
-        pdf.text(L, y, "Miesięczny Protokół Stanu Pojazdu")
+        pdf.text(L, y, pdf_safe_text("Miesięczny Protokół Stanu Pojazdu"))
         y -= 20
 
         pdf.set_font("Helvetica", "", 9)
@@ -1605,7 +1613,7 @@ class FutureApp(App):
             pdf.line(x, H - y1, x, H - y2)
 
         def txt(x, y0, t):
-            pdf.text(x, H - y0, str(t) if t else "")
+            pdf.text(x, H - y0, pdf_safe_text(t))
 
         def checkbox(x, y0, checked):
             box(x, y0, 10, 10)
@@ -1692,7 +1700,7 @@ class FutureApp(App):
         y -= 100
 
         pdf.set_font("Helvetica", "", 8)
-        txt(L, y, "Protokoły przekazywane w pierwszy poniedziałek miesiąca")
+        txt(L, y, "Protokoly przekazywane w pierwszy poniedzialek miesiaca")
 
         pdf.output(str(file_path))
         return file_path
