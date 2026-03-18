@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.future.ultimate.core.common.model.CarDraft
+import com.future.ultimate.core.common.model.ClothesOrderDraft
 import com.future.ultimate.core.common.model.ClothesSizeDraft
 import com.future.ultimate.core.common.model.ContactDraft
 import com.future.ultimate.core.common.model.PlantDraft
@@ -13,6 +14,7 @@ import com.future.ultimate.core.common.repository.AdminRepository
 import com.future.ultimate.core.common.repository.EmailTemplateData
 import com.future.ultimate.core.common.repository.SmtpSettingsData
 import com.future.ultimate.core.common.ui.CarsUiState
+import com.future.ultimate.core.common.ui.ClothesOrdersUiState
 import com.future.ultimate.core.common.ui.ClothesSizesUiState
 import com.future.ultimate.core.common.ui.ContactsUiState
 import com.future.ultimate.core.common.ui.PayrollUiState
@@ -177,6 +179,21 @@ class ClothesSizesViewModel(private val repository: AdminRepository) : ViewModel
 }
 
 
+class ClothesOrdersViewModel(private val repository: AdminRepository) : ViewModel() {
+    private val _uiState = MutableStateFlow(ClothesOrdersUiState())
+    val uiState: StateFlow<ClothesOrdersUiState> = _uiState.asStateFlow()
+
+    init { repository.observeClothesOrders().onEach { _uiState.value = _uiState.value.copy(items = it) }.launchIn(viewModelScope) }
+
+    fun updateEditor(draft: ClothesOrderDraft) { _uiState.value = _uiState.value.copy(editor = draft) }
+
+    fun save() = viewModelScope.launch {
+        _uiState.value = _uiState.value.copy(isSaving = true)
+        repository.saveClothesOrder(_uiState.value.editor)
+        _uiState.value = _uiState.value.copy(isSaving = false, editor = ClothesOrderDraft())
+    }
+}
+
 class SmtpViewModel(private val repository: AdminRepository) : ViewModel() {
     private val _uiState = MutableStateFlow(SmtpUiState())
     val uiState: StateFlow<SmtpUiState> = _uiState.asStateFlow()
@@ -260,6 +277,7 @@ class AdminViewModelFactory(private val repository: AdminRepository) : ViewModel
         modelClass.isAssignableFrom(WorkersViewModel::class.java) -> WorkersViewModel(repository) as T
         modelClass.isAssignableFrom(PlantsViewModel::class.java) -> PlantsViewModel(repository) as T
         modelClass.isAssignableFrom(ClothesSizesViewModel::class.java) -> ClothesSizesViewModel(repository) as T
+        modelClass.isAssignableFrom(ClothesOrdersViewModel::class.java) -> ClothesOrdersViewModel(repository) as T
         modelClass.isAssignableFrom(SmtpViewModel::class.java) -> SmtpViewModel(repository) as T
         modelClass.isAssignableFrom(TemplateViewModel::class.java) -> TemplateViewModel(repository) as T
         modelClass.isAssignableFrom(ReportsViewModel::class.java) -> ReportsViewModel(repository) as T

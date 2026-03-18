@@ -49,6 +49,13 @@ data class ClothesSizeDraft(
     val shoes: String = "",
 )
 
+data class ClothesOrderDraft(
+    val date: String = "",
+    val plant: String = "",
+    val status: String = "Nowe",
+    val orderDesc: String = "",
+)
+
 data class VehicleReportDraft(
     val marka: String = "",
     val rej: String = "",

@@ -21,6 +21,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.future.ultimate.admin.AdminApp
 import com.future.ultimate.admin.ui.viewmodel.AdminViewModelFactory
+import com.future.ultimate.admin.ui.viewmodel.ClothesOrdersViewModel
 import com.future.ultimate.admin.ui.viewmodel.ClothesSizesViewModel
 
 @Composable
@@ -28,8 +29,10 @@ fun ClothesScreen() {
     val selected = remember { mutableIntStateOf(0) }
     val tabs = listOf("Rozmiary", "Zamówienia", "Raporty")
     val app = LocalContext.current.applicationContext as AdminApp
-    val viewModel: ClothesSizesViewModel = viewModel(factory = AdminViewModelFactory(app.container.repository))
-    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val sizesViewModel: ClothesSizesViewModel = viewModel(factory = AdminViewModelFactory(app.container.repository))
+    val sizesUiState by sizesViewModel.uiState.collectAsStateWithLifecycle()
+    val ordersViewModel: ClothesOrdersViewModel = viewModel(factory = AdminViewModelFactory(app.container.repository))
+    val ordersUiState by ordersViewModel.uiState.collectAsStateWithLifecycle()
 
     ScreenColumn("Ubranie robocze", "Moduły odzieżowe 1:1") {
         item {
@@ -41,20 +44,23 @@ fun ClothesScreen() {
                 }
                 when (selected.intValue) {
                     0 -> {
-                        OutlinedTextField(uiState.query, viewModel::updateQuery, label = { Text("Szukaj pracownika") }, modifier = Modifier.fillMaxWidth())
-                        OutlinedTextField(uiState.editor.name, { viewModel.updateEditor(uiState.editor.copy(name = it)) }, label = { Text("Imię") }, modifier = Modifier.fillMaxWidth())
-                        OutlinedTextField(uiState.editor.surname, { viewModel.updateEditor(uiState.editor.copy(surname = it)) }, label = { Text("Nazwisko") }, modifier = Modifier.fillMaxWidth())
-                        OutlinedTextField(uiState.editor.plant, { viewModel.updateEditor(uiState.editor.copy(plant = it)) }, label = { Text("Zakład") }, modifier = Modifier.fillMaxWidth())
-                        OutlinedTextField(uiState.editor.shirt, { viewModel.updateEditor(uiState.editor.copy(shirt = it)) }, label = { Text("Koszulka") }, modifier = Modifier.fillMaxWidth())
-                        OutlinedTextField(uiState.editor.hoodie, { viewModel.updateEditor(uiState.editor.copy(hoodie = it)) }, label = { Text("Bluza") }, modifier = Modifier.fillMaxWidth())
-                        OutlinedTextField(uiState.editor.pants, { viewModel.updateEditor(uiState.editor.copy(pants = it)) }, label = { Text("Spodnie") }, modifier = Modifier.fillMaxWidth())
-                        OutlinedTextField(uiState.editor.jacket, { viewModel.updateEditor(uiState.editor.copy(jacket = it)) }, label = { Text("Kurtka") }, modifier = Modifier.fillMaxWidth())
-                        OutlinedTextField(uiState.editor.shoes, { viewModel.updateEditor(uiState.editor.copy(shoes = it)) }, label = { Text("Buty") }, modifier = Modifier.fillMaxWidth())
-                        Button(onClick = viewModel::save, modifier = Modifier.fillMaxWidth()) { Text(if (uiState.isSaving) "Zapisywanie..." else "Dodaj rozmiar pracownika") }
+                        OutlinedTextField(sizesUiState.query, sizesViewModel::updateQuery, label = { Text("Szukaj pracownika") }, modifier = Modifier.fillMaxWidth())
+                        OutlinedTextField(sizesUiState.editor.name, { sizesViewModel.updateEditor(sizesUiState.editor.copy(name = it)) }, label = { Text("Imię") }, modifier = Modifier.fillMaxWidth())
+                        OutlinedTextField(sizesUiState.editor.surname, { sizesViewModel.updateEditor(sizesUiState.editor.copy(surname = it)) }, label = { Text("Nazwisko") }, modifier = Modifier.fillMaxWidth())
+                        OutlinedTextField(sizesUiState.editor.plant, { sizesViewModel.updateEditor(sizesUiState.editor.copy(plant = it)) }, label = { Text("Zakład") }, modifier = Modifier.fillMaxWidth())
+                        OutlinedTextField(sizesUiState.editor.shirt, { sizesViewModel.updateEditor(sizesUiState.editor.copy(shirt = it)) }, label = { Text("Koszulka") }, modifier = Modifier.fillMaxWidth())
+                        OutlinedTextField(sizesUiState.editor.hoodie, { sizesViewModel.updateEditor(sizesUiState.editor.copy(hoodie = it)) }, label = { Text("Bluza") }, modifier = Modifier.fillMaxWidth())
+                        OutlinedTextField(sizesUiState.editor.pants, { sizesViewModel.updateEditor(sizesUiState.editor.copy(pants = it)) }, label = { Text("Spodnie") }, modifier = Modifier.fillMaxWidth())
+                        OutlinedTextField(sizesUiState.editor.jacket, { sizesViewModel.updateEditor(sizesUiState.editor.copy(jacket = it)) }, label = { Text("Kurtka") }, modifier = Modifier.fillMaxWidth())
+                        OutlinedTextField(sizesUiState.editor.shoes, { sizesViewModel.updateEditor(sizesUiState.editor.copy(shoes = it)) }, label = { Text("Buty") }, modifier = Modifier.fillMaxWidth())
+                        Button(onClick = sizesViewModel::save, modifier = Modifier.fillMaxWidth()) { Text(if (sizesUiState.isSaving) "Zapisywanie..." else "Dodaj rozmiar pracownika") }
                     }
                     1 -> {
-                        Button(onClick = {}, modifier = Modifier.fillMaxWidth()) { Text("Nowe zamówienie") }
-                        Text("Lista zamówień i statusów")
+                        OutlinedTextField(ordersUiState.editor.date, { ordersViewModel.updateEditor(ordersUiState.editor.copy(date = it)) }, label = { Text("Data (YYYY-MM-DD)") }, modifier = Modifier.fillMaxWidth())
+                        OutlinedTextField(ordersUiState.editor.plant, { ordersViewModel.updateEditor(ordersUiState.editor.copy(plant = it)) }, label = { Text("Zakład") }, modifier = Modifier.fillMaxWidth())
+                        OutlinedTextField(ordersUiState.editor.status, { ordersViewModel.updateEditor(ordersUiState.editor.copy(status = it)) }, label = { Text("Status") }, modifier = Modifier.fillMaxWidth())
+                        OutlinedTextField(ordersUiState.editor.orderDesc, { ordersViewModel.updateEditor(ordersUiState.editor.copy(orderDesc = it)) }, label = { Text("Opis zamówienia") }, modifier = Modifier.fillMaxWidth(), minLines = 3)
+                        Button(onClick = ordersViewModel::save, modifier = Modifier.fillMaxWidth()) { Text(if (ordersUiState.isSaving) "Zapisywanie..." else "Nowe zamówienie") }
                     }
                     else -> {
                         Button(onClick = {}, modifier = Modifier.fillMaxWidth()) { Text("Export CSV") }
@@ -63,10 +69,10 @@ fun ClothesScreen() {
                 }
             }
         }
-        if (selected.intValue == 0) {
-            uiState.items.filter {
+        when (selected.intValue) {
+            0 -> sizesUiState.items.filter {
                 val blob = "${it.name} ${it.surname} ${it.plant} ${it.shirt} ${it.hoodie} ${it.pants} ${it.jacket} ${it.shoes}".lowercase()
-                uiState.query.isBlank() || uiState.query.lowercase() in blob
+                sizesUiState.query.isBlank() || sizesUiState.query.lowercase() in blob
             }.forEach { itemData ->
                 item {
                     Card(modifier = Modifier.fillMaxWidth()) {
@@ -74,7 +80,18 @@ fun ClothesScreen() {
                             Text("${itemData.name} ${itemData.surname} • ${itemData.plant}")
                             Text("Koszulka: ${itemData.shirt} • Bluza: ${itemData.hoodie}")
                             Text("Spodnie: ${itemData.pants} • Kurtka: ${itemData.jacket} • Buty: ${itemData.shoes}")
-                            Button(onClick = { viewModel.delete(itemData.id) }, modifier = Modifier.fillMaxWidth()) { Text("Usuń rozmiar") }
+                            Button(onClick = { sizesViewModel.delete(itemData.id) }, modifier = Modifier.fillMaxWidth()) { Text("Usuń rozmiar") }
+                        }
+                    }
+                }
+            }
+            1 -> ordersUiState.items.forEach { itemData ->
+                item {
+                    Card(modifier = Modifier.fillMaxWidth()) {
+                        Column(modifier = Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Text("${itemData.date} • ${itemData.plant.ifBlank { "Bez zakładu" }}")
+                            Text("Status: ${itemData.status}")
+                            Text(if (itemData.orderDesc.isBlank()) "Brak opisu" else itemData.orderDesc)
                         }
                     }
                 }

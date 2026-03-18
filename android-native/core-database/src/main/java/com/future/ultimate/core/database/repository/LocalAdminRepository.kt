@@ -2,6 +2,7 @@ package com.future.ultimate.core.database.repository
 
 import android.content.Context
 import com.future.ultimate.core.common.model.CarDraft
+import com.future.ultimate.core.common.model.ClothesOrderDraft
 import com.future.ultimate.core.common.model.ClothesSizeDraft
 import com.future.ultimate.core.common.model.ContactDraft
 import com.future.ultimate.core.common.model.PlantDraft
@@ -10,6 +11,7 @@ import com.future.ultimate.core.common.model.WorkerDraft
 import com.future.ultimate.core.common.pdf.VehicleReportPdfExporter
 import com.future.ultimate.core.common.repository.AdminRepository
 import com.future.ultimate.core.common.repository.CarListItem
+import com.future.ultimate.core.common.repository.ClothesOrderListItem
 import com.future.ultimate.core.common.repository.ClothesSizeListItem
 import com.future.ultimate.core.common.repository.ContactListItem
 import com.future.ultimate.core.common.repository.DashboardStats
@@ -20,12 +22,14 @@ import com.future.ultimate.core.common.repository.SmtpSettingsData
 import com.future.ultimate.core.common.repository.WorkerListItem
 import com.future.ultimate.core.database.dao.AppDao
 import com.future.ultimate.core.database.entity.CarEntity
+import com.future.ultimate.core.database.entity.ClothesOrderEntity
 import com.future.ultimate.core.database.entity.ClothesSizeEntity
 import com.future.ultimate.core.database.entity.ContactEntity
 import com.future.ultimate.core.database.entity.DriverAccountEntity
 import com.future.ultimate.core.database.entity.PlantEntity
 import com.future.ultimate.core.database.entity.SettingEntity
 import com.future.ultimate.core.database.entity.WorkerEntity
+import java.time.LocalDate
 import kotlin.random.Random
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
@@ -254,6 +258,29 @@ class LocalAdminRepository(
     }
 
     override suspend fun deleteClothesSize(id: Long) = dao.deleteClothesSize(id)
+
+    override fun observeClothesOrders(): Flow<List<ClothesOrderListItem>> = dao.observeClothesOrders().map { items ->
+        items.map {
+            ClothesOrderListItem(
+                id = it.id,
+                date = it.date,
+                plant = it.plant,
+                status = it.status,
+                orderDesc = it.orderDesc,
+            )
+        }
+    }
+
+    override suspend fun saveClothesOrder(draft: ClothesOrderDraft) {
+        dao.upsertClothesOrder(
+            ClothesOrderEntity(
+                date = draft.date.ifBlank { LocalDate.now().toString() },
+                plant = draft.plant.trim(),
+                status = draft.status.trim().ifBlank { "Nowe" },
+                orderDesc = draft.orderDesc.trim(),
+            ),
+        )
+    }
 
     override fun observeSmtpSettings(): Flow<SmtpSettingsData> = dao.observeSettings().map { settings ->
         val map = settings.associateBy({ it.key }, { it.valText })
