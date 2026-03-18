@@ -1639,7 +1639,7 @@ class FutureApp(App):
             self.msg("Błąd", f"Nie udało się zapisać PDF: {pdf_safe_text(str(exc))[:120]}")
 
     def generate_vehicle_protocol_pdf(self, d):
-        out_dir = Path(self.user_data_dir)
+        out_dir = self._documents_dir()
         out_dir.mkdir(parents=True, exist_ok=True)
         file_path = out_dir / "protokol_stanu_pojazdu.pdf"
 
