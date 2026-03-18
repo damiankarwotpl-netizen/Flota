@@ -351,6 +351,8 @@ class SimplePdfDocument:
 
 def vehicle_protocol_template_path():
     candidates = [
+        Path(__file__).with_name("assets").joinpath("vehicle_protocol_template.jpg"),
+        Path(__file__).with_name("assets").joinpath("vehicle_protocol_template.jpeg"),
         Path(__file__).with_name("vehicle_protocol_template.jpg"),
         Path(__file__).with_name("vehicle_protocol_template.jpeg"),
     ]
@@ -358,6 +360,107 @@ def vehicle_protocol_template_path():
         if path.exists():
             return path
     return None
+
+
+def draw_vehicle_protocol_template(pdf):
+    W, H = pdf.width, pdf.height
+
+    def box(x, y0, w, h):
+        pdf.rect(x, H - y0 - h, w, h)
+
+    def txt(x, y0, t, size=9, bold=False):
+        pdf.set_font("Helvetica", "B" if bold else "", size)
+        pdf.text(x, H - y0, pdf_safe_text(t))
+
+    pdf.set_line_width(1)
+    txt(180, 44, "Miesieczny Protokol Stanu Pojazdu", 15, True)
+    txt(180, 58, "(Minor Damage Register)", 9)
+
+    box(38, 74, 96, 96)
+    txt(55, 124, "FUTURE", 16, True)
+    txt(48, 142, "GROUP", 16, True)
+
+    top_x = 314
+    top_y = 70
+    col_w = [52, 52, 58, 90]
+    labels = ["Marka", "Rejestracja", "Liczba miejsc", "Wypelnione przez"]
+    x = top_x
+    for idx, label in enumerate(labels):
+        box(x, top_y, col_w[idx], 36)
+        txt(x + 4, top_y + 11, label, 7)
+        x += col_w[idx]
+
+    left_label_x = 188
+    left_box_x = 258
+    txt(left_label_x, 125, "Bez uszkodzen", 9)
+    box(left_box_x, 112, 28, 18)
+    box(left_box_x + 28, 112, 28, 18)
+    txt(left_box_x + 6, 125, "TAK", 8, True)
+    txt(left_box_x + 34, 125, "NIE", 8, True)
+    txt(left_label_x, 154, "Nowe uszkodzenia", 9)
+    box(left_box_x, 142, 56, 18)
+    txt(left_label_x, 184, "Przebieg", 9)
+    box(left_box_x, 172, 56, 18)
+    txt(left_label_x, 213, "Wskaznik paliwa", 9)
+    box(left_box_x, 201, 56, 18)
+    txt(left_label_x, 242, "Rodzaj paliwa", 9)
+    box(left_box_x, 230, 56, 18)
+    txt(left_label_x, 271, "Poziom oleju", 9)
+    box(left_box_x, 259, 56, 18)
+    txt(left_label_x, 300, "Czy autobus wysprzatany?", 9)
+    box(left_box_x, 288, 56, 18)
+    txt(left_label_x, 329, "Czy autobus jest umyty?", 9)
+    box(left_box_x, 317, 56, 18)
+    txt(left_label_x, 366, "Producent i typ opony", 9)
+    box(left_box_x, 346, 56, 42)
+
+    car_x = 312
+    box(car_x, 112, 214, 86)
+    txt(car_x + 78, 155, "WIDOK BOK", 12, True)
+    box(car_x + 10, 208, 94, 70)
+    txt(car_x + 26, 246, "WIDOK PRZOD", 10, True)
+    box(car_x + 118, 208, 94, 70)
+    txt(car_x + 140, 246, "WIDOK TYL", 10, True)
+    box(car_x + 10, 290, 202, 98)
+    txt(car_x + 72, 340, "WIDOK GORA", 12, True)
+
+    box(38, 402, 250, 86)
+    txt(44, 446, "Stan opon:", 10, True)
+    tire_rows = ["Lewy przedni", "Prawy przedni", "Prawy tylny", "Lewy tylny"]
+    row_y = 416
+    for label in tire_rows:
+        txt(168, row_y + 12, label, 9)
+        box(258, row_y, 56, 18)
+        row_y += 20
+
+    txt(336, 432, "Kiedy nalezy dokonac", 9)
+    txt(336, 445, "przegladu technicznego?", 9)
+    box(424, 420, 56, 24)
+    txt(336, 472, "Kiedy nalezy dokonac", 9)
+    txt(336, 485, "przegladu / service?", 9)
+    box(424, 460, 56, 24)
+
+    questions = [
+        "Czy jest dowod rejestracyjny?",
+        "Czy jest trojkat ostrzegawczy?",
+        "Czy sa kamizelki ostrzegawcze?",
+        "Czy jest apteczka?",
+        "Czy jest kolo zapasowe?",
+    ]
+    q_y = 510
+    for question in questions:
+        txt(38, q_y + 16, question, 9)
+        box(258, q_y, 28, 18)
+        box(286, q_y, 28, 18)
+        txt(264, q_y + 13, "TAK", 8, True)
+        txt(292, q_y + 13, "NIE", 8, True)
+        q_y += 52
+
+    box(336, 510, 190, 190)
+    txt(342, 525, "Uwagi:", 10, True)
+    box(424, 720, 56, 24)
+    txt(336, 730, "Od kiedy?", 9)
+    txt(38, 795, "Dokument generowany automatycznie z modulu Raport stanu samochodu.", 8)
 
 
 class Card(BoxLayout):
@@ -1713,41 +1816,8 @@ class FutureApp(App):
         W, H = pdf.width, pdf.height
         if template_path:
             pdf.image_jpeg(template_path, 0, 0, W, H, "ImTemplate")
-
-            def txt(x, y0, value, size=8, bold=False):
-                pdf.set_font("Helvetica", "B" if bold else "", size)
-                pdf.text(x, H - y0, pdf_safe_text(value))
-
-            txt(385, 90, d["marka"])
-            txt(447, 90, d["rej"])
-            txt(262, 185, d["uszkodzenia"], 7)
-            txt(261, 215, d["przebieg"])
-            txt(261, 245, d["paliwo"])
-            txt(261, 274, d["rodzaj_paliwa"])
-            txt(261, 303, d["olej"])
-            txt(261, 376, " / ".join(filter(None, [d["lp"], d["pp"], d["lt"], d["pt"]]))[:30], 7)
-            txt(259, 428, d["lp"])
-            txt(259, 448, d["pp"])
-            txt(259, 468, d["pt"])
-            txt(259, 488, d["lt"])
-            txt(430, 438, d["przeglad"])
-            txt(430, 478, d["serwis"])
-            if d["dowod"]:
-                txt(281, 531, "TAK", 8, True)
-            if d["trojkat"]:
-                txt(281, 583, "TAK", 8, True)
-            if d["kamizelki"]:
-                txt(281, 634, "TAK", 8, True)
-            if d["apteczka"]:
-                txt(281, 686, "TAK", 8, True)
-            if d["kolo"]:
-                txt(281, 738, "TAK", 8, True)
-            txt(430, 550, d["uwagi"], 8)
-            txt(430, 739, d["od_kiedy"], 8)
-            pdf.save(file_path)
-            return file_path
-
-        L = 36
+        else:
+            draw_vehicle_protocol_template(pdf)
 
         def box(x, y0, w, h):
             pdf.rect(x, H - y0 - h, w, h)
@@ -1755,99 +1825,14 @@ class FutureApp(App):
         def hline(x1, x2, y0):
             pdf.line(x1, H - y0, x2, H - y0)
 
-        def vline(x0, y1, y2):
-            pdf.line(x0, H - y1, x0, H - y2)
-
         def txt(x, y0, t, size=9, bold=False):
             pdf.set_font("Helvetica", "B" if bold else "", size)
             pdf.text(x, H - y0, pdf_safe_text(t))
 
         def checkbox(x, y0, checked):
-            box(x, y0, 12, 12)
+            pdf.rect(x, H - y0 - 12, 12, 12)
             if checked:
                 txt(x + 3, y0 + 10, "X", 9, True)
-
-        def field(label_x, label_y, label, value="", value_x=0, value_w=56, field_h=16):
-            txt(label_x, label_y, label, 8)
-            box(value_x, label_y - 12, value_w, field_h)
-            if value:
-                txt(value_x + 3, label_y, value, 8)
-
-        txt(180, 44, "Miesieczny Protokol Stanu Pojazdu", 15, True)
-        txt(180, 58, "(Minor Damage Register)", 9)
-
-        box(38, 74, 96, 96)
-        txt(55, 124, "FUTURE", 16, True)
-        txt(48, 142, "GROUP", 16, True)
-
-        top_x = 314
-        top_y = 70
-        col_w = [52, 52, 58, 90]
-        labels = [("Marka", d["marka"]), ("Rejestracja", d["rej"]), ("Liczba miejsc", ""), ("Wypelnione przez", "")]
-        x = top_x
-        for idx, (label, value) in enumerate(labels):
-            box(x, top_y, col_w[idx], 36)
-            txt(x + 4, top_y + 11, label, 7)
-            if value:
-                txt(x + 4, top_y + 26, value, 8)
-            x += col_w[idx]
-
-        left_label_x = 188
-        left_box_x = 258
-        txt(left_label_x, 125, "Bez uszkodzen", 9)
-        box(left_box_x, 112, 28, 18)
-        box(left_box_x + 28, 112, 28, 18)
-        txt(left_box_x + 6, 125, "TAK", 8, True)
-        txt(left_box_x + 34, 125, "NIE", 8, True)
-        txt(left_label_x, 154, "Nowe uszkodzenia", 9)
-        box(left_box_x, 142, 56, 18)
-        txt(left_label_x, 184, "Przebieg", 9)
-        box(left_box_x, 172, 56, 18)
-        txt(left_box_x + 3, 185, d["przebieg"], 8)
-        txt(left_label_x, 213, "Wskaznik paliwa", 9)
-        box(left_box_x, 201, 56, 18)
-        txt(left_box_x + 3, 214, d["paliwo"], 8)
-        txt(left_label_x, 242, "Rodzaj paliwa", 9)
-        box(left_box_x, 230, 56, 18)
-        txt(left_box_x + 3, 243, d["rodzaj_paliwa"], 8)
-        txt(left_label_x, 271, "Poziom oleju", 9)
-        box(left_box_x, 259, 56, 18)
-        txt(left_box_x + 3, 272, d["olej"], 8)
-        txt(left_label_x, 300, "Czy autobus wysprzatany?", 9)
-        box(left_box_x, 288, 56, 18)
-        txt(left_label_x, 329, "Czy autobus jest umyty?", 9)
-        box(left_box_x, 317, 56, 18)
-        txt(left_label_x, 366, "Producent i typ opony", 9)
-        box(left_box_x, 346, 56, 42)
-
-        car_x = 312
-        box(car_x, 112, 214, 86)
-        txt(car_x + 78, 155, "WIDOK BOK", 12, True)
-        box(car_x + 10, 208, 94, 70)
-        txt(car_x + 26, 246, "WIDOK PRZOD", 10, True)
-        box(car_x + 118, 208, 94, 70)
-        txt(car_x + 140, 246, "WIDOK TYL", 10, True)
-        box(car_x + 10, 290, 202, 98)
-        txt(car_x + 72, 340, "WIDOK GORA", 12, True)
-
-        box(38, 402, 250, 86)
-        txt(44, 446, "Stan opon:", 10, True)
-        tire_rows = [
-            ("Lewy przedni", d["lp"]),
-            ("Prawy przedni", d["pp"]),
-            ("Prawy tylny", d["pt"]),
-            ("Lewy tylny", d["lt"]),
-        ]
-        row_y = 416
-        for label, value in tire_rows:
-            txt(168, row_y + 12, label, 9)
-            box(258, row_y, 56, 18)
-            txt(261, row_y + 12, value, 8)
-            row_y += 20
-
-        txt(336, 432, "Kiedy nalezy dokonac", 9)
-        txt(336, 445, "przegladu technicznego?", 9)
-        box(424, 420, 56, 24)
         txt(427, 436, d["przeglad"], 8)
         txt(336, 472, "Kiedy nalezy dokonac", 9)
         txt(336, 485, "przegladu / Service?", 9)
