@@ -16,7 +16,8 @@ def setup_cars_screen(app, AppLayout, SecondaryButton, PrimaryButton, ModernInpu
     shell.nav_tabs.add_action(SecondaryButton(text='Powrót', on_press=lambda x: setattr(app.sm, 'current', 'home')))
     shell.nav_tabs.add_action(PrimaryButton(text='+ DODAJ SAMOCHÓD', on_press=lambda x: app.add_car_popup(), size_hint_x=None, width=dp(210)))
 
-    body = BoxLayout(orientation='vertical', spacing=dp(8))
+    body = BoxLayout(orientation='vertical', spacing=dp(10), padding=[dp(4), dp(2), dp(4), dp(4)])
+    body.add_widget(Label(text="Flota pojazdów • szybkie akcje", size_hint_y=None, height=dp(26), color=(0.72, 0.80, 0.92, 1), bold=True))
     app.ti_cars_search = ModernInput(hint_text='Szukaj: nazwa / rejestracja / kierowca')
     app.ti_cars_search.bind(text=app.refresh_cars_list)
     body.add_widget(app.ti_cars_search)
@@ -38,7 +39,8 @@ def setup_workers_screen(app, AppLayout, SecondaryButton, PrimaryButton, ModernI
     shell = AppLayout(title="Pracownicy")
     shell.nav_tabs.add_action(SecondaryButton(text='Powrót', on_press=lambda x: setattr(app.sm, 'current', 'home')))
     shell.nav_tabs.add_action(PrimaryButton(text='Dodaj', on_press=lambda x: app.form_worker(), size_hint_x=None, width=dp(150)))
-    body = BoxLayout(orientation='vertical', spacing=dp(8))
+    body = BoxLayout(orientation='vertical', spacing=dp(10), padding=[dp(4), dp(2), dp(4), dp(4)])
+    body.add_widget(Label(text="Pracownicy • lista i zarządzanie", size_hint_y=None, height=dp(26), color=(0.72, 0.80, 0.92, 1), bold=True))
     app.ti_workers_search = ModernInput(hint_text='Szukaj pracownika (imię, nazwisko, zakład)')
     app.ti_workers_search.bind(text=app.refresh_workers_module)
     body.add_widget(app.ti_workers_search)
@@ -58,7 +60,8 @@ def setup_plants_screen(app, AppLayout, SecondaryButton, PrimaryButton, ModernIn
     shell = AppLayout(title="Zakłady")
     shell.nav_tabs.add_action(SecondaryButton(text='Powrót', on_press=lambda x: setattr(app.sm, 'current', 'home')))
     shell.nav_tabs.add_action(PrimaryButton(text='Dodaj', on_press=lambda x: app.form_plant(), size_hint_x=None, width=dp(150)))
-    body = BoxLayout(orientation='vertical', spacing=dp(8))
+    body = BoxLayout(orientation='vertical', spacing=dp(10), padding=[dp(4), dp(2), dp(4), dp(4)])
+    body.add_widget(Label(text="Zakłady • szybkie wyszukiwanie", size_hint_y=None, height=dp(26), color=(0.72, 0.80, 0.92, 1), bold=True))
     app.ti_plants_search = ModernInput(hint_text='Szukaj zakładu (nazwa, miasto, telefon)')
     app.ti_plants_search.bind(text=app.refresh_plants_list)
     body.add_widget(app.ti_plants_search)
@@ -78,7 +81,8 @@ def setup_settings_screen(app, AppLayout, SecondaryButton, PrimaryButton):
     shell = AppLayout(title="Ustawienia i narzędzia")
     shell.nav_tabs.add_action(SecondaryButton(text="Powrót", on_press=lambda x: setattr(app.sm, 'current', 'home')))
 
-    body = BoxLayout(orientation="vertical", spacing=dp(10))
+    body = BoxLayout(orientation="vertical", spacing=dp(12), padding=[dp(4), dp(4), dp(4), dp(6)])
+    body.add_widget(Label(text="Ustawienia i narzędzia systemowe", size_hint_y=None, height=dp(24), color=(0.72, 0.80, 0.92, 1), bold=True))
     try:
         contacts_count = app.conn.execute("SELECT COUNT(*) FROM contacts").fetchone()[0]
         workers_count = app.conn.execute("SELECT COUNT(*) FROM workers").fetchone()[0]
@@ -114,7 +118,8 @@ def setup_paski_screen(app, AppLayout, Card, AppActionBar, SecondaryButton, Prim
     shell = AppLayout(title="Moduł Paski")
     shell.nav_tabs.add_action(SecondaryButton(text="Powrót", on_press=lambda x: setattr(app.sm, 'current', 'home')))
 
-    body = BoxLayout(orientation="vertical", spacing=dp(10))
+    body = BoxLayout(orientation="vertical", spacing=dp(12), padding=[dp(4), dp(2), dp(4), dp(4)])
+    body.add_widget(Label(text="Moduł płac i wysyłki", size_hint_y=None, height=dp(24), color=(0.72, 0.80, 0.92, 1), bold=True))
     auto_row = Card(orientation="horizontal", size_hint_y=None, height=dp(52), spacing=dp(10))
     app.cb_paski_auto = CheckBox(size_hint_x=None, width=dp(45))
     app.cb_paski_auto.active = app.auto_send_mode
