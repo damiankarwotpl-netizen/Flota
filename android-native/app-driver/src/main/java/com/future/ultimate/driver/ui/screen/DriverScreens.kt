@@ -8,11 +8,18 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.future.ultimate.core.common.model.DriverRoute
+import com.future.ultimate.driver.DriverApp
+import com.future.ultimate.driver.ui.viewmodel.DriverLoginViewModel
+import com.future.ultimate.driver.ui.viewmodel.DriverMileageViewModel
+import com.future.ultimate.driver.ui.viewmodel.DriverVehicleReportViewModel
+import com.future.ultimate.driver.ui.viewmodel.DriverViewModelFactory
 
 @Composable
 private fun DriverScreen(title: String, content: @Composable () -> Unit) {
@@ -28,41 +35,71 @@ private fun DriverScreen(title: String, content: @Composable () -> Unit) {
 
 @Composable
 fun DriverLoginScreen(navController: NavController) {
-    val login = remember { mutableStateOf("") }
-    val password = remember { mutableStateOf("") }
+    val app = LocalContext.current.applicationContext as DriverApp
+    val viewModel: DriverLoginViewModel = viewModel(factory = DriverViewModelFactory(app.container.repository))
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+
     DriverScreen("Login") {
-        OutlinedTextField(login.value, { login.value = it }, label = { Text("Login") }, modifier = Modifier.fillMaxWidth())
-        OutlinedTextField(password.value, { password.value = it }, label = { Text("Password") }, modifier = Modifier.fillMaxWidth())
-        Button(onClick = { navController.navigate(DriverRoute.Mileage.route) }, modifier = Modifier.fillMaxWidth()) { Text("Login") }
+        OutlinedTextField(uiState.login, viewModel::updateLogin, label = { Text("Login") }, modifier = Modifier.fillMaxWidth())
+        OutlinedTextField(uiState.password, viewModel::updatePassword, label = { Text("Password") }, modifier = Modifier.fillMaxWidth())
+        Button(onClick = { viewModel.login { navController.navigate(DriverRoute.Mileage.route) } }, modifier = Modifier.fillMaxWidth()) {
+            Text(if (uiState.isLoading) "Logowanie..." else "Login")
+        }
+        uiState.error?.let { Text(it) }
     }
 }
 
 @Composable
 fun DriverChangePasswordScreen(navController: NavController) {
-    val password = remember { mutableStateOf("") }
     DriverScreen("Change password") {
-        OutlinedTextField(password.value, { password.value = it }, label = { Text("Password") }, modifier = Modifier.fillMaxWidth())
-        Button(onClick = { navController.navigate(DriverRoute.Mileage.route) }, modifier = Modifier.fillMaxWidth()) { Text("Save") }
+        Button(onClick = { navController.navigate(DriverRoute.Mileage.route) }, modifier = Modifier.fillMaxWidth()) { Text("Przejdź dalej") }
     }
 }
 
 @Composable
 fun DriverMileageScreen(navController: NavController) {
-    val mileage = remember { mutableStateOf("") }
+    val app = LocalContext.current.applicationContext as DriverApp
+    val viewModel: DriverMileageViewModel = viewModel(factory = DriverViewModelFactory(app.container.repository))
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+
     DriverScreen("Mileage") {
         Text("Car")
-        Text("REGISTRATION")
-        OutlinedTextField(mileage.value, { mileage.value = it }, label = { Text("Mileage") }, modifier = Modifier.fillMaxWidth())
-        Button(onClick = {}, modifier = Modifier.fillMaxWidth()) { Text("Save mileage") }
+        OutlinedTextField(uiState.registration, viewModel::setRegistration, label = { Text("Registration") }, modifier = Modifier.fillMaxWidth())
+        OutlinedTextField(uiState.mileage, viewModel::updateMileage, label = { Text("Mileage") }, modifier = Modifier.fillMaxWidth())
+        Button(onClick = { viewModel.save("driver") }, modifier = Modifier.fillMaxWidth()) {
+            Text(if (uiState.isSaving) "Zapisywanie..." else "Save mileage")
+        }
         Button(onClick = { navController.navigate(DriverRoute.VehicleReport.route) }, modifier = Modifier.fillMaxWidth()) { Text("Raport stanu samochodu") }
+        uiState.status?.let { Text(it) }
     }
 }
 
 @Composable
 fun DriverVehicleReportScreen(navController: NavController) {
+    val app = LocalContext.current.applicationContext as DriverApp
+    val viewModel: DriverVehicleReportViewModel = viewModel(factory = DriverViewModelFactory(app.container.repository))
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val draft = uiState.draft
+
     DriverScreen("Raport stanu samochodu") {
-        listOf("Marka", "Rejestracja", "Przebieg", "Poziom oleju", "Wskaźnik paliwa", "Rodzaj paliwa", "Lewy przedni", "Prawy przedni", "Lewy tylny", "Prawy tylny", "Nowe uszkodzenia", "Od kiedy?", "Przegląd / Service", "Przegląd techniczny", "Uwagi").forEach {
-            OutlinedTextField("", onValueChange = {}, label = { Text(it) }, modifier = Modifier.fillMaxWidth())
+        listOf(
+            "Marka" to draft.marka,
+            "Rejestracja" to draft.rej,
+            "Przebieg" to draft.przebieg,
+            "Poziom oleju" to draft.olej,
+            "Wskaźnik paliwa" to draft.paliwo,
+            "Rodzaj paliwa" to draft.rodzajPaliwa,
+            "Lewy przedni" to draft.lp,
+            "Prawy przedni" to draft.pp,
+            "Lewy tylny" to draft.lt,
+            "Prawy tylny" to draft.pt,
+            "Nowe uszkodzenia" to draft.uszkodzenia,
+            "Od kiedy?" to draft.odKiedy,
+            "Przegląd / Service" to draft.serwis,
+            "Przegląd techniczny" to draft.przeglad,
+            "Uwagi" to draft.uwagi,
+        ).forEach { (label, value) ->
+            OutlinedTextField(value = value, onValueChange = {}, label = { Text(label) }, modifier = Modifier.fillMaxWidth())
         }
         listOf("Trójkąt", "Kamizelki", "Koło zapasowe", "Dowód rejestracyjny", "Apteczka").forEach {
             androidx.compose.foundation.layout.Row(modifier = Modifier.fillMaxWidth()) {
@@ -71,6 +108,7 @@ fun DriverVehicleReportScreen(navController: NavController) {
             }
         }
         Button(onClick = { navController.navigate(DriverRoute.Mileage.route) }, modifier = Modifier.fillMaxWidth()) { Text("Wróć") }
-        Button(onClick = {}, modifier = Modifier.fillMaxWidth()) { Text("Zapisz PDF") }
+        Button(onClick = viewModel::save, modifier = Modifier.fillMaxWidth()) { Text(if (uiState.isSaving) "Zapisywanie..." else "Zapisz szkic PDF") }
+        uiState.message?.let { Text(it) }
     }
 }

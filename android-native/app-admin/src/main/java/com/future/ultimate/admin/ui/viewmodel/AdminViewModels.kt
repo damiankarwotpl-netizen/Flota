@@ -59,6 +59,10 @@ class CarsViewModel(
         }.launchIn(viewModelScope)
     }
 
+    fun updateQuery(value: String) {
+        _uiState.value = _uiState.value.copy(query = value)
+    }
+
     fun updateEditor(draft: CarDraft) {
         _uiState.value = _uiState.value.copy(editor = draft)
     }

@@ -6,24 +6,32 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
+import com.future.ultimate.admin.AdminApp
+import com.future.ultimate.admin.ui.viewmodel.AdminViewModelFactory
+import com.future.ultimate.admin.ui.viewmodel.PayrollViewModel
 import com.future.ultimate.core.common.model.AdminRoute
 
 @Composable
 fun PayrollScreen(navController: NavController) {
-    val autoSend = remember { mutableStateOf(false) }
+    val app = LocalContext.current.applicationContext as AdminApp
+    val viewModel: PayrollViewModel = viewModel(factory = AdminViewModelFactory(app.container.repository))
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+
     ScreenColumn("Moduł Paski", "Moduł płac i wysyłki") {
         item {
             Column {
                 androidx.compose.foundation.layout.Row(modifier = Modifier.fillMaxWidth()) {
-                    Switch(checked = autoSend.value, onCheckedChange = { autoSend.value = it })
+                    Switch(checked = uiState.autoSend, onCheckedChange = { viewModel.toggleAutoSend() })
                     Text("AUTOMATYCZNA WYSYŁKA")
                 }
-                Text("Baza: 0 | Załączniki: 0")
-                Text("Gotowy")
+                Text("Baza: ${uiState.totalRecipients} | Załączniki: ${uiState.attachmentCount}")
+                Text(uiState.progressLabel)
                 Button(onClick = {}, modifier = Modifier.fillMaxWidth()) { Text("Wczytaj arkusz płac") }
                 Button(onClick = { navController.navigate(AdminRoute.Table.route) }, modifier = Modifier.fillMaxWidth()) { Text("Podgląd i eksport") }
                 Button(onClick = { navController.navigate(AdminRoute.Template.route) }, modifier = Modifier.fillMaxWidth()) { Text("Edytuj szablon") }
