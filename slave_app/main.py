@@ -1,5 +1,6 @@
 import os
 import time
+from datetime import datetime
 from pathlib import Path
 
 import requests
@@ -831,18 +832,39 @@ class SimplePdfDocument:
 
 
 def vehicle_protocol_template_path():
-    candidates = [
-        Path(__file__).with_name("assets").joinpath("vehicle_protocol_template.pdf"),
-        Path(__file__).with_name("assets").joinpath("vehicle_protocol_template.jpg"),
-        Path(__file__).with_name("assets").joinpath("vehicle_protocol_template.jpeg"),
-        Path(__file__).with_name("vehicle_protocol_template.pdf"),
-        Path(__file__).with_name("vehicle_protocol_template.jpg"),
-        Path(__file__).with_name("vehicle_protocol_template.jpeg"),
+    base = Path(__file__).resolve().parent
+    roots = [
+        base / "assets",
+        base,
+        base.parent / "assets",
+        base.parent,
+        Path.cwd() / "assets",
+        Path.cwd(),
     ]
-    for path in candidates:
-        if path.exists():
-            return path
+    names = [
+        "vehicle_protocol_template.pdf",
+        "vehicle_protocol_template.jpg",
+        "vehicle_protocol_template.jpeg",
+    ]
+    checked = set()
+    for root_path in roots:
+        for name in names:
+            path = (root_path / name).resolve()
+            if path in checked:
+                continue
+            checked.add(path)
+            if path.exists():
+                return path
     return None
+
+
+def vehicle_protocol_output_filename(registration):
+    date_part = datetime.now().strftime("%Y-%m-%d")
+    raw = pdf_safe_text(registration or "")
+    safe = "".join(ch if ch.isalnum() else "_" for ch in raw).strip("_")
+    if not safe:
+        safe = "brak_rejestracji"
+    return f"{date_part}_{safe}.pdf"
 
 
 def draw_vehicle_protocol_template(pdf):
@@ -1182,7 +1204,7 @@ class VehicleReportScreen(BoxLayout):
     def _generate_pdf(self, d):
         base_dir = documents_dir()
         base_dir.mkdir(parents=True, exist_ok=True)
-        file_path = base_dir / "protokol_stanu_pojazdu.pdf"
+        file_path = base_dir / vehicle_protocol_output_filename(d.get("rej"))
 
         template_path = vehicle_protocol_template_path()
         is_pdf_template = bool(template_path and template_path.suffix.lower() == ".pdf")
@@ -1209,45 +1231,47 @@ class VehicleReportScreen(BoxLayout):
             if checked:
                 txt(x + 3, y0 + 10, "X", 9, True)
         txt(427, 436, d["przeglad"], 8)
-        txt(336, 472, "Kiedy nalezy dokonac", 9)
-        txt(336, 485, "przegladu / Service?", 9)
-        box(424, 460, 56, 24)
         txt(427, 476, d["serwis"], 8)
-
-        questions = [
-            ("Czy dostepny jest dowod rejestracyjny pojazdu?", d["dowod"]),
-            ("Czy w samochodzie znajduje sie trojkat ostrzegawczy?", d["trojkat"]),
-            ("Czy w samochodzie jest wystarczajaco duzo kamizelek", d["kamizelki"]),
-            ("odblaskowych?", None),
-            ("Czy dostepna jest apteczka pierwszej pomocy?", d["apteczka"]),
-            ("Czy w pojezdzie znajduje sie kolo zapasowe?", d["kolo"]),
-            ("Czy na wyswietlaczu aktywne sa jakies lampki", None),
-            ("ostrzegawcze - jesli tak, to ktore i od kiedy?", None),
-        ]
-        yq = 520
-        for label, state in questions:
-            txt(66, yq, label, 8)
-            if state is not None:
-                txt(260, yq - 8, "TAK / NIE", 8, True)
-                box(258, yq - 2, 56, 18)
-                if state:
-                    txt(262, yq + 10, "TAK", 8, True)
-            yq += 26
-
-        txt(312, 520, "Inne uwagi / komentarze:", 9, True)
-        box(366, 532, 190, 142)
-        txt(316, 704, "Od kiedy?", 8, True)
-        box(366, 690, 110, 22)
         txt(370, 705, d["od_kiedy"], 8)
         txt(261, 154, d["uszkodzenia"], 8)
         txt(372, 546, d["uwagi"], 8)
 
-        hline(38, W - 38, 728)
-        txt(170, 748, "Protokoly sa przekazywane w kazdy pierwszy poniedzialek miesiaca na adres email:", 8, True)
-        txt(40, 780, "WAZNA INFORMACJA", 9, True)
-        txt(290, 780, "magdalena.matusiewicz@future-group.pl", 8)
-        txt(372, 796, "oraz", 8, True)
-        txt(304, 812, "justyna.kucharska@future-group.pl", 8)
+        if not is_pdf_template:
+            txt(336, 472, "Kiedy nalezy dokonac", 9)
+            txt(336, 485, "przegladu / Service?", 9)
+            box(424, 460, 56, 24)
+
+            questions = [
+                ("Czy dostepny jest dowod rejestracyjny pojazdu?", d["dowod"]),
+                ("Czy w samochodzie znajduje sie trojkat ostrzegawczy?", d["trojkat"]),
+                ("Czy w samochodzie jest wystarczajaco duzo kamizelek", d["kamizelki"]),
+                ("odblaskowych?", None),
+                ("Czy dostepna jest apteczka pierwszej pomocy?", d["apteczka"]),
+                ("Czy w pojezdzie znajduje sie kolo zapasowe?", d["kolo"]),
+                ("Czy na wyswietlaczu aktywne sa jakies lampki", None),
+                ("ostrzegawcze - jesli tak, to ktore i od kiedy?", None),
+            ]
+            yq = 520
+            for label, state in questions:
+                txt(66, yq, label, 8)
+                if state is not None:
+                    txt(260, yq - 8, "TAK / NIE", 8, True)
+                    box(258, yq - 2, 56, 18)
+                    if state:
+                        txt(262, yq + 10, "TAK", 8, True)
+                yq += 26
+
+            txt(312, 520, "Inne uwagi / komentarze:", 9, True)
+            box(366, 532, 190, 142)
+            txt(316, 704, "Od kiedy?", 8, True)
+            box(366, 690, 110, 22)
+
+            hline(38, W - 38, 728)
+            txt(170, 748, "Protokoly sa przekazywane w kazdy pierwszy poniedzialek miesiaca na adres email:", 8, True)
+            txt(40, 780, "WAZNA INFORMACJA", 9, True)
+            txt(290, 780, "magdalena.matusiewicz@future-group.pl", 8)
+            txt(372, 796, "oraz", 8, True)
+            txt(304, 812, "justyna.kucharska@future-group.pl", 8)
 
         if is_pdf_template:
             overlay_path = file_path.with_name(f"{file_path.stem}_overlay.pdf")
