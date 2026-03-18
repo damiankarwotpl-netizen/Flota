@@ -56,6 +56,11 @@ except:
     canvas = None
 
 try:
+    from reportlab.lib.pagesizes import A4 as PDF_A4
+except Exception:
+    PDF_A4 = None
+
+try:
     import pandas as pd
 except Exception:
     pd = None
@@ -216,6 +221,73 @@ class AppTheme:
     @classmethod
     def palette(cls):
         return DARK_THEME if cls.current == "dark" else LIGHT_THEME
+
+
+def pdf_safe_text(value):
+    import unicodedata
+
+    text = "" if value is None else str(value)
+    normalized = unicodedata.normalize("NFKD", text)
+    return normalized.encode("latin-1", "ignore").decode("latin-1")
+
+
+class SimplePdfDocument:
+    def __init__(self, width=595.28, height=841.89):
+        self.width = width
+        self.height = height
+        self.operations = []
+        self.font_family = "Helvetica"
+        self.font_size = 12
+        self.line_width = 1
+
+    def set_font(self, family="Helvetica", style="", size=12):
+        self.font_family = family
+        self.font_size = size
+
+    def set_line_width(self, width):
+        self.line_width = width
+
+    def line(self, x1, y1, x2, y2):
+        self.operations.append(f"{self.line_width:.2f} w {x1:.2f} {y1:.2f} m {x2:.2f} {y2:.2f} l S")
+
+    def rect(self, x, y, w, h):
+        self.operations.append(f"{self.line_width:.2f} w {x:.2f} {y:.2f} {w:.2f} {h:.2f} re S")
+
+    def text(self, x, y, value):
+        txt = pdf_safe_text(value).replace("\\", "\\\\").replace("(", "\\(").replace(")", "\\)")
+        self.operations.append(f"BT /F1 {self.font_size:.2f} Tf 1 0 0 1 {x:.2f} {y:.2f} Tm ({txt}) Tj ET")
+
+    def save(self, file_path):
+        stream = "\n".join(self.operations).encode("latin-1", "ignore")
+        objects = [
+            b"<< /Type /Catalog /Pages 2 0 R >>",
+            b"<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+            (
+                f"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 {self.width:.2f} {self.height:.2f}] "
+                f"/Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >>"
+            ).encode("latin-1"),
+            b"<< /Length " + str(len(stream)).encode("ascii") + b" >>\nstream\n" + stream + b"\nendstream",
+            b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
+        ]
+
+        pdf = bytearray(b"%PDF-1.4\n%\xe2\xe3\xcf\xd3\n")
+        offsets = [0]
+        for idx, obj in enumerate(objects, start=1):
+            offsets.append(len(pdf))
+            pdf.extend(f"{idx} 0 obj\n".encode("ascii"))
+            pdf.extend(obj)
+            pdf.extend(b"\nendobj\n")
+
+        xref_start = len(pdf)
+        pdf.extend(f"xref\n0 {len(objects) + 1}\n".encode("ascii"))
+        pdf.extend(b"0000000000 65535 f \n")
+        for off in offsets[1:]:
+            pdf.extend(f"{off:010d} 00000 n \n".encode("ascii"))
+        pdf.extend(
+            f"trailer\n<< /Size {len(objects) + 1} /Root 1 0 R >>\nstartxref\n{xref_start}\n%%EOF\n".encode("ascii")
+        )
+
+        Path(file_path).write_bytes(pdf)
 
 
 class Card(BoxLayout):
@@ -1401,7 +1473,7 @@ class FutureApp(App):
         ).open()
 
     def add_screens(self):
-        names = ["home", "table", "email", "smtp", "tmpl", "contacts", "report", "cars", "clothes", "paski", "pracownicy", "zaklady", "settings"]
+        names = ["home", "table", "email", "smtp", "tmpl", "contacts", "report", "cars", "vehicle_report", "clothes", "paski", "pracownicy", "zaklady", "settings"]
         self.sc_ref = {name: Screen(name=name) for name in names}
         self.setup_ui_all()
         for s in self.sc_ref.values():
@@ -1447,6 +1519,7 @@ class FutureApp(App):
             "contacts": self.setup_contacts_ui,
             "report": self.setup_report_ui,
             "cars": self.setup_cars_ui,
+            "vehicle_report": self.setup_vehicle_report_ui,
             "paski": self.setup_paski_ui,
             "pracownicy": self.setup_pracownicy_ui,
             "zaklady": self.setup_zaklady_ui,
@@ -1473,6 +1546,7 @@ class FutureApp(App):
         btn_props = dict(size_hint_y=None, height=dp(86))
         grid.add_widget(PrimaryButton(text="Kontakty", on_press=lambda x: [self.ensure_screen_ui("contacts"), self.refresh_contacts_list(), setattr(self.sm, 'current', 'contacts')], **btn_props))
         grid.add_widget(PrimaryButton(text="Samochody", on_press=lambda x: setattr(self.sm, 'current', 'cars'), **btn_props))
+        grid.add_widget(PrimaryButton(text="Raport stanu auta", on_press=lambda x: setattr(self.sm, 'current', 'vehicle_report'), **btn_props))
         grid.add_widget(PrimaryButton(text="Ubranie robocze", on_press=lambda x: setattr(self.sm, 'current', 'clothes'), **btn_props))
         grid.add_widget(PrimaryButton(text="Paski", on_press=lambda x: setattr(self.sm, 'current', 'paski'), **btn_props))
         grid.add_widget(PrimaryButton(text="Pracownicy", on_press=lambda x: setattr(self.sm, 'current', 'pracownicy'), **btn_props))
@@ -1483,6 +1557,197 @@ class FutureApp(App):
         content.add_widget(sv)
         layout.set_content(content)
         self.sc_ref["home"].add_widget(layout)
+
+    def setup_vehicle_report_ui(self):
+        self.sc_ref["vehicle_report"].clear_widgets()
+        shell = AppLayout(title="Raport stanu samochodu")
+        shell.nav_tabs.add_action(SecondaryButton(text="Wróć", on_press=lambda x: setattr(self.sm, 'current', 'home')))
+
+        root = ScrollView()
+        form = GridLayout(cols=1, spacing=dp(8), padding=dp(10), size_hint_y=None)
+        form.bind(minimum_height=form.setter('height'))
+
+        self.vehicle_report_inputs = {}
+        self.vehicle_report_checks = {}
+
+        fields = [
+            ("marka", "Marka"),
+            ("rej", "Rejestracja"),
+            ("przebieg", "Przebieg"),
+            ("olej", "Poziom oleju"),
+            ("paliwo", "Wskaźnik paliwa"),
+            ("rodzaj_paliwa", "Rodzaj paliwa"),
+            ("lp", "Lewy przedni"),
+            ("pp", "Prawy przedni"),
+            ("lt", "Lewy tylny"),
+            ("pt", "Prawy tylny"),
+            ("uszkodzenia", "Nowe uszkodzenia"),
+            ("od_kiedy", "Od kiedy?"),
+            ("serwis", "Przegląd / Service"),
+            ("przeglad", "Przegląd techniczny"),
+            ("uwagi", "Uwagi"),
+        ]
+
+        for key, hint in fields:
+            multiline = key in {"uszkodzenia", "uwagi"}
+            inp = ModernInput(hint_text=hint, multiline=multiline, size_hint_y=None, height=dp(84) if multiline else dp(48))
+            self.vehicle_report_inputs[key] = inp
+            form.add_widget(inp)
+
+        checks = [
+            ("trojkat", "Trójkąt"),
+            ("kamizelki", "Kamizelki"),
+            ("kolo", "Koło zapasowe"),
+            ("dowod", "Dowód rejestracyjny"),
+            ("apteczka", "Apteczka"),
+        ]
+
+        for key, label in checks:
+            row = BoxLayout(size_hint_y=None, height=dp(42), spacing=dp(8))
+            row.add_widget(Label(text=label, halign='left', valign='middle'))
+            cb = CheckBox(size_hint=(None, None), size=(dp(38), dp(38)))
+            self.vehicle_report_checks[key] = cb
+            row.add_widget(cb)
+            form.add_widget(row)
+
+        actions = BoxLayout(size_hint_y=None, height=dp(56), spacing=dp(8))
+        actions.add_widget(PrimaryButton(text="Zapisz PDF", on_press=self.save_vehicle_report_pdf))
+        form.add_widget(actions)
+
+        self.vehicle_report_status = Label(text="", size_hint_y=None, height=dp(48))
+        form.add_widget(self.vehicle_report_status)
+
+        root.add_widget(form)
+        shell.set_content(root)
+        self.sc_ref["vehicle_report"].add_widget(shell)
+
+    def save_vehicle_report_pdf(self, *_):
+        data = {k: v.text for k, v in self.vehicle_report_inputs.items()}
+        data.update({k: v.active for k, v in self.vehicle_report_checks.items()})
+
+        try:
+            pdf_path = self.generate_vehicle_protocol_pdf(data)
+            if hasattr(self, 'vehicle_report_status'):
+                self.vehicle_report_status.text = f"Zapisano: {pdf_path}"
+            self.msg("Sukces", f"PDF zapisany:\n{pdf_path}")
+        except Exception as exc:
+            self.msg("Błąd", f"Nie udało się zapisać PDF: {pdf_safe_text(str(exc))[:120]}")
+
+    def generate_vehicle_protocol_pdf(self, d):
+        out_dir = Path(self.user_data_dir)
+        out_dir.mkdir(parents=True, exist_ok=True)
+        file_path = out_dir / "protokol_stanu_pojazdu.pdf"
+
+        pdf = SimplePdfDocument()
+
+        W, H = pdf.width, pdf.height
+        L, R = 40, W - 40
+        y = H - 40
+
+        pdf.set_font("Helvetica", "B", 14)
+        pdf.text(L, y, pdf_safe_text("Miesięczny Protokół Stanu Pojazdu"))
+        y -= 20
+
+        pdf.set_font("Helvetica", "", 9)
+
+        def box(x, y0, w, h):
+            pdf.rect(x, H - y0 - h, w, h)
+
+        def vline(x, y1, y2):
+            pdf.line(x, H - y1, x, H - y2)
+
+        def txt(x, y0, t):
+            pdf.text(x, H - y0, pdf_safe_text(t))
+
+        def checkbox(x, y0, checked):
+            box(x, y0, 10, 10)
+            if checked:
+                txt(x + 2, y0 + 8, "X")
+
+        sec_top = y
+        box(L, sec_top - 60, R - L, 60)
+        v = L + (R - L) / 2
+        vline(v, sec_top, sec_top - 60)
+
+        txt(L + 5, sec_top - 15, "Marka:")
+        txt(L + 80, sec_top - 15, d['marka'])
+        txt(v + 5, sec_top - 15, "Rejestracja:")
+        txt(v + 100, sec_top - 15, d['rej'])
+        txt(L + 5, sec_top - 35, "Liczba miejsc:")
+        txt(v + 5, sec_top - 35, "Wypełnione przez:")
+
+        y = sec_top - 70
+
+        box(L, y - 60, R - L, 60)
+        vline(v, y, y - 60)
+        txt(L + 5, y - 15, "Przebieg:")
+        txt(L + 80, y - 15, d['przebieg'])
+        txt(v + 5, y - 15, "Poziom oleju:")
+        txt(v + 110, y - 15, d['olej'])
+        txt(L + 5, y - 35, "Wskaźnik paliwa:")
+        txt(L + 110, y - 35, d['paliwo'])
+        txt(v + 5, y - 35, "Rodzaj paliwa:")
+        txt(v + 110, y - 35, d['rodzaj_paliwa'])
+
+        y -= 70
+
+        box(L, y - 60, R - L, 60)
+        vline(v, y, y - 60)
+        txt(L + 5, y - 15, "Lewy przedni:")
+        txt(L + 120, y - 15, d['lp'])
+        txt(v + 5, y - 15, "Prawy przedni:")
+        txt(v + 120, y - 15, d['pp'])
+        txt(L + 5, y - 35, "Lewy tylny:")
+        txt(L + 120, y - 35, d['lt'])
+        txt(v + 5, y - 35, "Prawy tylny:")
+        txt(v + 120, y - 35, d['pt'])
+
+        y -= 70
+
+        box(L, y - 80, R - L, 80)
+        txt(L + 5, y - 15, "Bez uszkodzeń:")
+        checkbox(L + 120, y - 18, False)
+        txt(L + 150, y - 15, "TAK / NIE")
+        txt(L + 5, y - 35, "Od kiedy:")
+        txt(L + 120, y - 35, d['od_kiedy'])
+        txt(L + 5, y - 55, "Nowe uszkodzenia:")
+        txt(L + 150, y - 55, d['uszkodzenia'])
+
+        y -= 90
+
+        box(L, y - 80, R - L, 80)
+        checkbox(L + 5, y - 20, d['trojkat'])
+        txt(L + 20, y - 18, "Trójkąt")
+        checkbox(L + 150, y - 20, d['kamizelki'])
+        txt(L + 165, y - 18, "Kamizelki")
+        checkbox(L + 300, y - 20, d['kolo'])
+        txt(L + 315, y - 18, "Koło zapasowe")
+        checkbox(L + 5, y - 50, d['dowod'])
+        txt(L + 20, y - 48, "Dowód rejestracyjny")
+        checkbox(L + 300, y - 50, d['apteczka'])
+        txt(L + 315, y - 48, "Apteczka")
+
+        y -= 90
+
+        box(L, y - 50, R - L, 50)
+        txt(L + 5, y - 20, "Przegląd / Service:")
+        txt(L + 150, y - 20, d['serwis'])
+        txt(L + 5, y - 40, "Przegląd techniczny:")
+        txt(L + 150, y - 40, d['przeglad'])
+
+        y -= 60
+
+        box(L, y - 80, R - L, 80)
+        txt(L + 5, y - 20, "Uwagi:")
+        txt(L + 80, y - 20, d['uwagi'])
+
+        y -= 100
+
+        pdf.set_font("Helvetica", "", 8)
+        txt(L, y, "Protokoly przekazywane w pierwszy poniedzialek miesiaca")
+
+        pdf.output(str(file_path))
+        return file_path
 
     def setup_table_ui(self):
         self.sc_ref["table"].clear_widgets()
