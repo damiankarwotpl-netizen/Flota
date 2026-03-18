@@ -34,6 +34,7 @@ from app_modules.communication_screens import (
 )
 from app_modules.data_screens import setup_table_screen, setup_clothes_screen
 from app_modules.list_views import refresh_contacts_list_view, refresh_reports_list_view, show_report_details_popup
+from app_modules.ui_helpers import show_message_popup, update_stats_labels, update_progress_labels, popup_columns_selector, show_logs_popup
 
 from datetime import datetime
 from pathlib import Path
@@ -3067,38 +3068,13 @@ class FutureApp(App):
         refresh_contacts_list_view(self, ButtonContainer, ModernButton, COLOR_CARD)
 
     def msg(self, tit, txt):
-        b = BoxLayout(orientation="vertical", padding=dp(18), spacing=dp(10))
-        l = Label(text=txt, halign="center", valign="middle")
-        l.bind(size=lambda inst, val: setattr(inst, 'text_size', (inst.width - dp(8), None)))
-        b.add_widget(l)
-        b.add_widget(PrimaryButton(text="OK", on_press=lambda x: p.dismiss(), height=dp(54), size_hint_y=None))
-        p = Popup(title=tit, content=b, size_hint=(0.92, 0.55), auto_dismiss=False)
-        p.open()
+        show_message_popup(tit, txt, PrimaryButton)
 
     def update_stats(self, *a):
-        try:
-            count = self.conn.execute('SELECT count(*) FROM contacts').fetchone()[0]
-            s = f"Baza: {count} | Załączniki: {len(self.global_attachments)}"
-            if hasattr(self, 'lbl_stats'):
-                self.lbl_stats.text = s
-            if hasattr(self, 'lbl_stats_paski'):
-                self.lbl_stats_paski.text = s
-        except:
-            pass
+        update_stats_labels(self)
 
     def update_progress(self, d):
-        try:
-            val = int((d/self.total_q)*100) if self.total_q else 0
-            if hasattr(self, 'pb'):
-                self.pb.value = val
-            if hasattr(self, 'pb_paski'):
-                self.pb_paski.value = val
-            if hasattr(self, 'pb_label'):
-                self.pb_label.text = f"Postęp: {d}/{self.total_q}"
-            if hasattr(self, 'pb_label_paski'):
-                self.pb_label_paski.text = f"Postęp: {d}/{self.total_q}"
-        except:
-            pass
+        update_progress_labels(self, d)
 
     def finish_mailing(self, s):
         self.is_mailing_running = False; det = "\n".join(self.session_details); self.conn.execute("INSERT INTO reports (date, ok, fail, skip, auto, details) VALUES (?,?,?,?,?,?)", (datetime.now().strftime("%Y-%m-%d %H:%M"), self.stats['ok'], self.stats['fail'], self.stats['skip'], 0, det)); self.conn.commit()
@@ -3106,11 +3082,7 @@ class FutureApp(App):
         self.log(f"Mailing finished: {s} | ok={self.stats['ok']} fail={self.stats['fail']} skip={self.stats['skip']}")
 
     def popup_columns(self, _):
-        box, gr, checks = BoxLayout(orientation="vertical", padding=dp(10)), GridLayout(cols=1, size_hint_y=None, spacing=dp(5)), []
-        gr.bind(minimum_height=gr.setter('height'))
-        for i, h in enumerate(self.full_data[0]):
-            r, cb = BoxLayout(size_hint_y=None, height=dp(45)), CheckBox(active=(i in self.export_indices), size_hint_x=None, width=dp(50)); checks.append((i, cb)); r.add_widget(cb); r.add_widget(Label(text=str(h))); gr.add_widget(r)
-        sc = ScrollView(); sc.add_widget(gr); box.add_widget(sc); box.add_widget(ModernButton(text="ZASTOSUJ", on_press=lambda x: [setattr(self, 'export_indices', [idx for idx, c in checks if c.active]), p.dismiss(), self.refresh_table()], height=dp(50), size_hint_y=None)); p = Popup(title="Kolumny", content=box, size_hint=(0.9, 0.9)); p.open()
+        popup_columns_selector(self, ModernButton, CheckBox)
 
     def setup_report_ui(self):
         setup_report_screen(self, AppLayout, SecondaryButton)
@@ -3674,21 +3646,7 @@ class FutureApp(App):
         else: self.msg("OK", "Wysyłka wznowiona"); self.log("Mailing resumed")
 
     def show_logs(self, _=None):
-        try:
-            text = ""
-            if self.log_file.exists():
-                with open(self.log_file, "r", encoding="utf-8") as f:
-                    text = f.read()[-40000:]
-            else:
-                text = "\n".join(self._log_buffer)
-            b = BoxLayout(orientation="vertical", padding=dp(10))
-            ti = TextInput(text=text, readonly=True, font_size='11sp')
-            b.add_widget(ti)
-            b.add_widget(Button(text="ZAMKNIJ", size_hint_y=0.2, on_press=lambda x: p.dismiss()))
-            p = Popup(title="Logi aplikacji", content=b, size_hint=(.95,.95)); p.open()
-        except Exception:
-            self.log(f"show_logs error: {traceback.format_exc()}")
-            self.msg("Błąd", "Nie można otworzyć logów")
+        show_logs_popup(self, Button)
 
 if __name__ == "__main__":
     FutureApp().run()
