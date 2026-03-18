@@ -16,6 +16,26 @@ import threading
 from master_sync.sync_worker import start_sync
 from master_sync.create_driver_login import create_driver
 
+from app_modules.home_screen import setup_home_screen
+from app_modules.vehicle_report_screen import setup_vehicle_report_screen
+from app_modules.management_screens import (
+    setup_cars_screen,
+    setup_workers_screen,
+    setup_plants_screen,
+    setup_settings_screen,
+    setup_paski_screen,
+)
+from app_modules.communication_screens import (
+    setup_email_screen,
+    setup_smtp_screen,
+    setup_template_screen,
+    setup_contacts_screen,
+    setup_report_screen,
+)
+from app_modules.data_screens import setup_table_screen, setup_clothes_screen
+from app_modules.list_views import refresh_contacts_list_view, refresh_reports_list_view, show_report_details_popup
+from app_modules.ui_helpers import show_message_popup, update_stats_labels, update_progress_labels, popup_columns_selector, show_logs_popup
+
 from datetime import datetime
 from pathlib import Path
 from email.message import EmailMessage
@@ -92,30 +112,30 @@ except Exception:
 
 
 
-COLOR_PRIMARY = (0.1, 0.5, 0.9, 1)
-COLOR_BG = (0.05, 0.07, 0.1, 1)
-COLOR_CARD = (0.12, 0.15, 0.2, 1)
-COLOR_TEXT = (0.95, 0.95, 0.95, 1)
-COLOR_ROW_A = (0.08, 0.1, 0.15, 1)
-COLOR_ROW_B = (0.13, 0.16, 0.22, 1)
-COLOR_HEADER = (0.1, 0.2, 0.35, 1)
+COLOR_PRIMARY = (0.28, 0.52, 0.96, 1)
+COLOR_BG = (0.06, 0.08, 0.12, 1)
+COLOR_CARD = (0.12, 0.16, 0.22, 1)
+COLOR_TEXT = (0.94, 0.96, 0.99, 1)
+COLOR_ROW_A = (0.09, 0.12, 0.18, 1)
+COLOR_ROW_B = (0.12, 0.15, 0.22, 1)
+COLOR_HEADER = (0.18, 0.30, 0.56, 1)
 
 class ModernButton(Button):
     def __init__(self, bg_color=COLOR_PRIMARY, **kwargs):
         super().__init__(**kwargs)
         self.background_normal = ""
         self.background_color = (0,0,0,0)
-        self.color = COLOR_TEXT
+        self.color = AppTheme.palette()["text"]
         self.bold = True
-        self.radius = [dp(12)]
+        self.radius = [dp(16)]
         self.base_color = bg_color
         self._font_max = float(getattr(self, 'font_size', dp(16)))
         self._font_min = float(dp(10))
         with self.canvas.before:
             self.bg = Color(*self.base_color)
             self.rect = RoundedRectangle(pos=self.pos, size=self.size, radius=self.radius)
-            Color(1, 1, 1, 0.12)
-            self.border_line = Line(rounded_rectangle=(self.x, self.y, self.width, self.height, dp(12)), width=1)
+            Color(1, 1, 1, 0.16)
+            self.border_line = Line(rounded_rectangle=(self.x, self.y, self.width, self.height, dp(16)), width=1.2)
         state_handler = getattr(self, '_update_state', None)
         if not callable(state_handler):
             state_handler = self._fallback_update_state
@@ -150,7 +170,7 @@ class ModernButton(Button):
 
     def _update(self, *args):
         self.rect.pos, self.rect.size = self.pos, self.size
-        self.border_line.rounded_rectangle = (self.x, self.y, self.width, self.height, dp(12))
+        self.border_line.rounded_rectangle = (self.x, self.y, self.width, self.height, dp(16))
         self.text_size = (None, None)
         self._fit_single_line_text()
 
@@ -177,21 +197,22 @@ class ModernInput(TextInput):
         super().__init__(**kwargs)
         self.background_normal = self.background_active = ""
         self.background_color = (0, 0, 0, 0)
-        self.foreground_color = COLOR_TEXT
-        self.cursor_color = COLOR_PRIMARY
-        self.hint_text_color = (0.7, 0.75, 0.82, 1)
+        pal = AppTheme.palette()
+        self.foreground_color = pal["text"]
+        self.cursor_color = pal["primary"]
+        self.hint_text_color = pal["muted"]
         self.padding = [dp(12), dp(12)]
         with self.canvas.before:
-            Color(0.14, 0.17, 0.24, 1)
-            self.input_rect = RoundedRectangle(pos=self.pos, size=self.size, radius=[dp(10)])
-            Color(1, 1, 1, 0.08)
-            self.input_border = Line(rounded_rectangle=(self.x, self.y, self.width, self.height, dp(10)), width=1)
+            Color(*pal["secondary"])
+            self.input_rect = RoundedRectangle(pos=self.pos, size=self.size, radius=[dp(12)])
+            Color(1, 1, 1, 0.11)
+            self.input_border = Line(rounded_rectangle=(self.x, self.y, self.width, self.height, dp(12)), width=1.1)
         self.bind(pos=self._update_input, size=self._update_input)
 
     def _update_input(self, *args):
         self.input_rect.pos = self.pos
         self.input_rect.size = self.size
-        self.input_border.rounded_rectangle = (self.x, self.y, self.width, self.height, dp(10))
+        self.input_border.rounded_rectangle = (self.x, self.y, self.width, self.height, dp(12))
 
 class ColorSafeLabel(Label):
     def __init__(self, bg_color=(1,1,1,1), text_color=(1,1,1,1), **kwargs):
@@ -206,23 +227,23 @@ class ColorSafeLabel(Label):
         self.text_size = (self.width - dp(10), None)
 
 DARK_THEME = {
-    "background": (0.07, 0.08, 0.10, 1),
-    "card": (0.12, 0.15, 0.20, 1),
-    "primary": (0.23, 0.51, 0.96, 1),
-    "secondary": (0.21, 0.24, 0.31, 1),
-    "danger": (0.80, 0.24, 0.28, 1),
-    "text": (0.90, 0.92, 0.95, 1),
-    "muted": (0.70, 0.74, 0.80, 1),
+    "background": (0.06, 0.08, 0.12, 1),
+    "card": (0.11, 0.14, 0.20, 1),
+    "primary": (0.28, 0.52, 0.96, 1),
+    "secondary": (0.17, 0.21, 0.29, 1),
+    "danger": (0.85, 0.25, 0.32, 1),
+    "text": (0.94, 0.96, 0.99, 1),
+    "muted": (0.68, 0.73, 0.82, 1),
 }
 
 LIGHT_THEME = {
-    "background": (0.96, 0.97, 0.99, 1),
+    "background": (0.95, 0.97, 1.0, 1),
     "card": (1, 1, 1, 1),
-    "primary": (0.15, 0.39, 0.92, 1),
-    "secondary": (0.86, 0.89, 0.95, 1),
-    "danger": (0.82, 0.22, 0.24, 1),
-    "text": (0.10, 0.13, 0.18, 1),
-    "muted": (0.35, 0.40, 0.48, 1),
+    "primary": (0.24, 0.47, 0.95, 1),
+    "secondary": (0.90, 0.93, 0.98, 1),
+    "danger": (0.83, 0.24, 0.28, 1),
+    "text": (0.12, 0.16, 0.23, 1),
+    "muted": (0.42, 0.48, 0.58, 1),
 }
 
 
@@ -356,18 +377,39 @@ class SimplePdfDocument:
 
 
 def vehicle_protocol_template_path():
-    candidates = [
-        Path(__file__).with_name("assets").joinpath("vehicle_protocol_template.pdf"),
-        Path(__file__).with_name("assets").joinpath("vehicle_protocol_template.jpg"),
-        Path(__file__).with_name("assets").joinpath("vehicle_protocol_template.jpeg"),
-        Path(__file__).with_name("vehicle_protocol_template.pdf"),
-        Path(__file__).with_name("vehicle_protocol_template.jpg"),
-        Path(__file__).with_name("vehicle_protocol_template.jpeg"),
+    base = Path(__file__).resolve().parent
+    roots = [
+        base / "assets",
+        base,
+        base.parent / "assets",
+        base.parent,
+        Path.cwd() / "assets",
+        Path.cwd(),
     ]
-    for path in candidates:
-        if path.exists():
-            return path
+    names = [
+        "vehicle_protocol_template.pdf",
+        "vehicle_protocol_template.jpg",
+        "vehicle_protocol_template.jpeg",
+    ]
+    checked = set()
+    for root_path in roots:
+        for name in names:
+            path = (root_path / name).resolve()
+            if path in checked:
+                continue
+            checked.add(path)
+            if path.exists():
+                return path
     return None
+
+
+def vehicle_protocol_output_filename(registration):
+    date_part = datetime.now().strftime("%Y-%m-%d")
+    raw = pdf_safe_text(registration or "")
+    safe = "".join(ch if ch.isalnum() else "_" for ch in raw).strip("_")
+    if not safe:
+        safe = "brak_rejestracji"
+    return f"{date_part}_{safe}.pdf"
 
 
 def draw_vehicle_protocol_template(pdf):
@@ -501,7 +543,7 @@ class Card(BoxLayout):
         self.spacing = kwargs.get("spacing", dp(8))
         with self.canvas.before:
             Color(*AppTheme.palette()["card"])
-            self._card_rect = RoundedRectangle(pos=self.pos, size=self.size, radius=[dp(12)])
+            self._card_rect = RoundedRectangle(pos=self.pos, size=self.size, radius=[dp(16)])
         self.bind(pos=self._update_bg, size=self._update_bg)
 
     def _update_bg(self, *_):
@@ -531,11 +573,12 @@ class DangerButton(ModernButton):
 class TopBar(BoxLayout):
     def __init__(self, title="", **kwargs):
         super().__init__(orientation="horizontal", size_hint_y=None, height=dp(56), padding=[dp(10), dp(8)], spacing=dp(8), **kwargs)
+        pal = AppTheme.palette()
         with self.canvas.before:
-            Color(*COLOR_HEADER)
-            self._rect = RoundedRectangle(pos=self.pos, size=self.size, radius=[0, 0, dp(12), dp(12)])
+            Color(*pal["primary"])
+            self._rect = RoundedRectangle(pos=self.pos, size=self.size, radius=[0, 0, dp(14), dp(14)])
         self.bind(pos=self._upd, size=self._upd)
-        self.add_widget(Label(text=title, bold=True, halign="left", valign="middle", color=COLOR_TEXT))
+        self.add_widget(Label(text=title, bold=True, halign="left", valign="middle", color=pal["text"]))
 
     def _upd(self, *_):
         self._rect.pos = self.pos
@@ -965,7 +1008,7 @@ class FutureApp(App):
         pal = AppTheme.palette()
         Window.clearcolor = pal["background"]
         self.setup_ui_all()
-        for screen_name in ("contacts", "cars", "pracownicy", "zaklady", "settings", "paski"):
+        for screen_name in ("contacts", "cars", "pracownicy", "zaklady", "settings", "paski", "email", "smtp", "tmpl", "report", "table", "vehicle_report", "clothes"):
             try:
                 self._screen_initialized.discard(screen_name)
                 self.ensure_screen_ui(screen_name)
@@ -1737,93 +1780,10 @@ class FutureApp(App):
             self._screen_initialized.add(name)
 
     def setup_ui_all(self):
-        self.sc_ref["home"].clear_widgets()
-        layout = AppLayout(title="FUTURE ULTIMATE v20")
-        layout.nav_tabs.add_action(SecondaryButton(text="Dark", on_press=lambda x: self.switch_theme("dark")))
-        layout.nav_tabs.add_action(SecondaryButton(text="Light", on_press=lambda x: self.switch_theme("light")))
-
-        content = BoxLayout(orientation="vertical", spacing=dp(10), padding=[0, dp(6), 0, 0])
-        content.add_widget(Label(text="Panel główny aplikacji", font_size='15sp', color=(0.72, 0.78, 0.9, 1), size_hint_y=None, height=dp(26)))
-        sv = ScrollView(size_hint=(1, 1))
-        grid = GridLayout(cols=2, spacing=dp(12), padding=dp(6), size_hint_y=None)
-        grid.bind(minimum_height=grid.setter('height'))
-        btn_props = dict(size_hint_y=None, height=dp(86))
-        grid.add_widget(PrimaryButton(text="Kontakty", on_press=lambda x: [self.ensure_screen_ui("contacts"), self.refresh_contacts_list(), setattr(self.sm, 'current', 'contacts')], **btn_props))
-        grid.add_widget(PrimaryButton(text="Samochody", on_press=lambda x: setattr(self.sm, 'current', 'cars'), **btn_props))
-        grid.add_widget(PrimaryButton(text="Raport stanu auta", on_press=lambda x: setattr(self.sm, 'current', 'vehicle_report'), **btn_props))
-        grid.add_widget(PrimaryButton(text="Ubranie robocze", on_press=lambda x: setattr(self.sm, 'current', 'clothes'), **btn_props))
-        grid.add_widget(PrimaryButton(text="Paski", on_press=lambda x: setattr(self.sm, 'current', 'paski'), **btn_props))
-        grid.add_widget(PrimaryButton(text="Pracownicy", on_press=lambda x: setattr(self.sm, 'current', 'pracownicy'), **btn_props))
-        grid.add_widget(PrimaryButton(text="Zakłady", on_press=lambda x: setattr(self.sm, 'current', 'zaklady'), **btn_props))
-        grid.add_widget(SecondaryButton(text="Ustawienia", on_press=lambda x: setattr(self.sm, 'current', 'settings'), **btn_props))
-        grid.add_widget(DangerButton(text="Wyjście", on_press=lambda x: App.get_running_app().stop(), **btn_props))
-        sv.add_widget(grid)
-        content.add_widget(sv)
-        layout.set_content(content)
-        self.sc_ref["home"].add_widget(layout)
+        setup_home_screen(self, AppLayout, SecondaryButton, PrimaryButton, DangerButton)
 
     def setup_vehicle_report_ui(self):
-        self.sc_ref["vehicle_report"].clear_widgets()
-        shell = AppLayout(title="Raport stanu samochodu")
-        shell.nav_tabs.add_action(SecondaryButton(text="Wróć", on_press=lambda x: setattr(self.sm, 'current', 'home')))
-
-        root = ScrollView()
-        form = GridLayout(cols=1, spacing=dp(8), padding=dp(10), size_hint_y=None)
-        form.bind(minimum_height=form.setter('height'))
-
-        self.vehicle_report_inputs = {}
-        self.vehicle_report_checks = {}
-
-        fields = [
-            ("marka", "Marka"),
-            ("rej", "Rejestracja"),
-            ("przebieg", "Przebieg"),
-            ("olej", "Poziom oleju"),
-            ("paliwo", "Wskaźnik paliwa"),
-            ("rodzaj_paliwa", "Rodzaj paliwa"),
-            ("lp", "Lewy przedni"),
-            ("pp", "Prawy przedni"),
-            ("lt", "Lewy tylny"),
-            ("pt", "Prawy tylny"),
-            ("uszkodzenia", "Nowe uszkodzenia"),
-            ("od_kiedy", "Od kiedy?"),
-            ("serwis", "Przegląd / Service"),
-            ("przeglad", "Przegląd techniczny"),
-            ("uwagi", "Uwagi"),
-        ]
-
-        for key, hint in fields:
-            multiline = key in {"uszkodzenia", "uwagi"}
-            inp = ModernInput(hint_text=hint, multiline=multiline, size_hint_y=None, height=dp(84) if multiline else dp(48))
-            self.vehicle_report_inputs[key] = inp
-            form.add_widget(inp)
-
-        checks = [
-            ("trojkat", "Trójkąt"),
-            ("kamizelki", "Kamizelki"),
-            ("kolo", "Koło zapasowe"),
-            ("dowod", "Dowód rejestracyjny"),
-            ("apteczka", "Apteczka"),
-        ]
-
-        for key, label in checks:
-            row = BoxLayout(size_hint_y=None, height=dp(42), spacing=dp(8))
-            row.add_widget(Label(text=label, halign='left', valign='middle'))
-            cb = CheckBox(size_hint=(None, None), size=(dp(38), dp(38)))
-            self.vehicle_report_checks[key] = cb
-            row.add_widget(cb)
-            form.add_widget(row)
-
-        actions = BoxLayout(size_hint_y=None, height=dp(56), spacing=dp(8))
-        actions.add_widget(PrimaryButton(text="Zapisz PDF", on_press=self.save_vehicle_report_pdf))
-        form.add_widget(actions)
-
-        self.vehicle_report_status = Label(text="", size_hint_y=None, height=dp(48))
-        form.add_widget(self.vehicle_report_status)
-
-        root.add_widget(form)
-        shell.set_content(root)
-        self.sc_ref["vehicle_report"].add_widget(shell)
+        setup_vehicle_report_screen(self, AppLayout, SecondaryButton, PrimaryButton, ModernInput)
 
     def save_vehicle_report_pdf(self, *_):
         data = {k: v.text for k, v in self.vehicle_report_inputs.items()}
@@ -1840,7 +1800,7 @@ class FutureApp(App):
     def generate_vehicle_protocol_pdf(self, d):
         out_dir = self._documents_dir()
         out_dir.mkdir(parents=True, exist_ok=True)
-        file_path = out_dir / "protokol_stanu_pojazdu.pdf"
+        file_path = out_dir / vehicle_protocol_output_filename(d.get("rej"))
 
         template_path = vehicle_protocol_template_path()
         is_pdf_template = bool(template_path and template_path.suffix.lower() == ".pdf")
@@ -1867,45 +1827,47 @@ class FutureApp(App):
             if checked:
                 txt(x + 3, y0 + 10, "X", 9, True)
         txt(427, 436, d["przeglad"], 8)
-        txt(336, 472, "Kiedy nalezy dokonac", 9)
-        txt(336, 485, "przegladu / Service?", 9)
-        box(424, 460, 56, 24)
         txt(427, 476, d["serwis"], 8)
-
-        questions = [
-            ("Czy dostepny jest dowod rejestracyjny pojazdu?", d["dowod"]),
-            ("Czy w samochodzie znajduje sie trojkat ostrzegawczy?", d["trojkat"]),
-            ("Czy w samochodzie jest wystarczajaco duzo kamizelek", d["kamizelki"]),
-            ("odblaskowych?", None),
-            ("Czy dostepna jest apteczka pierwszej pomocy?", d["apteczka"]),
-            ("Czy w pojezdzie znajduje sie kolo zapasowe?", d["kolo"]),
-            ("Czy na wyswietlaczu aktywne sa jakies lampki", None),
-            ("ostrzegawcze - jesli tak, to ktore i od kiedy?", None),
-        ]
-        yq = 520
-        for label, state in questions:
-            txt(66, yq, label, 8)
-            if state is not None:
-                txt(260, yq - 8, "TAK / NIE", 8, True)
-                box(258, yq - 2, 56, 18)
-                if state:
-                    txt(262, yq + 10, "TAK", 8, True)
-            yq += 26
-
-        txt(312, 520, "Inne uwagi / komentarze:", 9, True)
-        box(366, 532, 190, 142)
-        txt(316, 704, "Od kiedy?", 8, True)
-        box(366, 690, 110, 22)
         txt(370, 705, d["od_kiedy"], 8)
         txt(261, 154, d["uszkodzenia"], 8)
         txt(372, 546, d["uwagi"], 8)
 
-        hline(38, W - 38, 728)
-        txt(170, 748, "Protokoly sa przekazywane w kazdy pierwszy poniedzialek miesiaca na adres email:", 8, True)
-        txt(40, 780, "WAZNA INFORMACJA", 9, True)
-        txt(290, 780, "magdalena.matusiewicz@future-group.pl", 8)
-        txt(372, 796, "oraz", 8, True)
-        txt(304, 812, "justyna.kucharska@future-group.pl", 8)
+        if not is_pdf_template:
+            txt(336, 472, "Kiedy nalezy dokonac", 9)
+            txt(336, 485, "przegladu / Service?", 9)
+            box(424, 460, 56, 24)
+
+            questions = [
+                ("Czy dostepny jest dowod rejestracyjny pojazdu?", d["dowod"]),
+                ("Czy w samochodzie znajduje sie trojkat ostrzegawczy?", d["trojkat"]),
+                ("Czy w samochodzie jest wystarczajaco duzo kamizelek", d["kamizelki"]),
+                ("odblaskowych?", None),
+                ("Czy dostepna jest apteczka pierwszej pomocy?", d["apteczka"]),
+                ("Czy w pojezdzie znajduje sie kolo zapasowe?", d["kolo"]),
+                ("Czy na wyswietlaczu aktywne sa jakies lampki", None),
+                ("ostrzegawcze - jesli tak, to ktore i od kiedy?", None),
+            ]
+            yq = 520
+            for label, state in questions:
+                txt(66, yq, label, 8)
+                if state is not None:
+                    txt(260, yq - 8, "TAK / NIE", 8, True)
+                    box(258, yq - 2, 56, 18)
+                    if state:
+                        txt(262, yq + 10, "TAK", 8, True)
+                yq += 26
+
+            txt(312, 520, "Inne uwagi / komentarze:", 9, True)
+            box(366, 532, 190, 142)
+            txt(316, 704, "Od kiedy?", 8, True)
+            box(366, 690, 110, 22)
+
+            hline(38, W - 38, 728)
+            txt(170, 748, "Protokoly sa przekazywane w kazdy pierwszy poniedzialek miesiaca na adres email:", 8, True)
+            txt(40, 780, "WAZNA INFORMACJA", 9, True)
+            txt(290, 780, "magdalena.matusiewicz@future-group.pl", 8)
+            txt(372, 796, "oraz", 8, True)
+            txt(304, 812, "justyna.kucharska@future-group.pl", 8)
 
         if is_pdf_template:
             overlay_path = file_path.with_name(f"{file_path.stem}_overlay.pdf")
@@ -1920,30 +1882,7 @@ class FutureApp(App):
         return file_path
 
     def setup_table_ui(self):
-        self.sc_ref["table"].clear_widgets()
-        shell = AppLayout(title="Podgląd i eksport")
-        shell.nav_tabs.add_action(SecondaryButton(text="Wróć", on_press=lambda x: setattr(self.sm, 'current', 'paski')))
-        shell.nav_tabs.add_action(PrimaryButton(text="Kolumny", on_press=self.popup_columns, size_hint_x=None, width=dp(150)))
-
-        root = BoxLayout(orientation="vertical", spacing=dp(8))
-        self.ti_tab_search = ModernInput(hint_text="Szukaj w tabeli...")
-        self.ti_tab_search.bind(text=self.filter_table)
-        root.add_widget(self.ti_tab_search)
-
-        hs = ScrollView(size_hint_y=None, height=dp(58), do_scroll_y=False)
-        self.table_header_layout = GridLayout(rows=1, size_hint=(None, None), height=dp(58))
-        hs.add_widget(self.table_header_layout)
-
-        ds = ScrollView(do_scroll_x=True, do_scroll_y=True)
-        self.table_content_layout = GridLayout(size_hint=(None, None), spacing=dp(2))
-        self.table_content_layout.bind(minimum_height=self.table_content_layout.setter('height'), minimum_width=self.table_content_layout.setter('width'))
-        ds.add_widget(self.table_content_layout)
-        ds.bind(scroll_x=lambda inst, val: setattr(hs, 'scroll_x', val))
-
-        root.add_widget(hs)
-        root.add_widget(ds)
-        shell.set_content(root)
-        self.sc_ref["table"].add_widget(shell)
+        setup_table_screen(self, AppLayout, SecondaryButton, PrimaryButton, ModernInput)
 
     def refresh_table(self):
         self.table_content_layout.clear_widgets()
@@ -1973,39 +1912,16 @@ class FutureApp(App):
             self.table_content_layout.add_widget(act_box)
 
     def setup_clothes_container(self):
-        self.sc_ref["clothes"].clear_widgets()
-        shell = AppLayout(title="Ubranie robocze")
-        shell.nav_tabs.add_action(SecondaryButton(text="Wróć", on_press=lambda x: setattr(self.sm, 'current', 'home')))
-
-        tabs = AppActionBar()
-        btn_w = dp(170)
-        tabs.add_action(PrimaryButton(text="Rozmiary", size_hint_x=None, width=btn_w, on_press=lambda x: setattr(self.clothes_sm, 'current', 'sizes')))
-        tabs.add_action(PrimaryButton(text="Zamówienia", size_hint_x=None, width=btn_w, on_press=lambda x: setattr(self.clothes_sm, 'current', 'orders')))
-        tabs.add_action(PrimaryButton(text="Raporty", size_hint_x=None, width=btn_w, on_press=lambda x: setattr(self.clothes_sm, 'current', 'reports')))
-
-        self.clothes_sm = ScreenManager(transition=SlideTransition())
-        self.clothes_sm.add_widget(ClothesSizesScreen(name='sizes'))
-        self.clothes_sm.add_widget(ClothesOrdersScreen(name='orders'))
-        self.clothes_sm.add_widget(ClothesReportsScreen(name='reports'))
-        self.clothes_sm.current = 'sizes'
-        self._clothes_nav_bound = False
-        self._bind_clothes_navigation()
-
-        body = BoxLayout(orientation='vertical', spacing=dp(8))
-        body.add_widget(tabs)
-        body.add_widget(self.clothes_sm)
-        shell.set_content(body)
-        self.sc_ref["clothes"].add_widget(shell)
-        self._push_nav_state()
-
-        try:
-            scr = self.clothes_sm.get_screen('sizes')
-            if hasattr(scr, 'build_ui'):
-                scr.build_ui()
-            if hasattr(scr, 'refresh'):
-                scr.refresh()
-        except:
-            pass
+        setup_clothes_screen(
+            self,
+            AppLayout,
+            AppActionBar,
+            SecondaryButton,
+            PrimaryButton,
+            ClothesSizesScreen,
+            ClothesOrdersScreen,
+            ClothesReportsScreen,
+        )
 
     def _clothes_fetch_workers_for_order(self):
         rows = self.conn.execute("""
@@ -2596,35 +2512,7 @@ class FutureApp(App):
         threading.Thread(target=task, daemon=True).start()
 
     def setup_email_ui(self):
-        self.sc_ref["email"].clear_widgets()
-        shell = AppLayout(title="Moduł Email")
-        shell.nav_tabs.add_action(SecondaryButton(text="Wróć", on_press=lambda x: setattr(self.sm, 'current', 'home')))
-        shell.nav_tabs.add_action(SecondaryButton(text="SMTP", on_press=lambda x: setattr(self.sm, 'current', 'smtp')))
-
-        body = BoxLayout(orientation="vertical", spacing=dp(10))
-        auto_card = Card(orientation="horizontal", size_hint_y=None, height=dp(54), spacing=dp(10))
-        self.cb_auto = CheckBox(size_hint_x=None, width=dp(45))
-        self.cb_auto.active = self.auto_send_mode
-        self.cb_auto.bind(active=self.on_auto_checkbox_changed)
-        auto_card.add_widget(self.cb_auto)
-        auto_card.add_widget(Label(text="AUTOMATYCZNA WYSYŁKA", bold=True))
-        body.add_widget(auto_card)
-
-        self.lbl_stats = Label(text="Baza: 0", size_hint_y=None, height=dp(34)); body.add_widget(self.lbl_stats)
-        self.pb_label = Label(text="Gotowy", size_hint_y=None, height=dp(28)); self.pb = ProgressBar(max=100, size_hint_y=None, height=dp(24)); body.add_widget(self.pb_label); body.add_widget(self.pb)
-
-        actions = AppActionBar()
-        actions.add_action(DangerButton(text="Wyczyść załączniki", on_press=self.clear_all_attachments, size_hint_x=None))
-        actions.add_action(PrimaryButton(text="Edytuj szablon", on_press=lambda x: setattr(self.sm, 'current', 'tmpl'), size_hint_x=None))
-        actions.add_action(PrimaryButton(text="Dodaj załącznik", on_press=lambda x: self.open_picker("attachment"), size_hint_x=None))
-        actions.add_action(PrimaryButton(text="Wyślij jeden plik", on_press=self.start_special_send_flow, size_hint_x=None))
-        actions.add_action(PrimaryButton(text="Start masowa wysyłka", on_press=self.start_mass_mailing, size_hint_x=None))
-        actions.add_action(SecondaryButton(text="Pauza/Resume", on_press=self.toggle_pause_mailing, size_hint_x=None))
-
-        body.add_widget(actions)
-        shell.set_content(body)
-        self.sc_ref["email"].add_widget(shell)
-        self.update_stats()
+        setup_email_screen(self, AppLayout, AppActionBar, Card, SecondaryButton, PrimaryButton, DangerButton)
 
     def on_auto_checkbox_changed(self, instance, value):
         self.auto_send_mode = bool(value)
@@ -3099,35 +2987,7 @@ class FutureApp(App):
             ws.column_dimensions[col_let].width = (m * 1.3) + 7
 
     def setup_smtp_ui(self):
-        self.sc_ref["smtp"].clear_widgets()
-        p = Path(self.user_data_dir)/"smtp.json"
-        d = json.load(open(p)) if p.exists() else {}
-
-        shell = AppLayout(title="Ustawienia SMTP")
-        shell.nav_tabs.add_action(SecondaryButton(text="Wróć", on_press=lambda x: setattr(self.sm,'current','home')))
-
-        form = BoxLayout(orientation="vertical", spacing=dp(10))
-        self.ti_h = ModernInput(hint_text="Host", text=d.get('h',''))
-        self.ti_pt = ModernInput(hint_text="Port", text=str(d.get('port','587')))
-        self.ti_u = ModernInput(hint_text="Email/Login", text=d.get('u',''))
-        self.ti_p = ModernInput(hint_text="Hasło/Klucz", password=True, text=d.get('p',''))
-        form.add_widget(self.ti_h); form.add_widget(self.ti_pt); form.add_widget(self.ti_u); form.add_widget(self.ti_p)
-
-        bx = Card(orientation="horizontal", size_hint_y=None, height=dp(52), spacing=dp(10))
-        self.cb_b = CheckBox(size_hint_x=None, width=dp(45), active=d.get('batch', True))
-        bx.add_widget(self.cb_b); bx.add_widget(Label(text="Batching (przerwa 60s/30 maili)"))
-        form.add_widget(bx)
-
-        actions = AppActionBar()
-        actions.add_action(PrimaryButton(text="Zapisz", on_press=lambda x: [json.dump({'h':self.ti_h.text,'port':self.ti_pt.text,'u':self.ti_u.text,'p':self.ti_p.text,'batch':self.cb_b.active}, open(p,"w")), self.msg("OK","Zapisano")], size_hint_x=None))
-        actions.add_action(PrimaryButton(text="Test połączenia", on_press=lambda x: self.test_smtp_direct(), size_hint_x=None))
-        actions.add_action(SecondaryButton(text="Pokaż logi", on_press=self.show_logs, size_hint_x=None))
-
-        body = BoxLayout(orientation="vertical", spacing=dp(10))
-        body.add_widget(form)
-        body.add_widget(actions)
-        shell.set_content(body)
-        self.sc_ref["smtp"].add_widget(shell)
+        setup_smtp_screen(self, AppLayout, AppActionBar, Card, SecondaryButton, PrimaryButton, ModernInput)
 
     def test_smtp_direct(self):
         try: s = self.connect_smtp({'h':self.ti_h.text,'port':self.ti_pt.text,'u':self.ti_u.text,'p':self.ti_p.text}); s.quit(); self.msg("OK", "Serwer SMTP Działa!"); self.log("SMTP test succeeded")
@@ -3201,139 +3061,22 @@ class FutureApp(App):
         activity.bind(on_activity_result=cb); PA.mActivity.startActivityForResult(intent, 1001)
 
     def setup_tmpl_ui(self):
-        self.sc_ref["tmpl"].clear_widgets()
-        ts = self.conn.execute("SELECT val FROM settings WHERE key='t_sub'").fetchone()
-        tb = self.conn.execute("SELECT val FROM settings WHERE key='t_body'").fetchone()
-
-        shell = AppLayout(title="Szablon email")
-        shell.nav_tabs.add_action(SecondaryButton(text="Wróć", on_press=lambda x: setattr(self.sm, 'current', 'email')))
-
-        form = BoxLayout(orientation="vertical", spacing=dp(10))
-        ti_s = ModernInput(hint_text="Temat {Imię}")
-        ti_b = ModernInput(hint_text="Treść...", multiline=True)
-        ti_s.text, ti_b.text = (ts[0] if ts else ""), (tb[0] if tb else "")
-        form.add_widget(ti_s)
-        form.add_widget(ti_b)
-
-        actions = AppActionBar()
-        actions.add_action(PrimaryButton(text="Zapisz", on_press=lambda x: [self.conn.execute("INSERT OR REPLACE INTO settings VALUES (?,?)", ('t_sub',ti_s.text)), self.conn.execute("INSERT OR REPLACE INTO settings VALUES (?,?)", ('t_body',ti_b.text)), self.conn.commit(), self.msg("OK","Wzór zapisany")], size_hint_x=None))
-
-        body = BoxLayout(orientation="vertical", spacing=dp(10))
-        body.add_widget(form)
-        body.add_widget(actions)
-        shell.set_content(body)
-        self.sc_ref["tmpl"].add_widget(shell)
+        setup_template_screen(self, AppLayout, AppActionBar, SecondaryButton, PrimaryButton, ModernInput)
 
     def setup_contacts_ui(self):
-        self.sc_ref["contacts"].clear_widgets()
-        shell = AppLayout(title="Kontakty")
-        shell.nav_tabs.add_action(SecondaryButton(text="Wróć", on_press=lambda x: setattr(self.sm, 'current', 'home')))
-        shell.nav_tabs.add_action(PrimaryButton(text="Dodaj", on_press=lambda x: self.form_contact(), size_hint_x=None, width=dp(150)))
-
-        body = BoxLayout(orientation="vertical", spacing=dp(8))
-        search_row = BoxLayout(size_hint_y=None, height=dp(54), spacing=dp(8))
-        self.ti_cs = ModernInput(hint_text="Szukaj po imieniu, nazwisku, email, telefonie...")
-        self.ti_cs.bind(text=self.refresh_contacts_list)
-        search_row.add_widget(self.ti_cs)
-
-        filter_row = BoxLayout(size_hint_y=None, height=dp(54), spacing=dp(8))
-        self.ti_cs_workplace = ModernInput(hint_text="Filtr zakład pracy")
-        self.ti_cs_workplace.bind(text=self.refresh_contacts_list)
-        self.ti_cs_city = ModernInput(hint_text="Filtr adres / mieszkanie")
-        self.ti_cs_city.bind(text=self.refresh_contacts_list)
-        filter_row.add_widget(self.ti_cs_workplace)
-        filter_row.add_widget(self.ti_cs_city)
-
-        self.c_ls = GridLayout(cols=1, size_hint_y=None, spacing=dp(10), padding=[dp(2), dp(2)])
-        self.c_ls.bind(minimum_height=self.c_ls.setter('height'))
-        sc = ScrollView()
-        sc.add_widget(self.c_ls)
-
-        body.add_widget(search_row)
-        body.add_widget(filter_row)
-        body.add_widget(sc)
-        shell.set_content(body)
-        shell.set_fab(lambda x: self.form_contact())
-        self.sc_ref["contacts"].add_widget(shell)
+        setup_contacts_screen(self, AppLayout, SecondaryButton, PrimaryButton, ModernInput)
 
     def refresh_contacts_list(self, *args):
-        self.c_ls.clear_widgets(); sv = self.ti_cs.text.lower()
-        sv_workplace = self.ti_cs_workplace.text.lower() if hasattr(self, 'ti_cs_workplace') else ""
-        sv_city = self.ti_cs_city.text.lower() if hasattr(self, 'ti_cs_city') else ""
-        rows = self.conn.execute("SELECT name, surname, email, pesel, phone, workplace, apartment, notes FROM contacts ORDER BY surname ASC").fetchall()
-        for d in rows:
-            searchable = f"{d[0]} {d[1]} {d[2]} {d[4]} {d[5]} {d[6]} {d[7]}".lower()
-            if sv and sv not in searchable:
-                continue
-            if sv_workplace and sv_workplace not in str(d[5]).lower():
-                continue
-            if sv_city and sv_city not in str(d[6]).lower():
-                continue
-
-            card = BoxLayout(orientation="vertical", size_hint_y=None, height=dp(250), padding=dp(10), spacing=dp(8))
-            with card.canvas.before:
-                Color(*COLOR_CARD)
-                rect = RoundedRectangle(pos=card.pos, size=card.size, radius=[dp(12)])
-            card.bind(pos=lambda inst, val, r=rect: setattr(r, 'pos', val), size=lambda inst, val, r=rect: setattr(r, 'size', val))
-
-            name_lbl = Label(text=f"{d[0]} {d[1]}".title(), bold=True, halign="left", valign='middle', size_hint_y=None, height=dp(38))
-            name_lbl.bind(size=lambda inst, val: setattr(inst, 'text_size', (inst.width - dp(6), None)))
-            card.add_widget(name_lbl)
-
-            info_text = (
-                f"E: {d[2]}\n"
-                f"PESEL: {d[3] if d[3] else '-'}\n"
-                f"T: {d[4] if d[4] else '-'}\n"
-                f"Zakład: {d[5] if d[5] else '-'}\n"
-                f"Adres: {d[6] if d[6] else '-'}\n"
-                f"Notatka: {d[7] if d[7] else '-'}"
-            )
-            info_lbl = Label(text=info_text, font_size='12sp', halign="left", valign='top', color=(0.84,0.86,0.92,1))
-            info_lbl.bind(size=lambda inst, val: setattr(inst, 'text_size', (inst.width - dp(6), None)))
-            card.add_widget(info_lbl)
-
-            actions = ButtonContainer(orientation='horizontal', size_hint_y=None, height=dp(60), min_button_width=dp(132), min_button_height=dp(44))
-            phone_txt = str(d[4]).strip() if d[4] else ""
-            actions.add_action(ModernButton(text="Zadzwoń", on_press=lambda x, ph=phone_txt: self._call_contact(ph), bg_color=(0.16,0.6,0.3,1)))
-            actions.add_action(ModernButton(text="WhatsApp", on_press=lambda x, ph=phone_txt, nm=d[0]: self._whatsapp_contact(ph, nm), bg_color=(0.06,0.55,0.25,1)))
-            actions.add_action(ModernButton(text="Edytuj", on_press=lambda x, data=d: self.form_contact(*data)))
-            actions.add_action(ModernButton(text="Usuń", bg_color=(0.8,0.2,0.2,1), on_press=lambda x, n=d[0], sn=d[1]: self.delete_contact(n, sn)))
-            card.add_widget(actions)
-            self.c_ls.add_widget(card)
+        refresh_contacts_list_view(self, ButtonContainer, ModernButton, COLOR_CARD)
 
     def msg(self, tit, txt):
-        b = BoxLayout(orientation="vertical", padding=dp(18), spacing=dp(10))
-        l = Label(text=txt, halign="center", valign="middle")
-        l.bind(size=lambda inst, val: setattr(inst, 'text_size', (inst.width - dp(8), None)))
-        b.add_widget(l)
-        b.add_widget(PrimaryButton(text="OK", on_press=lambda x: p.dismiss(), height=dp(54), size_hint_y=None))
-        p = Popup(title=tit, content=b, size_hint=(0.92, 0.55), auto_dismiss=False)
-        p.open()
+        show_message_popup(tit, txt, PrimaryButton)
 
     def update_stats(self, *a):
-        try:
-            count = self.conn.execute('SELECT count(*) FROM contacts').fetchone()[0]
-            s = f"Baza: {count} | Załączniki: {len(self.global_attachments)}"
-            if hasattr(self, 'lbl_stats'):
-                self.lbl_stats.text = s
-            if hasattr(self, 'lbl_stats_paski'):
-                self.lbl_stats_paski.text = s
-        except:
-            pass
+        update_stats_labels(self)
 
     def update_progress(self, d):
-        try:
-            val = int((d/self.total_q)*100) if self.total_q else 0
-            if hasattr(self, 'pb'):
-                self.pb.value = val
-            if hasattr(self, 'pb_paski'):
-                self.pb_paski.value = val
-            if hasattr(self, 'pb_label'):
-                self.pb_label.text = f"Postęp: {d}/{self.total_q}"
-            if hasattr(self, 'pb_label_paski'):
-                self.pb_label_paski.text = f"Postęp: {d}/{self.total_q}"
-        except:
-            pass
+        update_progress_labels(self, d)
 
     def finish_mailing(self, s):
         self.is_mailing_running = False; det = "\n".join(self.session_details); self.conn.execute("INSERT INTO reports (date, ok, fail, skip, auto, details) VALUES (?,?,?,?,?,?)", (datetime.now().strftime("%Y-%m-%d %H:%M"), self.stats['ok'], self.stats['fail'], self.stats['skip'], 0, det)); self.conn.commit()
@@ -3341,35 +3084,16 @@ class FutureApp(App):
         self.log(f"Mailing finished: {s} | ok={self.stats['ok']} fail={self.stats['fail']} skip={self.stats['skip']}")
 
     def popup_columns(self, _):
-        box, gr, checks = BoxLayout(orientation="vertical", padding=dp(10)), GridLayout(cols=1, size_hint_y=None, spacing=dp(5)), []
-        gr.bind(minimum_height=gr.setter('height'))
-        for i, h in enumerate(self.full_data[0]):
-            r, cb = BoxLayout(size_hint_y=None, height=dp(45)), CheckBox(active=(i in self.export_indices), size_hint_x=None, width=dp(50)); checks.append((i, cb)); r.add_widget(cb); r.add_widget(Label(text=str(h))); gr.add_widget(r)
-        sc = ScrollView(); sc.add_widget(gr); box.add_widget(sc); box.add_widget(ModernButton(text="ZASTOSUJ", on_press=lambda x: [setattr(self, 'export_indices', [idx for idx, c in checks if c.active]), p.dismiss(), self.refresh_table()], height=dp(50), size_hint_y=None)); p = Popup(title="Kolumny", content=box, size_hint=(0.9, 0.9)); p.open()
+        popup_columns_selector(self, ModernButton, CheckBox)
 
     def setup_report_ui(self):
-        self.sc_ref["report"].clear_widgets()
-        shell = AppLayout(title="Historia sesji")
-        shell.nav_tabs.add_action(SecondaryButton(text="Wróć", on_press=lambda x: setattr(self.sm, 'current', 'home')))
-
-        self.r_grid = GridLayout(cols=1, size_hint_y=None, spacing=dp(10), padding=[dp(2), dp(2)])
-        self.r_grid.bind(minimum_height=self.r_grid.setter('height'))
-        sc = ScrollView(); sc.add_widget(self.r_grid)
-
-        shell.set_content(sc)
-        self.sc_ref["report"].add_widget(shell)
+        setup_report_screen(self, AppLayout, SecondaryButton)
 
     def refresh_reports(self, *a):
-        self.r_grid.clear_widgets(); rows = self.conn.execute("SELECT date, ok, fail, skip, details FROM reports ORDER BY id DESC").fetchall()
-        for d, ok, fl, sk, det in rows:
-            row = Card(orientation="vertical", size_hint_y=None, height=dp(120), padding=dp(10), spacing=dp(8))
-            row.add_widget(Label(text=f"Sesja: {d}", bold=True, color=COLOR_PRIMARY))
-            row.add_widget(Label(text=f"OK: {ok}  BŁĘDY: {fl}  POMINIĘTE: {sk}", color=(0.8,0.85,0.92,1), size_hint_y=None, height=dp(26)))
-            row.add_widget(PrimaryButton(text="Pokaż logi", size_hint_y=None, height=dp(42), on_press=lambda x, t=det: self.show_details(t)))
-            self.r_grid.add_widget(row)
+        refresh_reports_list_view(self, Card, Label, PrimaryButton, COLOR_PRIMARY)
 
     def show_details(self, t):
-        b = BoxLayout(orientation="vertical", padding=dp(10)); ti = TextInput(text=str(t), readonly=True, font_size='11sp'); b.add_widget(ti); b.add_widget(Button(text="ZAMKNIJ", size_hint_y=0.2, on_press=lambda x: p.dismiss())); p = Popup(title="Logi", content=b, size_hint=(.9,.8)); p.open()
+        show_report_details_popup(t)
 
     def ask_before_send_worker(self, row, email, n, s):
         def dec(v): self.user_decision = "send" if v else "skip"; self.wait_for_user = False; px.dismiss()
@@ -3904,126 +3628,19 @@ class FutureApp(App):
         self.refresh_plants_list()
 
     def setup_cars_ui(self):
-        """Buduje ekran cars: nagłówek, lista i panel akcji."""
-        self.sc_ref["cars"].clear_widgets()
-        self.init_cars_db()
-
-        shell = AppLayout(title="Samochody")
-        shell.nav_tabs.add_action(SecondaryButton(text='Powrót', on_press=lambda x: setattr(self.sm, 'current', 'home')))
-        shell.nav_tabs.add_action(PrimaryButton(text='+ DODAJ SAMOCHÓD', on_press=lambda x: self.add_car_popup(), size_hint_x=None, width=dp(210)))
-
-        body = BoxLayout(orientation='vertical', spacing=dp(8))
-        self.ti_cars_search = ModernInput(hint_text='Szukaj: nazwa / rejestracja / kierowca')
-        self.ti_cars_search.bind(text=self.refresh_cars_list)
-        body.add_widget(self.ti_cars_search)
-
-        self.cars_grid = GridLayout(cols=1, spacing=dp(8), size_hint_y=None, padding=[dp(2), dp(2)])
-        self.cars_grid.bind(minimum_height=self.cars_grid.setter('height'))
-        sc = ScrollView()
-        sc.add_widget(self.cars_grid)
-        body.add_widget(sc)
-
-        shell.set_content(body)
-        shell.set_fab(lambda x: self.add_car_popup())
-        self.sc_ref['cars'].add_widget(shell)
-        self.refresh_cars_list()
+        setup_cars_screen(self, AppLayout, SecondaryButton, PrimaryButton, ModernInput)
 
     def setup_pracownicy_ui(self):
-        self.sc_ref["pracownicy"].clear_widgets()
-        shell = AppLayout(title="Pracownicy")
-        shell.nav_tabs.add_action(SecondaryButton(text='Powrót', on_press=lambda x: setattr(self.sm, 'current', 'home')))
-        shell.nav_tabs.add_action(PrimaryButton(text='Dodaj', on_press=lambda x: self.form_worker(), size_hint_x=None, width=dp(150)))
-        body = BoxLayout(orientation='vertical', spacing=dp(8))
-        self.ti_workers_search = ModernInput(hint_text='Szukaj pracownika (imię, nazwisko, zakład)')
-        self.ti_workers_search.bind(text=self.refresh_workers_module)
-        body.add_widget(self.ti_workers_search)
-        self.workers_grid = GridLayout(cols=1, spacing=dp(8), size_hint_y=None)
-        self.workers_grid.bind(minimum_height=self.workers_grid.setter('height'))
-        sc = ScrollView(); sc.add_widget(self.workers_grid)
-        body.add_widget(sc)
-        shell.set_content(body)
-        shell.set_fab(lambda x: self.form_worker())
-        self.sc_ref['pracownicy'].add_widget(shell)
-        self.refresh_workers_module()
+        setup_workers_screen(self, AppLayout, SecondaryButton, PrimaryButton, ModernInput)
 
     def setup_zaklady_ui(self):
-        self.sc_ref["zaklady"].clear_widgets()
-        shell = AppLayout(title="Zakłady")
-        shell.nav_tabs.add_action(SecondaryButton(text='Powrót', on_press=lambda x: setattr(self.sm, 'current', 'home')))
-        shell.nav_tabs.add_action(PrimaryButton(text='Dodaj', on_press=lambda x: self.form_plant(), size_hint_x=None, width=dp(150)))
-        body = BoxLayout(orientation='vertical', spacing=dp(8))
-        self.ti_plants_search = ModernInput(hint_text='Szukaj zakładu (nazwa, miasto, telefon)')
-        self.ti_plants_search.bind(text=self.refresh_plants_list)
-        body.add_widget(self.ti_plants_search)
-        self.plants_grid = GridLayout(cols=1, spacing=dp(8), size_hint_y=None)
-        self.plants_grid.bind(minimum_height=self.plants_grid.setter('height'))
-        sc = ScrollView(); sc.add_widget(self.plants_grid)
-        body.add_widget(sc)
-        shell.set_content(body)
-        shell.set_fab(lambda x: self.form_plant())
-        self.sc_ref['zaklady'].add_widget(shell)
-        self.refresh_plants_list()
+        setup_plants_screen(self, AppLayout, SecondaryButton, PrimaryButton, ModernInput)
 
     def setup_settings_ui(self):
-        self.sc_ref["settings"].clear_widgets()
-        shell = AppLayout(title="Ustawienia i narzędzia")
-        shell.nav_tabs.add_action(SecondaryButton(text="Powrót", on_press=lambda x: setattr(self.sm, 'current', 'home')))
-
-        body = BoxLayout(orientation="vertical", spacing=dp(10))
-        try:
-            contacts_count = self.conn.execute("SELECT COUNT(*) FROM contacts").fetchone()[0]
-            workers_count = self.conn.execute("SELECT COUNT(*) FROM workers").fetchone()[0]
-            cars_count = self.conn.execute("SELECT COUNT(*) FROM fleet_cars").fetchone()[0]
-            plants_count = self.conn.execute("SELECT COUNT(*) FROM plants").fetchone()[0]
-            body.add_widget(Label(text=f"Baza: kontakty {contacts_count} | pracownicy {workers_count} | auta {cars_count} | zakłady {plants_count}", size_hint_y=None, height=dp(34), color=(0.75,0.82,0.92,1)))
-        except Exception:
-            pass
-
-        actions = ScrollView()
-        action_grid = GridLayout(cols=1, spacing=dp(10), size_hint_y=None, padding=[dp(2), dp(2)])
-        action_grid.bind(minimum_height=action_grid.setter('height'))
-        action_grid.add_widget(PrimaryButton(text="Dodaj bazę danych", on_press=lambda x: self.open_picker("book"), height=dp(54), size_hint_y=None))
-        action_grid.add_widget(PrimaryButton(text="Ustawienia SMTP", on_press=lambda x: setattr(self.sm, 'current', 'smtp'), height=dp(54), size_hint_y=None))
-        action_grid.add_widget(PrimaryButton(text="Edytuj szablon email", on_press=lambda x: setattr(self.sm, 'current', 'tmpl'), height=dp(54), size_hint_y=None))
-        action_grid.add_widget(PrimaryButton(text="Wczytaj arkusz płac", on_press=lambda x: self.open_picker("data"), height=dp(54), size_hint_y=None))
-        action_grid.add_widget(SecondaryButton(text="Pokaż logi", on_press=self.show_logs, height=dp(54), size_hint_y=None))
-        actions.add_widget(action_grid)
-        body.add_widget(actions)
-        shell.set_content(body)
-        self.sc_ref["settings"].add_widget(shell)
+        setup_settings_screen(self, AppLayout, SecondaryButton, PrimaryButton)
 
     def setup_paski_ui(self):
-        self.sc_ref["paski"].clear_widgets()
-        shell = AppLayout(title="Moduł Paski")
-        shell.nav_tabs.add_action(SecondaryButton(text="Powrót", on_press=lambda x: setattr(self.sm, 'current', 'home')))
-
-        body = BoxLayout(orientation="vertical", spacing=dp(10))
-        auto_row = Card(orientation="horizontal", size_hint_y=None, height=dp(52), spacing=dp(10))
-        self.cb_paski_auto = CheckBox(size_hint_x=None, width=dp(45))
-        self.cb_paski_auto.active = self.auto_send_mode
-        self.cb_paski_auto.bind(active=self.on_auto_checkbox_changed)
-        auto_row.add_widget(self.cb_paski_auto)
-        auto_row.add_widget(Label(text="AUTOMATYCZNA WYSYŁKA", bold=True))
-        body.add_widget(auto_row)
-
-        self.lbl_stats_paski = Label(text="Baza: 0 | Załączniki: 0", size_hint_y=None, height=dp(32)); body.add_widget(self.lbl_stats_paski)
-        self.pb_label_paski = Label(text="Gotowy", size_hint_y=None, height=dp(28)); self.pb_paski = ProgressBar(max=100, size_hint_y=None, height=dp(24)); body.add_widget(self.pb_label_paski); body.add_widget(self.pb_paski)
-
-        actions = AppActionBar()
-        actions.add_action(PrimaryButton(text="Wczytaj arkusz płac", on_press=lambda x: self.open_picker("data"), size_hint_x=None))
-        actions.add_action(PrimaryButton(text="Podgląd i eksport", on_press=lambda x: [self.refresh_table(), setattr(self.sm, 'current', 'table')] if self.full_data else self.msg("!", "Wczytaj arkusz!"), size_hint_x=None))
-        actions.add_action(PrimaryButton(text="Edytuj szablon", on_press=lambda x: setattr(self.sm, 'current', 'tmpl'), size_hint_x=None))
-        actions.add_action(PrimaryButton(text="Dołącz załącznik", on_press=lambda x: self.open_picker("attachment"), size_hint_x=None))
-        actions.add_action(PrimaryButton(text="Wyślij jeden plik", on_press=self.start_special_send_flow, size_hint_x=None))
-        actions.add_action(PrimaryButton(text="Start masowa wysyłka", on_press=self.start_mass_mailing, size_hint_x=None))
-        actions.add_action(SecondaryButton(text="PAUZA/RESUME", on_press=self.toggle_pause_mailing, size_hint_x=None))
-        actions.add_action(SecondaryButton(text="Raporty sesji", on_press=lambda x: [self.refresh_reports(), setattr(self.sm, 'current', 'report')], size_hint_x=None))
-        actions.add_action(DangerButton(text="Wyczyść załączniki", on_press=self.clear_all_attachments, size_hint_x=None))
-
-        body.add_widget(actions)
-        shell.set_content(body)
-        self.sc_ref["paski"].add_widget(shell)
-        self.update_stats()
+        setup_paski_screen(self, AppLayout, Card, AppActionBar, SecondaryButton, PrimaryButton, DangerButton)
 
     def toggle_pause_mailing(self, _=None):
         self.mailing_paused = not self.mailing_paused
@@ -4031,21 +3648,7 @@ class FutureApp(App):
         else: self.msg("OK", "Wysyłka wznowiona"); self.log("Mailing resumed")
 
     def show_logs(self, _=None):
-        try:
-            text = ""
-            if self.log_file.exists():
-                with open(self.log_file, "r", encoding="utf-8") as f:
-                    text = f.read()[-40000:]
-            else:
-                text = "\n".join(self._log_buffer)
-            b = BoxLayout(orientation="vertical", padding=dp(10))
-            ti = TextInput(text=text, readonly=True, font_size='11sp')
-            b.add_widget(ti)
-            b.add_widget(Button(text="ZAMKNIJ", size_hint_y=0.2, on_press=lambda x: p.dismiss()))
-            p = Popup(title="Logi aplikacji", content=b, size_hint=(.95,.95)); p.open()
-        except Exception:
-            self.log(f"show_logs error: {traceback.format_exc()}")
-            self.msg("Błąd", "Nie można otworzyć logów")
+        show_logs_popup(self, Button)
 
 if __name__ == "__main__":
     FutureApp().run()
