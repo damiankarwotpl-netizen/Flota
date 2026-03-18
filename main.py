@@ -84,6 +84,12 @@ except Exception:
     A4 = None
     getSampleStyleSheet = None
 
+try:
+    from pypdf import PdfReader, PdfWriter
+except Exception:
+    PdfReader = None
+    PdfWriter = None
+
 
 
 COLOR_PRIMARY = (0.1, 0.5, 0.9, 1)
@@ -351,8 +357,10 @@ class SimplePdfDocument:
 
 def vehicle_protocol_template_path():
     candidates = [
+        Path(__file__).with_name("assets").joinpath("vehicle_protocol_template.pdf"),
         Path(__file__).with_name("assets").joinpath("vehicle_protocol_template.jpg"),
         Path(__file__).with_name("assets").joinpath("vehicle_protocol_template.jpeg"),
+        Path(__file__).with_name("vehicle_protocol_template.pdf"),
         Path(__file__).with_name("vehicle_protocol_template.jpg"),
         Path(__file__).with_name("vehicle_protocol_template.jpeg"),
     ]
@@ -461,6 +469,29 @@ def draw_vehicle_protocol_template(pdf):
     box(424, 720, 56, 24)
     txt(336, 730, "Od kiedy?", 9)
     txt(38, 795, "Dokument generowany automatycznie z modulu Raport stanu samochodu.", 8)
+
+
+def load_pdf_template_page_size(template_path):
+    if PdfReader is None:
+        return None
+    reader = PdfReader(str(template_path))
+    page = reader.pages[0]
+    return float(page.mediabox.width), float(page.mediabox.height)
+
+
+def merge_pdf_template_with_overlay(template_path, overlay_path, output_path):
+    if PdfReader is None or PdfWriter is None:
+        raise RuntimeError("Brak biblioteki pypdf do obslugi szablonu PDF.")
+
+    template_reader = PdfReader(str(template_path))
+    overlay_reader = PdfReader(str(overlay_path))
+    template_page = template_reader.pages[0]
+    template_page.merge_page(overlay_reader.pages[0])
+
+    writer = PdfWriter()
+    writer.add_page(template_page)
+    with Path(output_path).open("wb") as handle:
+        writer.write(handle)
 
 
 class Card(BoxLayout):
@@ -1811,12 +1842,14 @@ class FutureApp(App):
         out_dir.mkdir(parents=True, exist_ok=True)
         file_path = out_dir / "protokol_stanu_pojazdu.pdf"
 
-        pdf = SimplePdfDocument()
         template_path = vehicle_protocol_template_path()
+        is_pdf_template = bool(template_path and template_path.suffix.lower() == ".pdf")
+        pdf_size = load_pdf_template_page_size(template_path) if is_pdf_template else None
+        pdf = SimplePdfDocument(*(pdf_size or (595.28, 841.89)))
         W, H = pdf.width, pdf.height
-        if template_path:
+        if template_path and not is_pdf_template:
             pdf.image_jpeg(template_path, 0, 0, W, H, "ImTemplate")
-        else:
+        elif not template_path:
             draw_vehicle_protocol_template(pdf)
 
         def box(x, y0, w, h):
@@ -1874,7 +1907,16 @@ class FutureApp(App):
         txt(372, 796, "oraz", 8, True)
         txt(304, 812, "justyna.kucharska@future-group.pl", 8)
 
-        pdf.save(file_path)
+        if is_pdf_template:
+            overlay_path = file_path.with_name(f"{file_path.stem}_overlay.pdf")
+            try:
+                pdf.save(overlay_path)
+                merge_pdf_template_with_overlay(template_path, overlay_path, file_path)
+            finally:
+                if overlay_path.exists():
+                    overlay_path.unlink()
+        else:
+            pdf.save(file_path)
         return file_path
 
     def setup_table_ui(self):

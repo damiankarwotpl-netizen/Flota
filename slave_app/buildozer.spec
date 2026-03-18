@@ -9,7 +9,7 @@ source.include_exts = py,kv,png,jpg
 
 version = 1.0
 
-requirements = python3,kivy,requests,plyer,fpdf, fonttools
+requirements = python3,kivy,requests,plyer,pypdf
 
 orientation = portrait
 
