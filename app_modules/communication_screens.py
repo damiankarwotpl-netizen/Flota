@@ -8,6 +8,10 @@ from kivy.uix.gridlayout import GridLayout
 from kivy.uix.label import Label
 from kivy.uix.progressbar import ProgressBar
 from kivy.uix.scrollview import ScrollView
+try:
+    from kivymd.uix.label import MDLabel
+except Exception:
+    MDLabel = None
 
 
 def setup_email_screen(app, AppLayout, AppActionBar, Card, SecondaryButton, PrimaryButton, DangerButton):
@@ -17,7 +21,8 @@ def setup_email_screen(app, AppLayout, AppActionBar, Card, SecondaryButton, Prim
     shell.nav_tabs.add_action(SecondaryButton(text="SMTP", on_press=lambda x: setattr(app.sm, 'current', 'smtp')))
 
     body = BoxLayout(orientation="vertical", spacing=dp(12), padding=[dp(4), dp(2), dp(4), dp(4)])
-    body.add_widget(Label(text="Wysyłka i komunikacja", size_hint_y=None, height=dp(24), color=(0.72, 0.80, 0.92, 1), bold=True))
+    title_cls = MDLabel if MDLabel is not None else Label
+    body.add_widget(title_cls(text="Wysyłka i komunikacja", size_hint_y=None, height=dp(24), color=(0.72, 0.80, 0.92, 1), bold=True))
     auto_card = Card(orientation="horizontal", size_hint_y=None, height=dp(54), spacing=dp(10))
     app.cb_auto = CheckBox(size_hint_x=None, width=dp(45))
     app.cb_auto.active = app.auto_send_mode
@@ -56,7 +61,8 @@ def setup_smtp_screen(app, AppLayout, AppActionBar, Card, SecondaryButton, Prima
     shell.nav_tabs.add_action(SecondaryButton(text="Wróć", on_press=lambda x: setattr(app.sm, 'current', 'home')))
 
     form = BoxLayout(orientation="vertical", spacing=dp(12), padding=[dp(4), dp(2), dp(4), dp(4)])
-    form.add_widget(Label(text="Konfiguracja serwera SMTP", size_hint_y=None, height=dp(24), color=(0.72, 0.80, 0.92, 1), bold=True))
+    title_cls = MDLabel if MDLabel is not None else Label
+    form.add_widget(title_cls(text="Konfiguracja serwera SMTP", size_hint_y=None, height=dp(24), color=(0.72, 0.80, 0.92, 1), bold=True))
     app.ti_h = ModernInput(hint_text="Host", text=d.get('h', ''))
     app.ti_pt = ModernInput(hint_text="Port", text=str(d.get('port', '587')))
     app.ti_u = ModernInput(hint_text="Email/Login", text=d.get('u', ''))
@@ -102,7 +108,8 @@ def setup_template_screen(app, AppLayout, AppActionBar, SecondaryButton, Primary
     shell.nav_tabs.add_action(SecondaryButton(text="Wróć", on_press=lambda x: setattr(app.sm, 'current', 'email')))
 
     form = BoxLayout(orientation="vertical", spacing=dp(12), padding=[dp(4), dp(2), dp(4), dp(4)])
-    form.add_widget(Label(text="Edycja szablonu wiadomości", size_hint_y=None, height=dp(24), color=(0.72, 0.80, 0.92, 1), bold=True))
+    title_cls = MDLabel if MDLabel is not None else Label
+    form.add_widget(title_cls(text="Edycja szablonu wiadomości", size_hint_y=None, height=dp(24), color=(0.72, 0.80, 0.92, 1), bold=True))
     ti_s = ModernInput(hint_text="Temat {Imię}")
     ti_b = ModernInput(hint_text="Treść...", multiline=True)
     ti_s.text, ti_b.text = (ts[0] if ts else ""), (tb[0] if tb else "")
@@ -137,7 +144,8 @@ def setup_contacts_screen(app, AppLayout, SecondaryButton, PrimaryButton, Modern
     shell.nav_tabs.add_action(PrimaryButton(text="Dodaj", on_press=lambda x: app.form_contact(), size_hint_x=None, width=dp(150)))
 
     body = BoxLayout(orientation="vertical", spacing=dp(10), padding=[dp(4), dp(2), dp(4), dp(4)])
-    body.add_widget(Label(text="Kontakty i filtry", size_hint_y=None, height=dp(24), color=(0.72, 0.80, 0.92, 1), bold=True))
+    title_cls = MDLabel if MDLabel is not None else Label
+    body.add_widget(title_cls(text="Kontakty i filtry", size_hint_y=None, height=dp(24), color=(0.72, 0.80, 0.92, 1), bold=True))
     search_row = BoxLayout(size_hint_y=None, height=dp(54), spacing=dp(8))
     app.ti_cs = ModernInput(hint_text="Szukaj po imieniu, nazwisku, email, telefonie...")
     app.ti_cs.bind(text=app.refresh_contacts_list)

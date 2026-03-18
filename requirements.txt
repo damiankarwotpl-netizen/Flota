@@ -1,4 +1,5 @@
 kivy
+kivymd
 gspread
 oauth2client
 requests
