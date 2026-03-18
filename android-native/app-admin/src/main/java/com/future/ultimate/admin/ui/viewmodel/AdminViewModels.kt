@@ -267,6 +267,12 @@ class ClothesReportsViewModel(private val repository: AdminRepository) : ViewMod
         )
     }
 
+    fun exportCsv() = viewModelScope.launch {
+        _uiState.value = _uiState.value.copy(isExporting = true, exportMessage = null)
+        val path = repository.exportClothesHistoryCsv()
+        _uiState.value = _uiState.value.copy(isExporting = false, exportMessage = "CSV zapisane: $path")
+    }
+
     private fun buildYearlySummary(history: List<com.future.ultimate.core.common.repository.ClothesHistoryListItem>, year: String): List<String> {
         val normalizedYear = year.trim()
         if (normalizedYear.isBlank()) return emptyList()

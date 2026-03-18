@@ -89,6 +89,8 @@ data class ClothesReportsUiState(
     val year: String = "",
     val history: List<ClothesHistoryListItem> = emptyList(),
     val yearlySummary: List<String> = emptyList(),
+    val exportMessage: String? = null,
+    val isExporting: Boolean = false,
 )
 
 data class SmtpUiState(

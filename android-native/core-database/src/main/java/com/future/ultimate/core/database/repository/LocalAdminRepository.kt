@@ -33,10 +33,12 @@ import com.future.ultimate.core.database.entity.DriverAccountEntity
 import com.future.ultimate.core.database.entity.PlantEntity
 import com.future.ultimate.core.database.entity.SettingEntity
 import com.future.ultimate.core.database.entity.WorkerEntity
+import java.io.File
 import java.time.LocalDate
 import kotlin.random.Random
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 
 class LocalAdminRepository(
@@ -463,6 +465,29 @@ class LocalAdminRepository(
     override suspend fun exportVehicleReportPdf(draft: VehicleReportDraft): String =
         VehicleReportPdfExporter.export(context, draft, ownerTag = "admin")
 
+    override suspend fun exportClothesHistoryCsv(): String {
+        val outputDir = context.getExternalFilesDir(null) ?: context.filesDir
+        val outputFile = File(outputDir, "clothes_history.csv")
+        val rows = dao.observeClothesHistory().map { items ->
+            items.sortedWith(compareByDescending<com.future.ultimate.core.database.entity.ClothesHistoryEntity> { it.date }.thenByDescending { it.id })
+        }
+        val latestRows = rows.first()
+        outputFile.bufferedWriter(Charsets.UTF_8).use { writer ->
+            writer.appendLine("worker_id,name,surname,item,size,date")
+            latestRows.forEach { row ->
+                writer.appendCsvLine(
+                    row.workerId.toString(),
+                    row.name,
+                    row.surname,
+                    row.item,
+                    row.size,
+                    row.date,
+                )
+            }
+        }
+        return outputFile.absolutePath
+    }
+
     private suspend fun syncDriverAccount(driverName: String, registration: String) {
         val normalizedDriver = driverName.trim()
         val normalizedRegistration = registration.trim().uppercase()
@@ -486,6 +511,12 @@ class LocalAdminRepository(
             .replace(Regex("\\.{2,}"), ".")
             .trim('.')
         return sanitized.ifBlank { "driver" }
+    }
+
+    private fun Appendable.appendCsvLine(vararg columns: String) {
+        appendLine(columns.joinToString(",") { value ->
+            "\"${value.replace("\"", "\"\"")}\""
+        })
     }
 
     private fun generatePassword(length: Int = 6): String = buildString {

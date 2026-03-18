@@ -67,12 +67,16 @@ fun ClothesScreen() {
                         Text("Po zapisaniu zamówienia rozwiń kartę poniżej, aby dodać pozycje i oznaczyć status.")
                     }
                     else -> {
+                        Button(onClick = reportsViewModel::exportCsv, modifier = Modifier.fillMaxWidth()) {
+                            Text(if (reportsUiState.isExporting) "Eksportowanie..." else "Eksport CSV historii")
+                        }
                         OutlinedTextField(
                             reportsUiState.year,
                             reportsViewModel::updateYear,
                             label = { Text("Rok statystyk") },
                             modifier = Modifier.fillMaxWidth(),
                         )
+                        reportsUiState.exportMessage?.let { Text(it) }
                         Text("Podsumowanie wydań dla roku ${reportsUiState.year.ifBlank { "----" }}")
                     }
                 }
