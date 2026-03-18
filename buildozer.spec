@@ -12,7 +12,7 @@ package.domain = org.future.hr
 source.dir = .
 
 # (list) Source files to include (let empty to include all the files)
-source.include_exts = py,png,jpg,kv,atlas,json
+source.include_exts = py,png,jpg,jpeg,pdf,kv,atlas,json
 
 # (str) Application versioning (method 1)
 version = 10.1

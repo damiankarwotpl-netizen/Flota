@@ -16,6 +16,9 @@ import threading
 from master_sync.sync_worker import start_sync
 from master_sync.create_driver_login import create_driver
 
+from app_modules.home_screen import setup_home_screen
+from app_modules.vehicle_report_screen import setup_vehicle_report_screen
+
 from datetime import datetime
 from pathlib import Path
 from email.message import EmailMessage
@@ -356,18 +359,39 @@ class SimplePdfDocument:
 
 
 def vehicle_protocol_template_path():
-    candidates = [
-        Path(__file__).with_name("assets").joinpath("vehicle_protocol_template.pdf"),
-        Path(__file__).with_name("assets").joinpath("vehicle_protocol_template.jpg"),
-        Path(__file__).with_name("assets").joinpath("vehicle_protocol_template.jpeg"),
-        Path(__file__).with_name("vehicle_protocol_template.pdf"),
-        Path(__file__).with_name("vehicle_protocol_template.jpg"),
-        Path(__file__).with_name("vehicle_protocol_template.jpeg"),
+    base = Path(__file__).resolve().parent
+    roots = [
+        base / "assets",
+        base,
+        base.parent / "assets",
+        base.parent,
+        Path.cwd() / "assets",
+        Path.cwd(),
     ]
-    for path in candidates:
-        if path.exists():
-            return path
+    names = [
+        "vehicle_protocol_template.pdf",
+        "vehicle_protocol_template.jpg",
+        "vehicle_protocol_template.jpeg",
+    ]
+    checked = set()
+    for root_path in roots:
+        for name in names:
+            path = (root_path / name).resolve()
+            if path in checked:
+                continue
+            checked.add(path)
+            if path.exists():
+                return path
     return None
+
+
+def vehicle_protocol_output_filename(registration):
+    date_part = datetime.now().strftime("%Y-%m-%d")
+    raw = pdf_safe_text(registration or "")
+    safe = "".join(ch if ch.isalnum() else "_" for ch in raw).strip("_")
+    if not safe:
+        safe = "brak_rejestracji"
+    return f"{date_part}_{safe}.pdf"
 
 
 def draw_vehicle_protocol_template(pdf):
@@ -1737,93 +1761,10 @@ class FutureApp(App):
             self._screen_initialized.add(name)
 
     def setup_ui_all(self):
-        self.sc_ref["home"].clear_widgets()
-        layout = AppLayout(title="FUTURE ULTIMATE v20")
-        layout.nav_tabs.add_action(SecondaryButton(text="Dark", on_press=lambda x: self.switch_theme("dark")))
-        layout.nav_tabs.add_action(SecondaryButton(text="Light", on_press=lambda x: self.switch_theme("light")))
-
-        content = BoxLayout(orientation="vertical", spacing=dp(10), padding=[0, dp(6), 0, 0])
-        content.add_widget(Label(text="Panel główny aplikacji", font_size='15sp', color=(0.72, 0.78, 0.9, 1), size_hint_y=None, height=dp(26)))
-        sv = ScrollView(size_hint=(1, 1))
-        grid = GridLayout(cols=2, spacing=dp(12), padding=dp(6), size_hint_y=None)
-        grid.bind(minimum_height=grid.setter('height'))
-        btn_props = dict(size_hint_y=None, height=dp(86))
-        grid.add_widget(PrimaryButton(text="Kontakty", on_press=lambda x: [self.ensure_screen_ui("contacts"), self.refresh_contacts_list(), setattr(self.sm, 'current', 'contacts')], **btn_props))
-        grid.add_widget(PrimaryButton(text="Samochody", on_press=lambda x: setattr(self.sm, 'current', 'cars'), **btn_props))
-        grid.add_widget(PrimaryButton(text="Raport stanu auta", on_press=lambda x: setattr(self.sm, 'current', 'vehicle_report'), **btn_props))
-        grid.add_widget(PrimaryButton(text="Ubranie robocze", on_press=lambda x: setattr(self.sm, 'current', 'clothes'), **btn_props))
-        grid.add_widget(PrimaryButton(text="Paski", on_press=lambda x: setattr(self.sm, 'current', 'paski'), **btn_props))
-        grid.add_widget(PrimaryButton(text="Pracownicy", on_press=lambda x: setattr(self.sm, 'current', 'pracownicy'), **btn_props))
-        grid.add_widget(PrimaryButton(text="Zakłady", on_press=lambda x: setattr(self.sm, 'current', 'zaklady'), **btn_props))
-        grid.add_widget(SecondaryButton(text="Ustawienia", on_press=lambda x: setattr(self.sm, 'current', 'settings'), **btn_props))
-        grid.add_widget(DangerButton(text="Wyjście", on_press=lambda x: App.get_running_app().stop(), **btn_props))
-        sv.add_widget(grid)
-        content.add_widget(sv)
-        layout.set_content(content)
-        self.sc_ref["home"].add_widget(layout)
+        setup_home_screen(self, AppLayout, SecondaryButton, PrimaryButton, DangerButton)
 
     def setup_vehicle_report_ui(self):
-        self.sc_ref["vehicle_report"].clear_widgets()
-        shell = AppLayout(title="Raport stanu samochodu")
-        shell.nav_tabs.add_action(SecondaryButton(text="Wróć", on_press=lambda x: setattr(self.sm, 'current', 'home')))
-
-        root = ScrollView()
-        form = GridLayout(cols=1, spacing=dp(8), padding=dp(10), size_hint_y=None)
-        form.bind(minimum_height=form.setter('height'))
-
-        self.vehicle_report_inputs = {}
-        self.vehicle_report_checks = {}
-
-        fields = [
-            ("marka", "Marka"),
-            ("rej", "Rejestracja"),
-            ("przebieg", "Przebieg"),
-            ("olej", "Poziom oleju"),
-            ("paliwo", "Wskaźnik paliwa"),
-            ("rodzaj_paliwa", "Rodzaj paliwa"),
-            ("lp", "Lewy przedni"),
-            ("pp", "Prawy przedni"),
-            ("lt", "Lewy tylny"),
-            ("pt", "Prawy tylny"),
-            ("uszkodzenia", "Nowe uszkodzenia"),
-            ("od_kiedy", "Od kiedy?"),
-            ("serwis", "Przegląd / Service"),
-            ("przeglad", "Przegląd techniczny"),
-            ("uwagi", "Uwagi"),
-        ]
-
-        for key, hint in fields:
-            multiline = key in {"uszkodzenia", "uwagi"}
-            inp = ModernInput(hint_text=hint, multiline=multiline, size_hint_y=None, height=dp(84) if multiline else dp(48))
-            self.vehicle_report_inputs[key] = inp
-            form.add_widget(inp)
-
-        checks = [
-            ("trojkat", "Trójkąt"),
-            ("kamizelki", "Kamizelki"),
-            ("kolo", "Koło zapasowe"),
-            ("dowod", "Dowód rejestracyjny"),
-            ("apteczka", "Apteczka"),
-        ]
-
-        for key, label in checks:
-            row = BoxLayout(size_hint_y=None, height=dp(42), spacing=dp(8))
-            row.add_widget(Label(text=label, halign='left', valign='middle'))
-            cb = CheckBox(size_hint=(None, None), size=(dp(38), dp(38)))
-            self.vehicle_report_checks[key] = cb
-            row.add_widget(cb)
-            form.add_widget(row)
-
-        actions = BoxLayout(size_hint_y=None, height=dp(56), spacing=dp(8))
-        actions.add_widget(PrimaryButton(text="Zapisz PDF", on_press=self.save_vehicle_report_pdf))
-        form.add_widget(actions)
-
-        self.vehicle_report_status = Label(text="", size_hint_y=None, height=dp(48))
-        form.add_widget(self.vehicle_report_status)
-
-        root.add_widget(form)
-        shell.set_content(root)
-        self.sc_ref["vehicle_report"].add_widget(shell)
+        setup_vehicle_report_screen(self, AppLayout, SecondaryButton, PrimaryButton, ModernInput)
 
     def save_vehicle_report_pdf(self, *_):
         data = {k: v.text for k, v in self.vehicle_report_inputs.items()}
@@ -1840,7 +1781,7 @@ class FutureApp(App):
     def generate_vehicle_protocol_pdf(self, d):
         out_dir = self._documents_dir()
         out_dir.mkdir(parents=True, exist_ok=True)
-        file_path = out_dir / "protokol_stanu_pojazdu.pdf"
+        file_path = out_dir / vehicle_protocol_output_filename(d.get("rej"))
 
         template_path = vehicle_protocol_template_path()
         is_pdf_template = bool(template_path and template_path.suffix.lower() == ".pdf")
@@ -1867,45 +1808,47 @@ class FutureApp(App):
             if checked:
                 txt(x + 3, y0 + 10, "X", 9, True)
         txt(427, 436, d["przeglad"], 8)
-        txt(336, 472, "Kiedy nalezy dokonac", 9)
-        txt(336, 485, "przegladu / Service?", 9)
-        box(424, 460, 56, 24)
         txt(427, 476, d["serwis"], 8)
-
-        questions = [
-            ("Czy dostepny jest dowod rejestracyjny pojazdu?", d["dowod"]),
-            ("Czy w samochodzie znajduje sie trojkat ostrzegawczy?", d["trojkat"]),
-            ("Czy w samochodzie jest wystarczajaco duzo kamizelek", d["kamizelki"]),
-            ("odblaskowych?", None),
-            ("Czy dostepna jest apteczka pierwszej pomocy?", d["apteczka"]),
-            ("Czy w pojezdzie znajduje sie kolo zapasowe?", d["kolo"]),
-            ("Czy na wyswietlaczu aktywne sa jakies lampki", None),
-            ("ostrzegawcze - jesli tak, to ktore i od kiedy?", None),
-        ]
-        yq = 520
-        for label, state in questions:
-            txt(66, yq, label, 8)
-            if state is not None:
-                txt(260, yq - 8, "TAK / NIE", 8, True)
-                box(258, yq - 2, 56, 18)
-                if state:
-                    txt(262, yq + 10, "TAK", 8, True)
-            yq += 26
-
-        txt(312, 520, "Inne uwagi / komentarze:", 9, True)
-        box(366, 532, 190, 142)
-        txt(316, 704, "Od kiedy?", 8, True)
-        box(366, 690, 110, 22)
         txt(370, 705, d["od_kiedy"], 8)
         txt(261, 154, d["uszkodzenia"], 8)
         txt(372, 546, d["uwagi"], 8)
 
-        hline(38, W - 38, 728)
-        txt(170, 748, "Protokoly sa przekazywane w kazdy pierwszy poniedzialek miesiaca na adres email:", 8, True)
-        txt(40, 780, "WAZNA INFORMACJA", 9, True)
-        txt(290, 780, "magdalena.matusiewicz@future-group.pl", 8)
-        txt(372, 796, "oraz", 8, True)
-        txt(304, 812, "justyna.kucharska@future-group.pl", 8)
+        if not is_pdf_template:
+            txt(336, 472, "Kiedy nalezy dokonac", 9)
+            txt(336, 485, "przegladu / Service?", 9)
+            box(424, 460, 56, 24)
+
+            questions = [
+                ("Czy dostepny jest dowod rejestracyjny pojazdu?", d["dowod"]),
+                ("Czy w samochodzie znajduje sie trojkat ostrzegawczy?", d["trojkat"]),
+                ("Czy w samochodzie jest wystarczajaco duzo kamizelek", d["kamizelki"]),
+                ("odblaskowych?", None),
+                ("Czy dostepna jest apteczka pierwszej pomocy?", d["apteczka"]),
+                ("Czy w pojezdzie znajduje sie kolo zapasowe?", d["kolo"]),
+                ("Czy na wyswietlaczu aktywne sa jakies lampki", None),
+                ("ostrzegawcze - jesli tak, to ktore i od kiedy?", None),
+            ]
+            yq = 520
+            for label, state in questions:
+                txt(66, yq, label, 8)
+                if state is not None:
+                    txt(260, yq - 8, "TAK / NIE", 8, True)
+                    box(258, yq - 2, 56, 18)
+                    if state:
+                        txt(262, yq + 10, "TAK", 8, True)
+                yq += 26
+
+            txt(312, 520, "Inne uwagi / komentarze:", 9, True)
+            box(366, 532, 190, 142)
+            txt(316, 704, "Od kiedy?", 8, True)
+            box(366, 690, 110, 22)
+
+            hline(38, W - 38, 728)
+            txt(170, 748, "Protokoly sa przekazywane w kazdy pierwszy poniedzialek miesiaca na adres email:", 8, True)
+            txt(40, 780, "WAZNA INFORMACJA", 9, True)
+            txt(290, 780, "magdalena.matusiewicz@future-group.pl", 8)
+            txt(372, 796, "oraz", 8, True)
+            txt(304, 812, "justyna.kucharska@future-group.pl", 8)
 
         if is_pdf_template:
             overlay_path = file_path.with_name(f"{file_path.stem}_overlay.pdf")
