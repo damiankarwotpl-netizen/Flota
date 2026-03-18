@@ -9,6 +9,7 @@ import com.future.ultimate.core.database.entity.ClothesOrderEntity
 import com.future.ultimate.core.database.entity.ClothesOrderItemEntity
 import com.future.ultimate.core.database.entity.ClothesSizeEntity
 import com.future.ultimate.core.database.entity.ContactEntity
+import com.future.ultimate.core.database.entity.DriverAccountEntity
 import com.future.ultimate.core.database.entity.PlantEntity
 import com.future.ultimate.core.database.entity.ReportEntity
 import com.future.ultimate.core.database.entity.SettingEntity
@@ -35,17 +36,47 @@ interface AppDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsertCar(entity: CarEntity)
 
+    @Query("SELECT * FROM cars WHERE id = :id LIMIT 1")
+    suspend fun getCar(id: Long): CarEntity?
+
+    @Query("SELECT * FROM cars WHERE upper(registration) = upper(:registration) LIMIT 1")
+    suspend fun getCarByRegistration(registration: String): CarEntity?
+
     @Query("DELETE FROM cars WHERE id = :id")
     suspend fun deleteCar(id: Long)
 
     @Query("UPDATE cars SET mileage = :mileage WHERE id = :id")
     suspend fun updateMileage(id: Long, mileage: Int)
 
+    @Query("UPDATE cars SET mileage = :mileage WHERE upper(registration) = upper(:registration)")
+    suspend fun updateMileageByRegistration(registration: String, mileage: Int)
+
     @Query("UPDATE cars SET driver = :driver WHERE id = :id")
     suspend fun updateDriver(id: Long, driver: String)
 
     @Query("UPDATE cars SET lastService = mileage WHERE id = :id")
     suspend fun confirmService(id: Long)
+
+    @Query("SELECT * FROM driver_accounts WHERE upper(registration) = upper(:registration) LIMIT 1")
+    suspend fun getDriverAccountByRegistration(registration: String): DriverAccountEntity?
+
+    @Query("SELECT * FROM driver_accounts WHERE lower(login) = lower(:login) LIMIT 1")
+    suspend fun getDriverAccountByLogin(login: String): DriverAccountEntity?
+
+    @Query("SELECT * FROM driver_accounts WHERE lower(login) = lower(:login) AND password = :password LIMIT 1")
+    suspend fun getDriverAccount(login: String, password: String): DriverAccountEntity?
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertDriverAccount(entity: DriverAccountEntity)
+
+    @Query("SELECT * FROM driver_accounts")
+    fun observeDriverAccounts(): Flow<List<DriverAccountEntity>>
+
+    @Query("UPDATE driver_accounts SET password = :password, changePassword = :changePassword WHERE upper(registration) = upper(:registration)")
+    suspend fun updateDriverPassword(registration: String, password: String, changePassword: Int)
+
+    @Query("DELETE FROM driver_accounts WHERE upper(registration) = upper(:registration)")
+    suspend fun deleteDriverAccountByRegistration(registration: String)
 
     @Query("SELECT * FROM workers ORDER BY surname, name")
     fun observeWorkers(): Flow<List<WorkerEntity>>

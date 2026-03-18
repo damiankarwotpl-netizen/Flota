@@ -9,6 +9,7 @@ import com.future.ultimate.core.database.entity.ClothesOrderEntity
 import com.future.ultimate.core.database.entity.ClothesOrderItemEntity
 import com.future.ultimate.core.database.entity.ClothesSizeEntity
 import com.future.ultimate.core.database.entity.ContactEntity
+import com.future.ultimate.core.database.entity.DriverAccountEntity
 import com.future.ultimate.core.database.entity.PlantEntity
 import com.future.ultimate.core.database.entity.ReportEntity
 import com.future.ultimate.core.database.entity.SettingEntity
@@ -21,13 +22,14 @@ import com.future.ultimate.core.database.entity.WorkerEntity
         ReportEntity::class,
         PlantEntity::class,
         CarEntity::class,
+        DriverAccountEntity::class,
         WorkerEntity::class,
         ClothesSizeEntity::class,
         ClothesOrderEntity::class,
         ClothesOrderItemEntity::class,
         ClothesHistoryEntity::class,
     ],
-    version = 1,
+    version = 2,
     exportSchema = true,
 )
 abstract class FlotaDatabase : RoomDatabase() {

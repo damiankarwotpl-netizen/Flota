@@ -25,6 +25,9 @@ data class CarListItem(
     val mileage: Int,
     val serviceInterval: Int,
     val lastService: Int,
+    val driverLogin: String = "",
+    val driverPassword: String = "",
+    val changePasswordRequired: Boolean = false,
 ) {
     val remainingToService: Int
         get() = serviceInterval - (mileage - lastService)

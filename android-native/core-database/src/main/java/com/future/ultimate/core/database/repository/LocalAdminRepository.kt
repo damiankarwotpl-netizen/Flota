@@ -14,10 +14,13 @@ import com.future.ultimate.core.database.dao.AppDao
 import com.future.ultimate.core.database.entity.CarEntity
 import com.future.ultimate.core.database.entity.ClothesSizeEntity
 import com.future.ultimate.core.database.entity.ContactEntity
+import com.future.ultimate.core.database.entity.DriverAccountEntity
 import com.future.ultimate.core.database.entity.PlantEntity
 import com.future.ultimate.core.database.entity.SettingEntity
 import com.future.ultimate.core.database.entity.WorkerEntity
+import kotlin.random.Random
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 
 class LocalAdminRepository(
@@ -88,8 +91,10 @@ class LocalAdminRepository(
         dao.deleteClothesSizeByName(name, surname)
     }
 
-    override fun observeCars(): Flow<List<CarListItem>> = dao.observeCars().map { items ->
+    override fun observeCars(): Flow<List<CarListItem>> = dao.observeCars().combine(dao.observeDriverAccounts()) { items, accounts ->
+        val accountsByRegistration = accounts.associateBy { it.registration.uppercase() }
         items.map {
+            val driverAccount = accountsByRegistration[it.registration.uppercase()]
             CarListItem(
                 id = it.id,
                 name = it.name,
@@ -98,26 +103,43 @@ class LocalAdminRepository(
                 mileage = it.mileage,
                 serviceInterval = it.serviceInterval,
                 lastService = it.lastService,
+                driverLogin = driverAccount?.login.orEmpty(),
+                driverPassword = driverAccount?.password.orEmpty(),
+                changePasswordRequired = driverAccount?.changePassword == 1,
             )
         }
     }
 
     override suspend fun saveCar(draft: CarDraft) {
         val serviceInterval = draft.serviceInterval.toIntOrNull()?.coerceAtLeast(1) ?: 15000
+        val registration = draft.registration.trim().uppercase()
         dao.upsertCar(
             CarEntity(
                 name = draft.name.trim(),
-                registration = draft.registration.trim().uppercase(),
+                registration = registration,
                 driver = draft.driver.trim(),
                 serviceInterval = serviceInterval,
             ),
         )
+        syncDriverAccount(draft.driver, registration)
     }
 
     override suspend fun updateCarMileage(id: Long, mileage: Int) = dao.updateMileage(id, mileage.coerceAtLeast(0))
-    override suspend fun updateCarDriver(id: Long, driver: String) = dao.updateDriver(id, driver.trim())
+
+    override suspend fun updateCarDriver(id: Long, driver: String) {
+        val normalizedDriver = driver.trim()
+        dao.updateDriver(id, normalizedDriver)
+        val car = dao.getCar(id) ?: return
+        syncDriverAccount(normalizedDriver, car.registration)
+    }
+
     override suspend fun confirmCarService(id: Long) = dao.confirmService(id)
-    override suspend fun deleteCar(id: Long) = dao.deleteCar(id)
+
+    override suspend fun deleteCar(id: Long) {
+        val car = dao.getCar(id)
+        dao.deleteCar(id)
+        car?.registration?.let { dao.deleteDriverAccountByRegistration(it) }
+    }
 
     override fun observeWorkers(): Flow<List<WorkerListItem>> = dao.observeWorkers().map { items ->
         items.map {
@@ -193,5 +215,34 @@ class LocalAdminRepository(
     override suspend fun saveVehicleReportDraft(draft: VehicleReportDraft) {
         dao.upsertSetting(SettingEntity(key = "vehicle_report_last_registration", valText = draft.rej))
         dao.upsertSetting(SettingEntity(key = "vehicle_report_last_payload", valText = draft.toString()))
+    }
+
+    private suspend fun syncDriverAccount(driverName: String, registration: String) {
+        val normalizedDriver = driverName.trim()
+        val normalizedRegistration = registration.trim().uppercase()
+        if (normalizedDriver.isBlank() || normalizedRegistration.isBlank()) return
+
+        dao.upsertDriverAccount(
+            DriverAccountEntity(
+                registration = normalizedRegistration,
+                login = generateLogin(normalizedDriver),
+                password = generatePassword(),
+                driverName = normalizedDriver,
+                changePassword = 1,
+            ),
+        )
+    }
+
+    private fun generateLogin(name: String): String {
+        val sanitized = name.trim().lowercase()
+            .replace(" ", ".")
+            .replace(Regex("[^a-z0-9._-]"), "")
+            .replace(Regex("\.{2,}"), ".")
+            .trim('.')
+        return sanitized.ifBlank { "driver" }
+    }
+
+    private fun generatePassword(length: Int = 6): String = buildString {
+        repeat(length) { append(Random.nextInt(0, 10)) }
     }
 }

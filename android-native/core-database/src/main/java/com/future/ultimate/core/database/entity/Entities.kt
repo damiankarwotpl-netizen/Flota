@@ -57,6 +57,15 @@ data class CarEntity(
     val lastService: Int = 0,
 )
 
+@Entity(tableName = "driver_accounts")
+data class DriverAccountEntity(
+    @PrimaryKey val registration: String,
+    val login: String,
+    val password: String,
+    val driverName: String,
+    val changePassword: Int = 1,
+)
+
 @Entity(tableName = "workers")
 data class WorkerEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,

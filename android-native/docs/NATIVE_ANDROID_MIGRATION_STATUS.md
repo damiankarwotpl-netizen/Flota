@@ -5,14 +5,15 @@ This repository now contains a native Android migration foundation in `android-n
 - driver app module
 - shared Room schema module
 - shared feature contracts and navigation skeletons
+- local driver-account handoff between admin car management and the driver app login/mileage/report flows
 
 ## Important
 This is **not yet a finished 1:1 replacement** of the Python/Kivy application. It is the structural migration baseline required to continue safely.
 
 ## Next implementation blocks
-1. repositories and persistent flows
+1. finish the remaining car workflows end-to-end, especially remote driver-account API sync and background mileage sync
 2. workbook import/export adapters
 3. SMTP + attachment pipeline
 4. PDF generation parity
 5. clothing workflow end-to-end persistence
-6. remote API wiring
+6. remote API wiring, QA, and release hardening

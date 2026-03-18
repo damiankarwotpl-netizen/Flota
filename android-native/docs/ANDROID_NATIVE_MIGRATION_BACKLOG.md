@@ -2,7 +2,7 @@
 
 ## Remaining steps to full migration
 
-1. Finish remaining car workflows end-to-end, including driver-account API sync and mileage background sync.
+1. Finish remaining car workflows end-to-end, including remote driver-account API sync and mileage background sync (local admin ↔ driver handoff is now wired).
 2. Implement full vehicle-report PDF generation parity for admin and driver apps.
 3. Port workbook import, payroll import, table preview, and export logic.
 4. Port SMTP, attachments, special-send flow, mass mailing, and session reporting.
@@ -10,4 +10,4 @@
 6. Add real remote API wiring, notifications, background work, QA, and release hardening.
 
 ## Current count
-**6 major implementation steps remain** after landing contact/worker/plant CRUD wiring and local sync rules.
+**6 major implementation steps remain** after landing contact/worker/plant CRUD wiring and the local driver-account handoff.
