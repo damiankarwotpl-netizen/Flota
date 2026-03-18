@@ -5,7 +5,7 @@ package.name = fleetmileage
 package.domain = org.fleet
 
 source.dir = .
-source.include_exts = py,kv,png,jpg
+source.include_exts = py,kv,png,jpg,jpeg,pdf
 
 version = 1.0
 
