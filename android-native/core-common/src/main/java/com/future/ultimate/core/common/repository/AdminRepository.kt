@@ -174,4 +174,5 @@ interface AdminRepository {
     suspend fun saveVehicleReportDraft(draft: VehicleReportDraft)
     suspend fun exportVehicleReportPdf(draft: VehicleReportDraft): String
     suspend fun exportClothesHistoryCsv(): String
+    suspend fun exportSessionReportsCsv(): String
 }

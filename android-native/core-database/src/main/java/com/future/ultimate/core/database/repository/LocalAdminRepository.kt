@@ -531,6 +531,28 @@ class LocalAdminRepository(
         return outputFile.absolutePath
     }
 
+    override suspend fun exportSessionReportsCsv(): String {
+        val outputDir = context.getExternalFilesDir(null) ?: context.filesDir
+        val outputFile = File(outputDir, "session_reports.csv")
+        val rows = dao.observeReports().map { items ->
+            items.sortedByDescending { it.id }
+        }.first()
+        outputFile.bufferedWriter(Charsets.UTF_8).use { writer ->
+            writer.appendLine("date,ok,fail,skip,auto,details")
+            rows.forEach { row ->
+                writer.appendCsvLine(
+                    row.date,
+                    row.ok.toString(),
+                    row.fail.toString(),
+                    row.skip.toString(),
+                    row.auto.toString(),
+                    row.details,
+                )
+            }
+        }
+        return outputFile.absolutePath
+    }
+
     private suspend fun syncDriverAccount(driverName: String, registration: String) {
         val normalizedDriver = driverName.trim()
         val normalizedRegistration = registration.trim().uppercase()

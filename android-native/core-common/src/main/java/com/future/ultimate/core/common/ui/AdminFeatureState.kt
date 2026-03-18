@@ -108,6 +108,8 @@ data class TemplateUiState(
 
 data class ReportsUiState(
     val items: List<SessionReportListItem> = emptyList(),
+    val exportMessage: String? = null,
+    val isExporting: Boolean = false,
 )
 
 data class SettingsUiState(

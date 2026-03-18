@@ -3,6 +3,7 @@ package com.future.ultimate.admin.ui.screen
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -23,6 +24,14 @@ fun ReportsScreen() {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
     ScreenColumn("Historia sesji", "Historia sesji i raporty z wysyłek") {
+        item {
+            Column {
+                Button(onClick = viewModel::exportCsv, modifier = Modifier.fillMaxWidth()) {
+                    Text(if (uiState.isExporting) "Eksportowanie..." else "Eksport CSV raportów")
+                }
+                uiState.exportMessage?.let { Text(it) }
+            }
+        }
         if (uiState.items.isEmpty()) {
             item { Text("Brak zapisanych raportów sesji.") }
         }

@@ -360,6 +360,12 @@ class ReportsViewModel(private val repository: AdminRepository) : ViewModel() {
             _uiState.value = _uiState.value.copy(items = items)
         }.launchIn(viewModelScope)
     }
+
+    fun exportCsv() = viewModelScope.launch {
+        _uiState.value = _uiState.value.copy(isExporting = true, exportMessage = null)
+        val path = repository.exportSessionReportsCsv()
+        _uiState.value = _uiState.value.copy(isExporting = false, exportMessage = "CSV raportów zapisane: $path")
+    }
 }
 
 class SettingsViewModel(private val repository: AdminRepository) : ViewModel() {
