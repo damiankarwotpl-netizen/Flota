@@ -65,6 +65,11 @@ try:
 except Exception:
     pd = None
 
+try:
+    from fpdf import FPDF
+except Exception:
+    FPDF = None
+
 from collections import defaultdict
 
 try:
@@ -1555,8 +1560,8 @@ class FutureApp(App):
         self.sc_ref["vehicle_report"].add_widget(shell)
 
     def save_vehicle_report_pdf(self, *_):
-        if canvas is None or PDF_A4 is None:
-            self.msg("Błąd", "Brak biblioteki reportlab - nie mogę wygenerować PDF")
+        if FPDF is None:
+            self.msg("Błąd", "Brak biblioteki fpdf - nie mogę wygenerować PDF")
             return
 
         data = {k: v.text for k, v in self.vehicle_report_inputs.items()}
@@ -1575,24 +1580,33 @@ class FutureApp(App):
         out_dir.mkdir(parents=True, exist_ok=True)
         file_path = out_dir / "protokol_stanu_pojazdu.pdf"
 
-        c = canvas.Canvas(str(file_path), pagesize=PDF_A4)
-        W, H = PDF_A4
+        pdf = FPDF(unit="pt", format="A4")
+        pdf.set_auto_page_break(auto=False)
+        pdf.add_page()
+
+        W, H = 595.28, 841.89
         L, R = 40, W - 40
         y = H - 40
 
-        c.setFont("Helvetica-Bold", 14)
-        c.drawString(L, y, "Miesięczny Protokół Stanu Pojazdu")
+        pdf.set_font("Helvetica", "B", 14)
+        pdf.text(L, y, "Miesięczny Protokół Stanu Pojazdu")
         y -= 20
 
-        c.setFont("Helvetica", 9)
+        pdf.set_font("Helvetica", "", 9)
 
-        def box(x, y0, w, h): c.rect(x, y0, w, h)
-        def vline(x, y1, y2): c.line(x, y1, x, y2)
-        def txt(x, y0, t): c.drawString(x, y0, str(t) if t else "")
+        def box(x, y0, w, h):
+            pdf.rect(x, H - y0 - h, w, h)
+
+        def vline(x, y1, y2):
+            pdf.line(x, H - y1, x, H - y2)
+
+        def txt(x, y0, t):
+            pdf.text(x, H - y0, str(t) if t else "")
+
         def checkbox(x, y0, checked):
-            c.rect(x, y0, 10, 10)
+            box(x, y0, 10, 10)
             if checked:
-                c.drawString(x + 2, y0 + 1, "X")
+                txt(x + 2, y0 + 8, "X")
 
         sec_top = y
         box(L, sec_top - 60, R - L, 60)
@@ -1673,10 +1687,10 @@ class FutureApp(App):
 
         y -= 100
 
-        c.setFont("Helvetica", 8)
+        pdf.set_font("Helvetica", "", 8)
         txt(L, y, "Protokoły przekazywane w pierwszy poniedziałek miesiąca")
 
-        c.save()
+        pdf.output(str(file_path))
         return file_path
 
     def setup_table_ui(self):

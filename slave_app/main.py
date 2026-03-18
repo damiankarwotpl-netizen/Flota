@@ -14,11 +14,9 @@ from kivy.uix.textinput import TextInput
 from kivy.uix.checkbox import CheckBox
 
 try:
-    from reportlab.pdfgen import canvas
-    from reportlab.lib.pagesizes import A4
+    from fpdf import FPDF
 except Exception:
-    canvas = None
-    A4 = None
+    FPDF = None
 
 try:
     from android.storage import app_storage_path
@@ -241,8 +239,8 @@ class VehicleReportScreen(BoxLayout):
         self.add_widget(self.status)
 
     def save(self, _instance):
-        if canvas is None or A4 is None:
-            self.status.text = "Brak reportlab - nie mogę wygenerować PDF"
+        if FPDF is None:
+            self.status.text = "Brak fpdf - nie mogę wygenerować PDF"
             return
 
         data = {k: w.text for k, w in self.inputs.items()}
@@ -258,29 +256,32 @@ class VehicleReportScreen(BoxLayout):
         base_dir.mkdir(parents=True, exist_ok=True)
         file_path = base_dir / "protokol_stanu_pojazdu.pdf"
 
-        c = canvas.Canvas(str(file_path), pagesize=A4)
-        W, H = A4
+        pdf = FPDF(unit="pt", format="A4")
+        pdf.set_auto_page_break(auto=False)
+        pdf.add_page()
+
+        W, H = 595.28, 841.89
         L, R = 40, W - 40
         y = H - 40
 
-        c.setFont("Helvetica-Bold", 14)
-        c.drawString(L, y, "Miesięczny Protokół Stanu Pojazdu")
+        pdf.set_font("Helvetica", "B", 14)
+        pdf.text(L, H - y, "Miesięczny Protokół Stanu Pojazdu")
         y -= 20
-        c.setFont("Helvetica", 9)
+        pdf.set_font("Helvetica", "", 9)
 
         def box(x, y0, w, h):
-            c.rect(x, y0, w, h)
+            pdf.rect(x, H - y0 - h, w, h)
 
         def vline(x, y1, y2):
-            c.line(x, y1, x, y2)
+            pdf.line(x, H - y1, x, H - y2)
 
         def txt(x, y0, t):
-            c.drawString(x, y0, str(t) if t else "")
+            pdf.text(x, H - y0, str(t) if t else "")
 
         def checkbox(x, y0, checked):
-            c.rect(x, y0, 10, 10)
+            box(x, y0, 10, 10)
             if checked:
-                c.drawString(x + 2, y0 + 1, "X")
+                txt(x + 2, y0 + 8, "X")
 
         sec_top = y
         box(L, sec_top - 60, R - L, 60)
@@ -353,9 +354,9 @@ class VehicleReportScreen(BoxLayout):
         txt(L + 80, y - 20, d["uwagi"])
         y -= 100
 
-        c.setFont("Helvetica", 8)
+        pdf.set_font("Helvetica", "", 8)
         txt(L, y, "Protokoły przekazywane w pierwszy poniedziałek miesiąca")
-        c.save()
+        pdf.output(str(file_path))
         return file_path
 
 
