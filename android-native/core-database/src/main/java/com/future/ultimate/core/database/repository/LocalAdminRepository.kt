@@ -25,6 +25,7 @@ import com.future.ultimate.core.common.repository.SmtpSettingsData
 import com.future.ultimate.core.common.repository.WorkerListItem
 import com.future.ultimate.core.database.dao.AppDao
 import com.future.ultimate.core.database.entity.CarEntity
+import com.future.ultimate.core.database.entity.ClothesHistoryEntity
 import com.future.ultimate.core.database.entity.ClothesOrderEntity
 import com.future.ultimate.core.database.entity.ClothesSizeEntity
 import com.future.ultimate.core.database.entity.ContactEntity
@@ -337,6 +338,53 @@ class LocalAdminRepository(
 
     override suspend fun markClothesOrderOrdered(orderId: Long) {
         dao.updateClothesOrderStatus(orderId, "Zamówione")
+    }
+
+    override suspend fun issueClothesOrderItem(id: Long) {
+        val item = dao.getClothesOrderItem(id) ?: return
+        val order = dao.getClothesOrder(item.orderId) ?: return
+        if (item.issued != 0 || order.status.trim().lowercase() != "zamówione") return
+        dao.insertClothesHistory(
+            ClothesHistoryEntity(
+                workerId = item.workerId,
+                name = item.name,
+                surname = item.surname,
+                item = item.item,
+                size = item.size,
+                date = LocalDate.now().toString(),
+            ),
+        )
+        dao.updateClothesOrderItemIssued(id, 1)
+        refreshClothesOrderIssueStatus(item.orderId)
+    }
+
+    override suspend fun issueAllClothesOrderItems(orderId: Long) {
+        val order = dao.getClothesOrder(orderId) ?: return
+        if (order.status.trim().lowercase() != "zamówione") return
+        dao.getUnissuedClothesOrderItems(orderId).forEach { item ->
+            dao.insertClothesHistory(
+                ClothesHistoryEntity(
+                    workerId = item.workerId,
+                    name = item.name,
+                    surname = item.surname,
+                    item = item.item,
+                    size = item.size,
+                    date = LocalDate.now().toString(),
+                ),
+            )
+            dao.updateClothesOrderItemIssued(item.id, 1)
+        }
+        refreshClothesOrderIssueStatus(orderId)
+    }
+
+    private suspend fun refreshClothesOrderIssueStatus(orderId: Long) {
+        val totalCount = dao.countClothesOrderItems(orderId)
+        if (totalCount <= 0) return
+        val issuedCount = dao.countIssuedClothesOrderItems(orderId)
+        when {
+            issuedCount >= totalCount -> dao.updateClothesOrderStatus(orderId, "Wydane")
+            issuedCount > 0 -> dao.updateClothesOrderStatus(orderId, "Częściowo wydane")
+        }
     }
 
     override fun observeClothesHistory(): Flow<List<ClothesHistoryListItem>> = dao.observeClothesHistory().map { items ->

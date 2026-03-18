@@ -107,6 +107,9 @@ fun ClothesScreen() {
                             Button(onClick = { ordersViewModel.markOrdered(itemData.id) }, modifier = Modifier.fillMaxWidth()) {
                                 Text("Oznacz jako zamówione")
                             }
+                            Button(onClick = { ordersViewModel.issueAll(itemData.id) }, modifier = Modifier.fillMaxWidth()) {
+                                Text("Wydaj wszystkie pozycje")
+                            }
                             if (ordersUiState.selectedOrderId == itemData.id) {
                                 OutlinedTextField(
                                     ordersUiState.itemEditor.name,
@@ -148,6 +151,13 @@ fun ClothesScreen() {
                                             Text("${orderItem.name} ${orderItem.surname}".trim().ifBlank { "Pracownik nieuzupełniony" })
                                             Text("${orderItem.item} • rozmiar: ${orderItem.size.ifBlank { "-" }} • ilość: ${orderItem.qty}")
                                             Text(if (orderItem.issued) "Status pozycji: wydane" else "Status pozycji: niewydane")
+                                            Button(
+                                                onClick = { ordersViewModel.issueItem(orderItem.id) },
+                                                modifier = Modifier.fillMaxWidth(),
+                                                enabled = !orderItem.issued,
+                                            ) {
+                                                Text(if (orderItem.issued) "Pozycja wydana" else "Wydaj pozycję")
+                                            }
                                             Button(onClick = { ordersViewModel.deleteItem(orderItem.id) }, modifier = Modifier.fillMaxWidth()) {
                                                 Text("Usuń pozycję")
                                             }

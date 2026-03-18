@@ -237,6 +237,14 @@ class ClothesOrdersViewModel(private val repository: AdminRepository) : ViewMode
     fun markOrdered(orderId: Long) = viewModelScope.launch {
         repository.markClothesOrderOrdered(orderId)
     }
+
+    fun issueItem(id: Long) = viewModelScope.launch {
+        repository.issueClothesOrderItem(id)
+    }
+
+    fun issueAll(orderId: Long) = viewModelScope.launch {
+        repository.issueAllClothesOrderItems(orderId)
+    }
 }
 
 class ClothesReportsViewModel(private val repository: AdminRepository) : ViewModel() {

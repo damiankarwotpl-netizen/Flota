@@ -130,11 +130,32 @@ interface AppDao {
     @Query("SELECT * FROM clothes_order_items WHERE orderId = :orderId ORDER BY surname, name, item")
     fun observeClothesOrderItems(orderId: Long): Flow<List<ClothesOrderItemEntity>>
 
+    @Query("SELECT * FROM clothes_order_items WHERE id = :id LIMIT 1")
+    suspend fun getClothesOrderItem(id: Long): ClothesOrderItemEntity?
+
+    @Query("SELECT * FROM clothes_order_items WHERE orderId = :orderId AND COALESCE(issued, 0) = 0")
+    suspend fun getUnissuedClothesOrderItems(orderId: Long): List<ClothesOrderItemEntity>
+
     @Query("DELETE FROM clothes_order_items WHERE id = :id")
     suspend fun deleteClothesOrderItem(id: Long)
 
     @Query("UPDATE clothes_orders SET status = :status WHERE id = :orderId")
     suspend fun updateClothesOrderStatus(orderId: Long, status: String)
+
+    @Query("SELECT * FROM clothes_orders WHERE id = :id LIMIT 1")
+    suspend fun getClothesOrder(id: Long): ClothesOrderEntity?
+
+    @Query("UPDATE clothes_order_items SET issued = :issued WHERE id = :id")
+    suspend fun updateClothesOrderItemIssued(id: Long, issued: Int)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertClothesHistory(entity: ClothesHistoryEntity)
+
+    @Query("SELECT COUNT(*) FROM clothes_order_items WHERE orderId = :orderId")
+    suspend fun countClothesOrderItems(orderId: Long): Int
+
+    @Query("SELECT COUNT(*) FROM clothes_order_items WHERE orderId = :orderId AND COALESCE(issued, 0) = 1")
+    suspend fun countIssuedClothesOrderItems(orderId: Long): Int
 
     @Query("SELECT * FROM clothes_history ORDER BY date DESC, id DESC")
     fun observeClothesHistory(): Flow<List<ClothesHistoryEntity>>
