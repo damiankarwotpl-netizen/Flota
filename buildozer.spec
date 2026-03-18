@@ -12,14 +12,14 @@ package.domain = org.future.hr
 source.dir = .
 
 # (list) Source files to include (let empty to include all the files)
-source.include_exts = py,png,jpg,kv,atlas,json
+source.include_exts = py,png,jpg,jpeg,pdf,kv,atlas,json
 
 # (str) Application versioning (method 1)
 version = 10.1
 
 # (list) Application requirements
 # UWAGA: Dodano jdcal i et_xmlfile - są niezbędne dla stabilności openpyxl!
-requirements = python3, kivy==2.3.0, openpyxl, jdcal, et_xmlfile, jnius, android, sqlite3, requests, urllib3, xlrd, openssl, pypdf
+requirements = python3, kivy==2.3.0, kivymd, openpyxl, jdcal, et_xmlfile, jnius, android, sqlite3, requests, urllib3, xlrd, openssl, pypdf
 
 # (str) Supported orientations
 orientation = portrait
