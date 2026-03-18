@@ -64,6 +64,7 @@ fun ClothesScreen() {
                         OutlinedTextField(ordersUiState.editor.status, { ordersViewModel.updateEditor(ordersUiState.editor.copy(status = it)) }, label = { Text("Status") }, modifier = Modifier.fillMaxWidth())
                         OutlinedTextField(ordersUiState.editor.orderDesc, { ordersViewModel.updateEditor(ordersUiState.editor.copy(orderDesc = it)) }, label = { Text("Opis zamówienia") }, modifier = Modifier.fillMaxWidth(), minLines = 3)
                         Button(onClick = ordersViewModel::save, modifier = Modifier.fillMaxWidth()) { Text(if (ordersUiState.isSaving) "Zapisywanie..." else "Nowe zamówienie") }
+                        ordersUiState.actionMessage?.let { Text(it) }
                         Text("Po zapisaniu zamówienia rozwiń kartę poniżej, aby dodać pozycje i oznaczyć status.")
                     }
                     else -> {
@@ -113,6 +114,9 @@ fun ClothesScreen() {
                             }
                             Button(onClick = { ordersViewModel.issueAll(itemData.id) }, modifier = Modifier.fillMaxWidth()) {
                                 Text("Wydaj wszystkie pozycje")
+                            }
+                            Button(onClick = { ordersViewModel.exportOrderCsv(itemData.id) }, modifier = Modifier.fillMaxWidth()) {
+                                Text("Eksport CSV zamówienia")
                             }
                             if (ordersUiState.selectedOrderId == itemData.id) {
                                 OutlinedTextField(

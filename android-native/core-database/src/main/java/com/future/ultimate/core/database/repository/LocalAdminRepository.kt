@@ -379,6 +379,37 @@ class LocalAdminRepository(
         refreshClothesOrderIssueStatus(orderId)
     }
 
+    override suspend fun exportClothesOrderCsv(orderId: Long): String {
+        val order = dao.getClothesOrder(orderId) ?: return ""
+        val outputDir = context.getExternalFilesDir(null) ?: context.filesDir
+        val outputFile = File(outputDir, "clothes_order_${orderId}.csv")
+        val items = dao.getClothesOrderItems(orderId)
+        outputFile.bufferedWriter(Charsets.UTF_8).use { writer ->
+            writer.appendLine("order_id,date,plant,status,description")
+            writer.appendCsvLine(
+                order.id.toString(),
+                order.date,
+                order.plant,
+                order.status,
+                order.orderDesc,
+            )
+            writer.appendLine()
+            writer.appendLine("worker_id,name,surname,item,size,qty,issued")
+            items.forEach { item ->
+                writer.appendCsvLine(
+                    item.workerId.toString(),
+                    item.name,
+                    item.surname,
+                    item.item,
+                    item.size,
+                    item.qty.toString(),
+                    if (item.issued != 0) "1" else "0",
+                )
+            }
+        }
+        return outputFile.absolutePath
+    }
+
     private suspend fun refreshClothesOrderIssueStatus(orderId: Long) {
         val totalCount = dao.countClothesOrderItems(orderId)
         if (totalCount <= 0) return

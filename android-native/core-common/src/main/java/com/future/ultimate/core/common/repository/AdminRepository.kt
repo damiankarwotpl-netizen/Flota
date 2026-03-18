@@ -156,6 +156,7 @@ interface AdminRepository {
     suspend fun markClothesOrderOrdered(orderId: Long)
     suspend fun issueClothesOrderItem(id: Long)
     suspend fun issueAllClothesOrderItems(orderId: Long)
+    suspend fun exportClothesOrderCsv(orderId: Long): String
     fun observeClothesHistory(): Flow<List<ClothesHistoryListItem>>
 
     fun observeSmtpSettings(): Flow<SmtpSettingsData>

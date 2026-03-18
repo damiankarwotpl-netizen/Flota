@@ -130,6 +130,9 @@ interface AppDao {
     @Query("SELECT * FROM clothes_order_items WHERE orderId = :orderId ORDER BY surname, name, item")
     fun observeClothesOrderItems(orderId: Long): Flow<List<ClothesOrderItemEntity>>
 
+    @Query("SELECT * FROM clothes_order_items WHERE orderId = :orderId ORDER BY surname, name, item")
+    suspend fun getClothesOrderItems(orderId: Long): List<ClothesOrderItemEntity>
+
     @Query("SELECT * FROM clothes_order_items WHERE id = :id LIMIT 1")
     suspend fun getClothesOrderItem(id: Long): ClothesOrderItemEntity?
 

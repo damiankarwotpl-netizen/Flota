@@ -190,13 +190,13 @@ class ClothesOrdersViewModel(private val repository: AdminRepository) : ViewMode
 
     init { repository.observeClothesOrders().onEach { _uiState.value = _uiState.value.copy(items = it) }.launchIn(viewModelScope) }
 
-    fun updateEditor(draft: ClothesOrderDraft) { _uiState.value = _uiState.value.copy(editor = draft) }
-    fun updateItemEditor(draft: ClothesOrderItemDraft) { _uiState.value = _uiState.value.copy(itemEditor = draft) }
+    fun updateEditor(draft: ClothesOrderDraft) { _uiState.value = _uiState.value.copy(editor = draft, actionMessage = null) }
+    fun updateItemEditor(draft: ClothesOrderItemDraft) { _uiState.value = _uiState.value.copy(itemEditor = draft, actionMessage = null) }
 
     fun save() = viewModelScope.launch {
         _uiState.value = _uiState.value.copy(isSaving = true)
         repository.saveClothesOrder(_uiState.value.editor)
-        _uiState.value = _uiState.value.copy(isSaving = false, editor = ClothesOrderDraft())
+        _uiState.value = _uiState.value.copy(isSaving = false, editor = ClothesOrderDraft(), actionMessage = "Zamówienie zapisane")
     }
 
     fun toggleOrderSelection(orderId: Long) {
@@ -225,25 +225,34 @@ class ClothesOrdersViewModel(private val repository: AdminRepository) : ViewMode
         val selectedOrderId = _uiState.value.selectedOrderId ?: return@launch
         val draft = _uiState.value.itemEditor
         if (draft.name.isBlank() || draft.surname.isBlank() || draft.item.isBlank()) return@launch
-        _uiState.value = _uiState.value.copy(isSavingItem = true)
+        _uiState.value = _uiState.value.copy(isSavingItem = true, actionMessage = null)
         repository.saveClothesOrderItem(selectedOrderId, draft)
-        _uiState.value = _uiState.value.copy(isSavingItem = false, itemEditor = ClothesOrderItemDraft())
+        _uiState.value = _uiState.value.copy(isSavingItem = false, itemEditor = ClothesOrderItemDraft(), actionMessage = "Pozycja dodana")
     }
 
     fun deleteItem(id: Long) = viewModelScope.launch {
         repository.deleteClothesOrderItem(id)
+        _uiState.value = _uiState.value.copy(actionMessage = "Pozycja usunięta")
     }
 
     fun markOrdered(orderId: Long) = viewModelScope.launch {
         repository.markClothesOrderOrdered(orderId)
+        _uiState.value = _uiState.value.copy(actionMessage = "Status zmieniony na Zamówione")
     }
 
     fun issueItem(id: Long) = viewModelScope.launch {
         repository.issueClothesOrderItem(id)
+        _uiState.value = _uiState.value.copy(actionMessage = "Pozycja wydana")
     }
 
     fun issueAll(orderId: Long) = viewModelScope.launch {
         repository.issueAllClothesOrderItems(orderId)
+        _uiState.value = _uiState.value.copy(actionMessage = "Wydano wszystkie dostępne pozycje")
+    }
+
+    fun exportOrderCsv(orderId: Long) = viewModelScope.launch {
+        val path = repository.exportClothesOrderCsv(orderId)
+        _uiState.value = _uiState.value.copy(actionMessage = if (path.isBlank()) "Nie znaleziono zamówienia" else "CSV zamówienia: $path")
     }
 }
 

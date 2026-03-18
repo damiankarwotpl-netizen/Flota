@@ -81,6 +81,7 @@ data class ClothesOrdersUiState(
     val selectedOrderItems: List<ClothesOrderItemListItem> = emptyList(),
     val editor: ClothesOrderDraft = ClothesOrderDraft(),
     val itemEditor: ClothesOrderItemDraft = ClothesOrderItemDraft(),
+    val actionMessage: String? = null,
     val isSaving: Boolean = false,
     val isSavingItem: Boolean = false,
 )
