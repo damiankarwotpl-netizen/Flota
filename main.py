@@ -35,6 +35,7 @@ from app_modules.communication_screens import (
 from app_modules.data_screens import setup_table_screen, setup_clothes_screen
 from app_modules.list_views import refresh_contacts_list_view, refresh_reports_list_view, show_report_details_popup
 from app_modules.ui_helpers import show_message_popup, update_stats_labels, update_progress_labels, popup_columns_selector, show_logs_popup
+from app_modules.md_theme_bridge import apply_md_theme
 
 from datetime import datetime
 from pathlib import Path
@@ -898,9 +899,7 @@ class ProUIStyler:
 class FutureApp(MDAppBase):
     def build(self):
         Window.clearcolor = AppTheme.palette()["background"]
-        if hasattr(self, "theme_cls"):
-            self.theme_cls.theme_style = "Dark" if AppTheme.current == "dark" else "Light"
-            self.theme_cls.primary_palette = "Blue"
+        apply_md_theme(self, AppTheme.current)
         if platform == "android":
             from android.permissions import request_permissions, Permission
             request_permissions([Permission.READ_EXTERNAL_STORAGE, Permission.WRITE_EXTERNAL_STORAGE])
@@ -1012,6 +1011,7 @@ class FutureApp(MDAppBase):
         if mode not in ("dark", "light"):
             return
         AppTheme.current = mode
+        apply_md_theme(self, mode)
         pal = AppTheme.palette()
         Window.clearcolor = pal["background"]
         self.setup_ui_all()
