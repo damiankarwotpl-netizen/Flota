@@ -312,6 +312,146 @@ class SimplePdfDocument:
         Path(file_path).write_bytes(pdf)
 
 
+def pdf_safe_text(value):
+    import unicodedata
+
+    text = "" if value is None else str(value)
+    normalized = unicodedata.normalize("NFKD", text)
+    return normalized.encode("latin-1", "ignore").decode("latin-1")
+
+
+def documents_dir():
+    if app_storage_path:
+        shared_documents = Path("/storage/emulated/0/Documents")
+        if shared_documents.exists() or os.name == "posix":
+            return shared_documents
+        return Path(app_storage_path())
+    return Path.home() / "Documents"
+
+
+class SimplePdfDocument:
+    def __init__(self, width=595.28, height=841.89):
+        self.width = width
+        self.height = height
+        self.operations = []
+        self.images = []
+        self.font_family = "Helvetica"
+        self.font_size = 12
+        self.line_width = 1
+
+    def set_font(self, family="Helvetica", style="", size=12):
+        self.font_family = family
+        self.font_size = size
+
+    def set_line_width(self, width):
+        self.line_width = width
+
+    def line(self, x1, y1, x2, y2):
+        self.operations.append(f"{self.line_width:.2f} w {x1:.2f} {y1:.2f} m {x2:.2f} {y2:.2f} l S")
+
+    def rect(self, x, y, w, h):
+        self.operations.append(f"{self.line_width:.2f} w {x:.2f} {y:.2f} {w:.2f} {h:.2f} re S")
+
+    def text(self, x, y, value):
+        txt = pdf_safe_text(value).replace("\\", "\\\\").replace("(", "\\(").replace(")", "\\)")
+        self.operations.append(f"BT /F1 {self.font_size:.2f} Tf 1 0 0 1 {x:.2f} {y:.2f} Tm ({txt}) Tj ET")
+
+    def image_jpeg(self, path, x, y, w, h, name=None):
+        path = Path(path)
+        if not path.exists():
+            return False
+        img_w, img_h = self._jpeg_size(path)
+        img_name = name or f"Im{len(self.images) + 1}"
+        self.images.append({
+            "name": img_name,
+            "path": path,
+            "width": img_w,
+            "height": img_h,
+        })
+        self.operations.append(f"q {w:.2f} 0 0 {h:.2f} {x:.2f} {y:.2f} cm /{img_name} Do Q")
+        return True
+
+    def _jpeg_size(self, path):
+        data = path.read_bytes()
+        idx = 2
+        while idx < len(data):
+            if data[idx] != 0xFF:
+                idx += 1
+                continue
+            marker = data[idx + 1]
+            idx += 2
+            if marker in (0xD8, 0xD9):
+                continue
+            size = int.from_bytes(data[idx:idx + 2], "big")
+            if marker in (0xC0, 0xC1, 0xC2, 0xC3):
+                height = int.from_bytes(data[idx + 3:idx + 5], "big")
+                width = int.from_bytes(data[idx + 5:idx + 7], "big")
+                return width, height
+            idx += size
+
+    def save(self, file_path):
+        stream = "\n".join(self.operations).encode("latin-1", "ignore")
+        xobject_entries = []
+        image_objects = []
+        next_obj_id = 6
+        for image in self.images:
+            xobject_entries.append(f"/{image['name']} {next_obj_id} 0 R")
+            img_data = image["path"].read_bytes()
+            image_objects.append(
+                (
+                    f"<< /Type /XObject /Subtype /Image /Width {image['width']} /Height {image['height']} "
+                    f"/ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length {len(img_data)} >>\nstream\n"
+                ).encode("latin-1") + img_data + b"\nendstream"
+            )
+            next_obj_id += 1
+
+        resources = "<< /Font << /F1 5 0 R >>"
+        if xobject_entries:
+            resources += " /XObject << " + " ".join(xobject_entries) + " >>"
+        resources += " >>"
+
+        objects = [
+            b"<< /Type /Catalog /Pages 2 0 R >>",
+            b"<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+            (
+                f"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 {self.width:.2f} {self.height:.2f}] "
+                f"/Contents 4 0 R /Resources {resources} >>"
+            ).encode("latin-1"),
+            b"<< /Length " + str(len(stream)).encode("ascii") + b" >>\nstream\n" + stream + b"\nendstream",
+            b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
+        ] + image_objects
+
+        pdf = bytearray(b"%PDF-1.4\n%\xe2\xe3\xcf\xd3\n")
+        offsets = [0]
+        for idx, obj in enumerate(objects, start=1):
+            offsets.append(len(pdf))
+            pdf.extend(f"{idx} 0 obj\n".encode("ascii"))
+            pdf.extend(obj)
+            pdf.extend(b"\nendobj\n")
+
+        xref_start = len(pdf)
+        pdf.extend(f"xref\n0 {len(objects) + 1}\n".encode("ascii"))
+        pdf.extend(b"0000000000 65535 f \n")
+        for off in offsets[1:]:
+            pdf.extend(f"{off:010d} 00000 n \n".encode("ascii"))
+        pdf.extend(
+            f"trailer\n<< /Size {len(objects) + 1} /Root 1 0 R >>\nstartxref\n{xref_start}\n%%EOF\n".encode("ascii")
+        )
+
+        Path(file_path).write_bytes(pdf)
+
+
+def vehicle_protocol_template_path():
+    candidates = [
+        Path(__file__).with_name("vehicle_protocol_template.jpg"),
+        Path(__file__).with_name("vehicle_protocol_template.jpeg"),
+    ]
+    for path in candidates:
+        if path.exists():
+            return path
+    return None
+
+
 class LoginScreen(BoxLayout):
     def __init__(self, app, **kwargs):
         super().__init__(orientation="vertical", **kwargs)
@@ -528,7 +668,44 @@ class VehicleReportScreen(BoxLayout):
         file_path = base_dir / "protokol_stanu_pojazdu.pdf"
 
         pdf = SimplePdfDocument()
+        template_path = vehicle_protocol_template_path()
         W, H = pdf.width, pdf.height
+        if template_path:
+            pdf.image_jpeg(template_path, 0, 0, W, H, "ImTemplate")
+
+            def txt(x, y0, value, size=8, bold=False):
+                pdf.set_font("Helvetica", "B" if bold else "", size)
+                pdf.text(x, H - y0, pdf_safe_text(value))
+
+            txt(385, 90, d["marka"])
+            txt(447, 90, d["rej"])
+            txt(262, 185, d["uszkodzenia"], 7)
+            txt(261, 215, d["przebieg"])
+            txt(261, 245, d["paliwo"])
+            txt(261, 274, d["rodzaj_paliwa"])
+            txt(261, 303, d["olej"])
+            txt(261, 376, " / ".join(filter(None, [d["lp"], d["pp"], d["lt"], d["pt"]]))[:30], 7)
+            txt(259, 428, d["lp"])
+            txt(259, 448, d["pp"])
+            txt(259, 468, d["pt"])
+            txt(259, 488, d["lt"])
+            txt(430, 438, d["przeglad"])
+            txt(430, 478, d["serwis"])
+            if d["dowod"]:
+                txt(281, 531, "TAK", 8, True)
+            if d["trojkat"]:
+                txt(281, 583, "TAK", 8, True)
+            if d["kamizelki"]:
+                txt(281, 634, "TAK", 8, True)
+            if d["apteczka"]:
+                txt(281, 686, "TAK", 8, True)
+            if d["kolo"]:
+                txt(281, 738, "TAK", 8, True)
+            txt(430, 550, d["uwagi"], 8)
+            txt(430, 739, d["od_kiedy"], 8)
+            pdf.save(file_path)
+            return file_path
+
         L = 36
 
         def box(x, y0, w, h):
