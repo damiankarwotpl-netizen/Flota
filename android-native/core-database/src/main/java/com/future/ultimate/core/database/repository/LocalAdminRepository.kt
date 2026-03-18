@@ -2,6 +2,7 @@ package com.future.ultimate.core.database.repository
 
 import android.content.Context
 import com.future.ultimate.core.common.model.CarDraft
+import com.future.ultimate.core.common.model.ClothesSizeDraft
 import com.future.ultimate.core.common.model.ContactDraft
 import com.future.ultimate.core.common.model.PlantDraft
 import com.future.ultimate.core.common.model.VehicleReportDraft
@@ -9,6 +10,7 @@ import com.future.ultimate.core.common.model.WorkerDraft
 import com.future.ultimate.core.common.pdf.VehicleReportPdfExporter
 import com.future.ultimate.core.common.repository.AdminRepository
 import com.future.ultimate.core.common.repository.CarListItem
+import com.future.ultimate.core.common.repository.ClothesSizeListItem
 import com.future.ultimate.core.common.repository.ContactListItem
 import com.future.ultimate.core.common.repository.DashboardStats
 import com.future.ultimate.core.common.repository.EmailTemplateData
@@ -218,6 +220,40 @@ class LocalAdminRepository(
     }
 
     override suspend fun deletePlant(id: Long) = dao.deletePlant(id)
+
+    override fun observeClothesSizes(): Flow<List<ClothesSizeListItem>> = dao.observeClothesSizes().map { items ->
+        items.map {
+            ClothesSizeListItem(
+                id = it.id,
+                name = it.name,
+                surname = it.surname,
+                plant = it.plant,
+                shirt = it.shirt,
+                hoodie = it.hoodie,
+                pants = it.pants,
+                jacket = it.jacket,
+                shoes = it.shoes,
+            )
+        }
+    }
+
+    override suspend fun saveClothesSize(draft: ClothesSizeDraft) {
+        dao.upsertClothesSize(
+            ClothesSizeEntity(
+                id = draft.id ?: 0,
+                name = draft.name.trim(),
+                surname = draft.surname.trim(),
+                plant = draft.plant.trim(),
+                shirt = draft.shirt.trim(),
+                hoodie = draft.hoodie.trim(),
+                pants = draft.pants.trim(),
+                jacket = draft.jacket.trim(),
+                shoes = draft.shoes.trim(),
+            ),
+        )
+    }
+
+    override suspend fun deleteClothesSize(id: Long) = dao.deleteClothesSize(id)
 
     override fun observeSmtpSettings(): Flow<SmtpSettingsData> = dao.observeSettings().map { settings ->
         val map = settings.associateBy({ it.key }, { it.valText })

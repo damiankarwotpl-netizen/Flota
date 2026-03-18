@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.future.ultimate.core.common.model.CarDraft
+import com.future.ultimate.core.common.model.ClothesSizeDraft
 import com.future.ultimate.core.common.model.ContactDraft
 import com.future.ultimate.core.common.model.PlantDraft
 import com.future.ultimate.core.common.model.VehicleReportDraft
@@ -12,6 +13,7 @@ import com.future.ultimate.core.common.repository.AdminRepository
 import com.future.ultimate.core.common.repository.EmailTemplateData
 import com.future.ultimate.core.common.repository.SmtpSettingsData
 import com.future.ultimate.core.common.ui.CarsUiState
+import com.future.ultimate.core.common.ui.ClothesSizesUiState
 import com.future.ultimate.core.common.ui.ContactsUiState
 import com.future.ultimate.core.common.ui.PayrollUiState
 import com.future.ultimate.core.common.ui.PlantsUiState
@@ -154,6 +156,27 @@ class PlantsViewModel(private val repository: AdminRepository) : ViewModel() {
     }
 }
 
+class ClothesSizesViewModel(private val repository: AdminRepository) : ViewModel() {
+    private val _uiState = MutableStateFlow(ClothesSizesUiState())
+    val uiState: StateFlow<ClothesSizesUiState> = _uiState.asStateFlow()
+
+    init { repository.observeClothesSizes().onEach { _uiState.value = _uiState.value.copy(items = it) }.launchIn(viewModelScope) }
+
+    fun updateQuery(value: String) { _uiState.value = _uiState.value.copy(query = value) }
+    fun updateEditor(draft: ClothesSizeDraft) { _uiState.value = _uiState.value.copy(editor = draft) }
+
+    fun save() = viewModelScope.launch {
+        _uiState.value = _uiState.value.copy(isSaving = true)
+        repository.saveClothesSize(_uiState.value.editor)
+        _uiState.value = _uiState.value.copy(isSaving = false, editor = ClothesSizeDraft())
+    }
+
+    fun delete(id: Long) = viewModelScope.launch {
+        repository.deleteClothesSize(id)
+    }
+}
+
+
 class SmtpViewModel(private val repository: AdminRepository) : ViewModel() {
     private val _uiState = MutableStateFlow(SmtpUiState())
     val uiState: StateFlow<SmtpUiState> = _uiState.asStateFlow()
@@ -236,6 +259,7 @@ class AdminViewModelFactory(private val repository: AdminRepository) : ViewModel
         modelClass.isAssignableFrom(PayrollViewModel::class.java) -> PayrollViewModel() as T
         modelClass.isAssignableFrom(WorkersViewModel::class.java) -> WorkersViewModel(repository) as T
         modelClass.isAssignableFrom(PlantsViewModel::class.java) -> PlantsViewModel(repository) as T
+        modelClass.isAssignableFrom(ClothesSizesViewModel::class.java) -> ClothesSizesViewModel(repository) as T
         modelClass.isAssignableFrom(SmtpViewModel::class.java) -> SmtpViewModel(repository) as T
         modelClass.isAssignableFrom(TemplateViewModel::class.java) -> TemplateViewModel(repository) as T
         modelClass.isAssignableFrom(ReportsViewModel::class.java) -> ReportsViewModel(repository) as T

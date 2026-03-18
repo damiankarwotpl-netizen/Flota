@@ -1,6 +1,7 @@
 package com.future.ultimate.core.common.repository
 
 import com.future.ultimate.core.common.model.CarDraft
+import com.future.ultimate.core.common.model.ClothesSizeDraft
 import com.future.ultimate.core.common.model.ContactDraft
 import com.future.ultimate.core.common.model.PlantDraft
 import com.future.ultimate.core.common.model.VehicleReportDraft
@@ -52,6 +53,18 @@ data class PlantListItem(
     val notes: String,
 )
 
+data class ClothesSizeListItem(
+    val id: Long,
+    val name: String,
+    val surname: String,
+    val plant: String,
+    val shirt: String,
+    val hoodie: String,
+    val pants: String,
+    val jacket: String,
+    val shoes: String,
+)
+
 data class SmtpSettingsData(
     val host: String = "",
     val port: String = "587",
@@ -98,6 +111,10 @@ interface AdminRepository {
     fun observePlants(): Flow<List<PlantListItem>>
     suspend fun savePlant(draft: PlantDraft)
     suspend fun deletePlant(id: Long)
+
+    fun observeClothesSizes(): Flow<List<ClothesSizeListItem>>
+    suspend fun saveClothesSize(draft: ClothesSizeDraft)
+    suspend fun deleteClothesSize(id: Long)
 
     fun observeSmtpSettings(): Flow<SmtpSettingsData>
     suspend fun saveSmtpSettings(settings: SmtpSettingsData)

@@ -1,11 +1,13 @@
 package com.future.ultimate.core.common.ui
 
 import com.future.ultimate.core.common.model.CarDraft
+import com.future.ultimate.core.common.model.ClothesSizeDraft
 import com.future.ultimate.core.common.model.ContactDraft
 import com.future.ultimate.core.common.model.PlantDraft
 import com.future.ultimate.core.common.model.VehicleReportDraft
 import com.future.ultimate.core.common.model.WorkerDraft
 import com.future.ultimate.core.common.repository.CarListItem
+import com.future.ultimate.core.common.repository.ClothesSizeListItem
 import com.future.ultimate.core.common.repository.ContactListItem
 import com.future.ultimate.core.common.repository.DashboardStats
 import com.future.ultimate.core.common.repository.EmailTemplateData
@@ -58,6 +60,13 @@ data class PlantsUiState(
     val query: String = "",
     val items: List<PlantListItem> = emptyList(),
     val editor: PlantDraft = PlantDraft(),
+    val isSaving: Boolean = false,
+)
+
+data class ClothesSizesUiState(
+    val query: String = "",
+    val items: List<ClothesSizeListItem> = emptyList(),
+    val editor: ClothesSizeDraft = ClothesSizeDraft(),
     val isSaving: Boolean = false,
 )
 

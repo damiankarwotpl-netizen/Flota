@@ -37,6 +37,18 @@ data class PlantDraft(
     val notes: String = "",
 )
 
+data class ClothesSizeDraft(
+    val id: Long? = null,
+    val name: String = "",
+    val surname: String = "",
+    val plant: String = "",
+    val shirt: String = "",
+    val hoodie: String = "",
+    val pants: String = "",
+    val jacket: String = "",
+    val shoes: String = "",
+)
+
 data class VehicleReportDraft(
     val marka: String = "",
     val rej: String = "",
