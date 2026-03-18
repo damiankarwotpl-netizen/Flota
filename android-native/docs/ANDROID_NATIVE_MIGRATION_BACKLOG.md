@@ -2,7 +2,7 @@
 
 ## Remaining steps to full migration
 
-1. Port car workflows end-to-end, including driver-account API sync and mileage background sync.
+1. Finish remaining car workflows end-to-end, including driver-account API sync and mileage background sync.
 2. Implement full vehicle-report PDF generation parity for admin and driver apps.
 3. Port workbook import, payroll import, table preview, and export logic.
 4. Port SMTP, attachments, special-send flow, mass mailing, and session reporting.

@@ -40,13 +40,57 @@ class CarsViewModel(private val repository: AdminRepository) : ViewModel() {
     private val _uiState = MutableStateFlow(CarsUiState())
     val uiState: StateFlow<CarsUiState> = _uiState.asStateFlow()
 
-    init { repository.observeCars().onEach { _uiState.value = _uiState.value.copy(items = it) }.launchIn(viewModelScope) }
+    init {
+        repository.observeCars().onEach { items ->
+            val currentState = _uiState.value
+            _uiState.value = currentState.copy(
+                items = items,
+                mileageDrafts = items.associate { car -> car.id to (currentState.mileageDrafts[car.id] ?: car.mileage.toString()) },
+                driverDrafts = items.associate { car -> car.id to (currentState.driverDrafts[car.id] ?: car.driver) },
+            )
+        }.launchIn(viewModelScope)
+    }
+
     fun updateQuery(value: String) { _uiState.value = _uiState.value.copy(query = value) }
     fun updateEditor(draft: CarDraft) { _uiState.value = _uiState.value.copy(editor = draft) }
+
+    fun updateMileageDraft(id: Long, value: String) {
+        _uiState.value = _uiState.value.copy(mileageDrafts = _uiState.value.mileageDrafts + (id to value))
+    }
+
+    fun updateDriverDraft(id: Long, value: String) {
+        _uiState.value = _uiState.value.copy(driverDrafts = _uiState.value.driverDrafts + (id to value))
+    }
+
     fun save() = viewModelScope.launch {
         _uiState.value = _uiState.value.copy(isSaving = true)
         repository.saveCar(_uiState.value.editor)
         _uiState.value = _uiState.value.copy(isSaving = false, editor = CarDraft())
+    }
+
+    fun saveMileage(id: Long) = viewModelScope.launch {
+        _uiState.value = _uiState.value.copy(actionInFlightId = id)
+        val mileage = _uiState.value.mileageDrafts[id]?.toIntOrNull() ?: 0
+        repository.updateCarMileage(id, mileage)
+        _uiState.value = _uiState.value.copy(actionInFlightId = null)
+    }
+
+    fun saveDriver(id: Long) = viewModelScope.launch {
+        _uiState.value = _uiState.value.copy(actionInFlightId = id)
+        repository.updateCarDriver(id, _uiState.value.driverDrafts[id].orEmpty())
+        _uiState.value = _uiState.value.copy(actionInFlightId = null)
+    }
+
+    fun confirmService(id: Long) = viewModelScope.launch {
+        _uiState.value = _uiState.value.copy(actionInFlightId = id)
+        repository.confirmCarService(id)
+        _uiState.value = _uiState.value.copy(actionInFlightId = null)
+    }
+
+    fun deleteCar(id: Long) = viewModelScope.launch {
+        _uiState.value = _uiState.value.copy(actionInFlightId = id)
+        repository.deleteCar(id)
+        _uiState.value = _uiState.value.copy(actionInFlightId = null)
     }
 }
 
