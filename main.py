@@ -16,6 +16,23 @@ import threading
 from master_sync.sync_worker import start_sync
 from master_sync.create_driver_login import create_driver
 
+from app_modules.home_screen import setup_home_screen
+from app_modules.vehicle_report_screen import setup_vehicle_report_screen
+from app_modules.management_screens import (
+    setup_cars_screen,
+    setup_workers_screen,
+    setup_plants_screen,
+    setup_settings_screen,
+    setup_paski_screen,
+)
+from app_modules.communication_screens import (
+    setup_email_screen,
+    setup_smtp_screen,
+    setup_template_screen,
+    setup_contacts_screen,
+    setup_report_screen,
+)
+
 from datetime import datetime
 from pathlib import Path
 from email.message import EmailMessage
@@ -356,18 +373,39 @@ class SimplePdfDocument:
 
 
 def vehicle_protocol_template_path():
-    candidates = [
-        Path(__file__).with_name("assets").joinpath("vehicle_protocol_template.pdf"),
-        Path(__file__).with_name("assets").joinpath("vehicle_protocol_template.jpg"),
-        Path(__file__).with_name("assets").joinpath("vehicle_protocol_template.jpeg"),
-        Path(__file__).with_name("vehicle_protocol_template.pdf"),
-        Path(__file__).with_name("vehicle_protocol_template.jpg"),
-        Path(__file__).with_name("vehicle_protocol_template.jpeg"),
+    base = Path(__file__).resolve().parent
+    roots = [
+        base / "assets",
+        base,
+        base.parent / "assets",
+        base.parent,
+        Path.cwd() / "assets",
+        Path.cwd(),
     ]
-    for path in candidates:
-        if path.exists():
-            return path
+    names = [
+        "vehicle_protocol_template.pdf",
+        "vehicle_protocol_template.jpg",
+        "vehicle_protocol_template.jpeg",
+    ]
+    checked = set()
+    for root_path in roots:
+        for name in names:
+            path = (root_path / name).resolve()
+            if path in checked:
+                continue
+            checked.add(path)
+            if path.exists():
+                return path
     return None
+
+
+def vehicle_protocol_output_filename(registration):
+    date_part = datetime.now().strftime("%Y-%m-%d")
+    raw = pdf_safe_text(registration or "")
+    safe = "".join(ch if ch.isalnum() else "_" for ch in raw).strip("_")
+    if not safe:
+        safe = "brak_rejestracji"
+    return f"{date_part}_{safe}.pdf"
 
 
 def draw_vehicle_protocol_template(pdf):
@@ -1737,93 +1775,10 @@ class FutureApp(App):
             self._screen_initialized.add(name)
 
     def setup_ui_all(self):
-        self.sc_ref["home"].clear_widgets()
-        layout = AppLayout(title="FUTURE ULTIMATE v20")
-        layout.nav_tabs.add_action(SecondaryButton(text="Dark", on_press=lambda x: self.switch_theme("dark")))
-        layout.nav_tabs.add_action(SecondaryButton(text="Light", on_press=lambda x: self.switch_theme("light")))
-
-        content = BoxLayout(orientation="vertical", spacing=dp(10), padding=[0, dp(6), 0, 0])
-        content.add_widget(Label(text="Panel główny aplikacji", font_size='15sp', color=(0.72, 0.78, 0.9, 1), size_hint_y=None, height=dp(26)))
-        sv = ScrollView(size_hint=(1, 1))
-        grid = GridLayout(cols=2, spacing=dp(12), padding=dp(6), size_hint_y=None)
-        grid.bind(minimum_height=grid.setter('height'))
-        btn_props = dict(size_hint_y=None, height=dp(86))
-        grid.add_widget(PrimaryButton(text="Kontakty", on_press=lambda x: [self.ensure_screen_ui("contacts"), self.refresh_contacts_list(), setattr(self.sm, 'current', 'contacts')], **btn_props))
-        grid.add_widget(PrimaryButton(text="Samochody", on_press=lambda x: setattr(self.sm, 'current', 'cars'), **btn_props))
-        grid.add_widget(PrimaryButton(text="Raport stanu auta", on_press=lambda x: setattr(self.sm, 'current', 'vehicle_report'), **btn_props))
-        grid.add_widget(PrimaryButton(text="Ubranie robocze", on_press=lambda x: setattr(self.sm, 'current', 'clothes'), **btn_props))
-        grid.add_widget(PrimaryButton(text="Paski", on_press=lambda x: setattr(self.sm, 'current', 'paski'), **btn_props))
-        grid.add_widget(PrimaryButton(text="Pracownicy", on_press=lambda x: setattr(self.sm, 'current', 'pracownicy'), **btn_props))
-        grid.add_widget(PrimaryButton(text="Zakłady", on_press=lambda x: setattr(self.sm, 'current', 'zaklady'), **btn_props))
-        grid.add_widget(SecondaryButton(text="Ustawienia", on_press=lambda x: setattr(self.sm, 'current', 'settings'), **btn_props))
-        grid.add_widget(DangerButton(text="Wyjście", on_press=lambda x: App.get_running_app().stop(), **btn_props))
-        sv.add_widget(grid)
-        content.add_widget(sv)
-        layout.set_content(content)
-        self.sc_ref["home"].add_widget(layout)
+        setup_home_screen(self, AppLayout, SecondaryButton, PrimaryButton, DangerButton)
 
     def setup_vehicle_report_ui(self):
-        self.sc_ref["vehicle_report"].clear_widgets()
-        shell = AppLayout(title="Raport stanu samochodu")
-        shell.nav_tabs.add_action(SecondaryButton(text="Wróć", on_press=lambda x: setattr(self.sm, 'current', 'home')))
-
-        root = ScrollView()
-        form = GridLayout(cols=1, spacing=dp(8), padding=dp(10), size_hint_y=None)
-        form.bind(minimum_height=form.setter('height'))
-
-        self.vehicle_report_inputs = {}
-        self.vehicle_report_checks = {}
-
-        fields = [
-            ("marka", "Marka"),
-            ("rej", "Rejestracja"),
-            ("przebieg", "Przebieg"),
-            ("olej", "Poziom oleju"),
-            ("paliwo", "Wskaźnik paliwa"),
-            ("rodzaj_paliwa", "Rodzaj paliwa"),
-            ("lp", "Lewy przedni"),
-            ("pp", "Prawy przedni"),
-            ("lt", "Lewy tylny"),
-            ("pt", "Prawy tylny"),
-            ("uszkodzenia", "Nowe uszkodzenia"),
-            ("od_kiedy", "Od kiedy?"),
-            ("serwis", "Przegląd / Service"),
-            ("przeglad", "Przegląd techniczny"),
-            ("uwagi", "Uwagi"),
-        ]
-
-        for key, hint in fields:
-            multiline = key in {"uszkodzenia", "uwagi"}
-            inp = ModernInput(hint_text=hint, multiline=multiline, size_hint_y=None, height=dp(84) if multiline else dp(48))
-            self.vehicle_report_inputs[key] = inp
-            form.add_widget(inp)
-
-        checks = [
-            ("trojkat", "Trójkąt"),
-            ("kamizelki", "Kamizelki"),
-            ("kolo", "Koło zapasowe"),
-            ("dowod", "Dowód rejestracyjny"),
-            ("apteczka", "Apteczka"),
-        ]
-
-        for key, label in checks:
-            row = BoxLayout(size_hint_y=None, height=dp(42), spacing=dp(8))
-            row.add_widget(Label(text=label, halign='left', valign='middle'))
-            cb = CheckBox(size_hint=(None, None), size=(dp(38), dp(38)))
-            self.vehicle_report_checks[key] = cb
-            row.add_widget(cb)
-            form.add_widget(row)
-
-        actions = BoxLayout(size_hint_y=None, height=dp(56), spacing=dp(8))
-        actions.add_widget(PrimaryButton(text="Zapisz PDF", on_press=self.save_vehicle_report_pdf))
-        form.add_widget(actions)
-
-        self.vehicle_report_status = Label(text="", size_hint_y=None, height=dp(48))
-        form.add_widget(self.vehicle_report_status)
-
-        root.add_widget(form)
-        shell.set_content(root)
-        self.sc_ref["vehicle_report"].add_widget(shell)
+        setup_vehicle_report_screen(self, AppLayout, SecondaryButton, PrimaryButton, ModernInput)
 
     def save_vehicle_report_pdf(self, *_):
         data = {k: v.text for k, v in self.vehicle_report_inputs.items()}
@@ -1840,7 +1795,7 @@ class FutureApp(App):
     def generate_vehicle_protocol_pdf(self, d):
         out_dir = self._documents_dir()
         out_dir.mkdir(parents=True, exist_ok=True)
-        file_path = out_dir / "protokol_stanu_pojazdu.pdf"
+        file_path = out_dir / vehicle_protocol_output_filename(d.get("rej"))
 
         template_path = vehicle_protocol_template_path()
         is_pdf_template = bool(template_path and template_path.suffix.lower() == ".pdf")
@@ -1867,45 +1822,47 @@ class FutureApp(App):
             if checked:
                 txt(x + 3, y0 + 10, "X", 9, True)
         txt(427, 436, d["przeglad"], 8)
-        txt(336, 472, "Kiedy nalezy dokonac", 9)
-        txt(336, 485, "przegladu / Service?", 9)
-        box(424, 460, 56, 24)
         txt(427, 476, d["serwis"], 8)
-
-        questions = [
-            ("Czy dostepny jest dowod rejestracyjny pojazdu?", d["dowod"]),
-            ("Czy w samochodzie znajduje sie trojkat ostrzegawczy?", d["trojkat"]),
-            ("Czy w samochodzie jest wystarczajaco duzo kamizelek", d["kamizelki"]),
-            ("odblaskowych?", None),
-            ("Czy dostepna jest apteczka pierwszej pomocy?", d["apteczka"]),
-            ("Czy w pojezdzie znajduje sie kolo zapasowe?", d["kolo"]),
-            ("Czy na wyswietlaczu aktywne sa jakies lampki", None),
-            ("ostrzegawcze - jesli tak, to ktore i od kiedy?", None),
-        ]
-        yq = 520
-        for label, state in questions:
-            txt(66, yq, label, 8)
-            if state is not None:
-                txt(260, yq - 8, "TAK / NIE", 8, True)
-                box(258, yq - 2, 56, 18)
-                if state:
-                    txt(262, yq + 10, "TAK", 8, True)
-            yq += 26
-
-        txt(312, 520, "Inne uwagi / komentarze:", 9, True)
-        box(366, 532, 190, 142)
-        txt(316, 704, "Od kiedy?", 8, True)
-        box(366, 690, 110, 22)
         txt(370, 705, d["od_kiedy"], 8)
         txt(261, 154, d["uszkodzenia"], 8)
         txt(372, 546, d["uwagi"], 8)
 
-        hline(38, W - 38, 728)
-        txt(170, 748, "Protokoly sa przekazywane w kazdy pierwszy poniedzialek miesiaca na adres email:", 8, True)
-        txt(40, 780, "WAZNA INFORMACJA", 9, True)
-        txt(290, 780, "magdalena.matusiewicz@future-group.pl", 8)
-        txt(372, 796, "oraz", 8, True)
-        txt(304, 812, "justyna.kucharska@future-group.pl", 8)
+        if not is_pdf_template:
+            txt(336, 472, "Kiedy nalezy dokonac", 9)
+            txt(336, 485, "przegladu / Service?", 9)
+            box(424, 460, 56, 24)
+
+            questions = [
+                ("Czy dostepny jest dowod rejestracyjny pojazdu?", d["dowod"]),
+                ("Czy w samochodzie znajduje sie trojkat ostrzegawczy?", d["trojkat"]),
+                ("Czy w samochodzie jest wystarczajaco duzo kamizelek", d["kamizelki"]),
+                ("odblaskowych?", None),
+                ("Czy dostepna jest apteczka pierwszej pomocy?", d["apteczka"]),
+                ("Czy w pojezdzie znajduje sie kolo zapasowe?", d["kolo"]),
+                ("Czy na wyswietlaczu aktywne sa jakies lampki", None),
+                ("ostrzegawcze - jesli tak, to ktore i od kiedy?", None),
+            ]
+            yq = 520
+            for label, state in questions:
+                txt(66, yq, label, 8)
+                if state is not None:
+                    txt(260, yq - 8, "TAK / NIE", 8, True)
+                    box(258, yq - 2, 56, 18)
+                    if state:
+                        txt(262, yq + 10, "TAK", 8, True)
+                yq += 26
+
+            txt(312, 520, "Inne uwagi / komentarze:", 9, True)
+            box(366, 532, 190, 142)
+            txt(316, 704, "Od kiedy?", 8, True)
+            box(366, 690, 110, 22)
+
+            hline(38, W - 38, 728)
+            txt(170, 748, "Protokoly sa przekazywane w kazdy pierwszy poniedzialek miesiaca na adres email:", 8, True)
+            txt(40, 780, "WAZNA INFORMACJA", 9, True)
+            txt(290, 780, "magdalena.matusiewicz@future-group.pl", 8)
+            txt(372, 796, "oraz", 8, True)
+            txt(304, 812, "justyna.kucharska@future-group.pl", 8)
 
         if is_pdf_template:
             overlay_path = file_path.with_name(f"{file_path.stem}_overlay.pdf")
@@ -2596,35 +2553,7 @@ class FutureApp(App):
         threading.Thread(target=task, daemon=True).start()
 
     def setup_email_ui(self):
-        self.sc_ref["email"].clear_widgets()
-        shell = AppLayout(title="Moduł Email")
-        shell.nav_tabs.add_action(SecondaryButton(text="Wróć", on_press=lambda x: setattr(self.sm, 'current', 'home')))
-        shell.nav_tabs.add_action(SecondaryButton(text="SMTP", on_press=lambda x: setattr(self.sm, 'current', 'smtp')))
-
-        body = BoxLayout(orientation="vertical", spacing=dp(10))
-        auto_card = Card(orientation="horizontal", size_hint_y=None, height=dp(54), spacing=dp(10))
-        self.cb_auto = CheckBox(size_hint_x=None, width=dp(45))
-        self.cb_auto.active = self.auto_send_mode
-        self.cb_auto.bind(active=self.on_auto_checkbox_changed)
-        auto_card.add_widget(self.cb_auto)
-        auto_card.add_widget(Label(text="AUTOMATYCZNA WYSYŁKA", bold=True))
-        body.add_widget(auto_card)
-
-        self.lbl_stats = Label(text="Baza: 0", size_hint_y=None, height=dp(34)); body.add_widget(self.lbl_stats)
-        self.pb_label = Label(text="Gotowy", size_hint_y=None, height=dp(28)); self.pb = ProgressBar(max=100, size_hint_y=None, height=dp(24)); body.add_widget(self.pb_label); body.add_widget(self.pb)
-
-        actions = AppActionBar()
-        actions.add_action(DangerButton(text="Wyczyść załączniki", on_press=self.clear_all_attachments, size_hint_x=None))
-        actions.add_action(PrimaryButton(text="Edytuj szablon", on_press=lambda x: setattr(self.sm, 'current', 'tmpl'), size_hint_x=None))
-        actions.add_action(PrimaryButton(text="Dodaj załącznik", on_press=lambda x: self.open_picker("attachment"), size_hint_x=None))
-        actions.add_action(PrimaryButton(text="Wyślij jeden plik", on_press=self.start_special_send_flow, size_hint_x=None))
-        actions.add_action(PrimaryButton(text="Start masowa wysyłka", on_press=self.start_mass_mailing, size_hint_x=None))
-        actions.add_action(SecondaryButton(text="Pauza/Resume", on_press=self.toggle_pause_mailing, size_hint_x=None))
-
-        body.add_widget(actions)
-        shell.set_content(body)
-        self.sc_ref["email"].add_widget(shell)
-        self.update_stats()
+        setup_email_screen(self, AppLayout, AppActionBar, Card, SecondaryButton, PrimaryButton, DangerButton)
 
     def on_auto_checkbox_changed(self, instance, value):
         self.auto_send_mode = bool(value)
@@ -3099,35 +3028,7 @@ class FutureApp(App):
             ws.column_dimensions[col_let].width = (m * 1.3) + 7
 
     def setup_smtp_ui(self):
-        self.sc_ref["smtp"].clear_widgets()
-        p = Path(self.user_data_dir)/"smtp.json"
-        d = json.load(open(p)) if p.exists() else {}
-
-        shell = AppLayout(title="Ustawienia SMTP")
-        shell.nav_tabs.add_action(SecondaryButton(text="Wróć", on_press=lambda x: setattr(self.sm,'current','home')))
-
-        form = BoxLayout(orientation="vertical", spacing=dp(10))
-        self.ti_h = ModernInput(hint_text="Host", text=d.get('h',''))
-        self.ti_pt = ModernInput(hint_text="Port", text=str(d.get('port','587')))
-        self.ti_u = ModernInput(hint_text="Email/Login", text=d.get('u',''))
-        self.ti_p = ModernInput(hint_text="Hasło/Klucz", password=True, text=d.get('p',''))
-        form.add_widget(self.ti_h); form.add_widget(self.ti_pt); form.add_widget(self.ti_u); form.add_widget(self.ti_p)
-
-        bx = Card(orientation="horizontal", size_hint_y=None, height=dp(52), spacing=dp(10))
-        self.cb_b = CheckBox(size_hint_x=None, width=dp(45), active=d.get('batch', True))
-        bx.add_widget(self.cb_b); bx.add_widget(Label(text="Batching (przerwa 60s/30 maili)"))
-        form.add_widget(bx)
-
-        actions = AppActionBar()
-        actions.add_action(PrimaryButton(text="Zapisz", on_press=lambda x: [json.dump({'h':self.ti_h.text,'port':self.ti_pt.text,'u':self.ti_u.text,'p':self.ti_p.text,'batch':self.cb_b.active}, open(p,"w")), self.msg("OK","Zapisano")], size_hint_x=None))
-        actions.add_action(PrimaryButton(text="Test połączenia", on_press=lambda x: self.test_smtp_direct(), size_hint_x=None))
-        actions.add_action(SecondaryButton(text="Pokaż logi", on_press=self.show_logs, size_hint_x=None))
-
-        body = BoxLayout(orientation="vertical", spacing=dp(10))
-        body.add_widget(form)
-        body.add_widget(actions)
-        shell.set_content(body)
-        self.sc_ref["smtp"].add_widget(shell)
+        setup_smtp_screen(self, AppLayout, AppActionBar, Card, SecondaryButton, PrimaryButton, ModernInput)
 
     def test_smtp_direct(self):
         try: s = self.connect_smtp({'h':self.ti_h.text,'port':self.ti_pt.text,'u':self.ti_u.text,'p':self.ti_p.text}); s.quit(); self.msg("OK", "Serwer SMTP Działa!"); self.log("SMTP test succeeded")
@@ -3201,60 +3102,10 @@ class FutureApp(App):
         activity.bind(on_activity_result=cb); PA.mActivity.startActivityForResult(intent, 1001)
 
     def setup_tmpl_ui(self):
-        self.sc_ref["tmpl"].clear_widgets()
-        ts = self.conn.execute("SELECT val FROM settings WHERE key='t_sub'").fetchone()
-        tb = self.conn.execute("SELECT val FROM settings WHERE key='t_body'").fetchone()
-
-        shell = AppLayout(title="Szablon email")
-        shell.nav_tabs.add_action(SecondaryButton(text="Wróć", on_press=lambda x: setattr(self.sm, 'current', 'email')))
-
-        form = BoxLayout(orientation="vertical", spacing=dp(10))
-        ti_s = ModernInput(hint_text="Temat {Imię}")
-        ti_b = ModernInput(hint_text="Treść...", multiline=True)
-        ti_s.text, ti_b.text = (ts[0] if ts else ""), (tb[0] if tb else "")
-        form.add_widget(ti_s)
-        form.add_widget(ti_b)
-
-        actions = AppActionBar()
-        actions.add_action(PrimaryButton(text="Zapisz", on_press=lambda x: [self.conn.execute("INSERT OR REPLACE INTO settings VALUES (?,?)", ('t_sub',ti_s.text)), self.conn.execute("INSERT OR REPLACE INTO settings VALUES (?,?)", ('t_body',ti_b.text)), self.conn.commit(), self.msg("OK","Wzór zapisany")], size_hint_x=None))
-
-        body = BoxLayout(orientation="vertical", spacing=dp(10))
-        body.add_widget(form)
-        body.add_widget(actions)
-        shell.set_content(body)
-        self.sc_ref["tmpl"].add_widget(shell)
+        setup_template_screen(self, AppLayout, AppActionBar, SecondaryButton, PrimaryButton, ModernInput)
 
     def setup_contacts_ui(self):
-        self.sc_ref["contacts"].clear_widgets()
-        shell = AppLayout(title="Kontakty")
-        shell.nav_tabs.add_action(SecondaryButton(text="Wróć", on_press=lambda x: setattr(self.sm, 'current', 'home')))
-        shell.nav_tabs.add_action(PrimaryButton(text="Dodaj", on_press=lambda x: self.form_contact(), size_hint_x=None, width=dp(150)))
-
-        body = BoxLayout(orientation="vertical", spacing=dp(8))
-        search_row = BoxLayout(size_hint_y=None, height=dp(54), spacing=dp(8))
-        self.ti_cs = ModernInput(hint_text="Szukaj po imieniu, nazwisku, email, telefonie...")
-        self.ti_cs.bind(text=self.refresh_contacts_list)
-        search_row.add_widget(self.ti_cs)
-
-        filter_row = BoxLayout(size_hint_y=None, height=dp(54), spacing=dp(8))
-        self.ti_cs_workplace = ModernInput(hint_text="Filtr zakład pracy")
-        self.ti_cs_workplace.bind(text=self.refresh_contacts_list)
-        self.ti_cs_city = ModernInput(hint_text="Filtr adres / mieszkanie")
-        self.ti_cs_city.bind(text=self.refresh_contacts_list)
-        filter_row.add_widget(self.ti_cs_workplace)
-        filter_row.add_widget(self.ti_cs_city)
-
-        self.c_ls = GridLayout(cols=1, size_hint_y=None, spacing=dp(10), padding=[dp(2), dp(2)])
-        self.c_ls.bind(minimum_height=self.c_ls.setter('height'))
-        sc = ScrollView()
-        sc.add_widget(self.c_ls)
-
-        body.add_widget(search_row)
-        body.add_widget(filter_row)
-        body.add_widget(sc)
-        shell.set_content(body)
-        shell.set_fab(lambda x: self.form_contact())
-        self.sc_ref["contacts"].add_widget(shell)
+        setup_contacts_screen(self, AppLayout, SecondaryButton, PrimaryButton, ModernInput)
 
     def refresh_contacts_list(self, *args):
         self.c_ls.clear_widgets(); sv = self.ti_cs.text.lower()
@@ -3348,16 +3199,7 @@ class FutureApp(App):
         sc = ScrollView(); sc.add_widget(gr); box.add_widget(sc); box.add_widget(ModernButton(text="ZASTOSUJ", on_press=lambda x: [setattr(self, 'export_indices', [idx for idx, c in checks if c.active]), p.dismiss(), self.refresh_table()], height=dp(50), size_hint_y=None)); p = Popup(title="Kolumny", content=box, size_hint=(0.9, 0.9)); p.open()
 
     def setup_report_ui(self):
-        self.sc_ref["report"].clear_widgets()
-        shell = AppLayout(title="Historia sesji")
-        shell.nav_tabs.add_action(SecondaryButton(text="Wróć", on_press=lambda x: setattr(self.sm, 'current', 'home')))
-
-        self.r_grid = GridLayout(cols=1, size_hint_y=None, spacing=dp(10), padding=[dp(2), dp(2)])
-        self.r_grid.bind(minimum_height=self.r_grid.setter('height'))
-        sc = ScrollView(); sc.add_widget(self.r_grid)
-
-        shell.set_content(sc)
-        self.sc_ref["report"].add_widget(shell)
+        setup_report_screen(self, AppLayout, SecondaryButton)
 
     def refresh_reports(self, *a):
         self.r_grid.clear_widgets(); rows = self.conn.execute("SELECT date, ok, fail, skip, details FROM reports ORDER BY id DESC").fetchall()
@@ -3904,126 +3746,19 @@ class FutureApp(App):
         self.refresh_plants_list()
 
     def setup_cars_ui(self):
-        """Buduje ekran cars: nagłówek, lista i panel akcji."""
-        self.sc_ref["cars"].clear_widgets()
-        self.init_cars_db()
-
-        shell = AppLayout(title="Samochody")
-        shell.nav_tabs.add_action(SecondaryButton(text='Powrót', on_press=lambda x: setattr(self.sm, 'current', 'home')))
-        shell.nav_tabs.add_action(PrimaryButton(text='+ DODAJ SAMOCHÓD', on_press=lambda x: self.add_car_popup(), size_hint_x=None, width=dp(210)))
-
-        body = BoxLayout(orientation='vertical', spacing=dp(8))
-        self.ti_cars_search = ModernInput(hint_text='Szukaj: nazwa / rejestracja / kierowca')
-        self.ti_cars_search.bind(text=self.refresh_cars_list)
-        body.add_widget(self.ti_cars_search)
-
-        self.cars_grid = GridLayout(cols=1, spacing=dp(8), size_hint_y=None, padding=[dp(2), dp(2)])
-        self.cars_grid.bind(minimum_height=self.cars_grid.setter('height'))
-        sc = ScrollView()
-        sc.add_widget(self.cars_grid)
-        body.add_widget(sc)
-
-        shell.set_content(body)
-        shell.set_fab(lambda x: self.add_car_popup())
-        self.sc_ref['cars'].add_widget(shell)
-        self.refresh_cars_list()
+        setup_cars_screen(self, AppLayout, SecondaryButton, PrimaryButton, ModernInput)
 
     def setup_pracownicy_ui(self):
-        self.sc_ref["pracownicy"].clear_widgets()
-        shell = AppLayout(title="Pracownicy")
-        shell.nav_tabs.add_action(SecondaryButton(text='Powrót', on_press=lambda x: setattr(self.sm, 'current', 'home')))
-        shell.nav_tabs.add_action(PrimaryButton(text='Dodaj', on_press=lambda x: self.form_worker(), size_hint_x=None, width=dp(150)))
-        body = BoxLayout(orientation='vertical', spacing=dp(8))
-        self.ti_workers_search = ModernInput(hint_text='Szukaj pracownika (imię, nazwisko, zakład)')
-        self.ti_workers_search.bind(text=self.refresh_workers_module)
-        body.add_widget(self.ti_workers_search)
-        self.workers_grid = GridLayout(cols=1, spacing=dp(8), size_hint_y=None)
-        self.workers_grid.bind(minimum_height=self.workers_grid.setter('height'))
-        sc = ScrollView(); sc.add_widget(self.workers_grid)
-        body.add_widget(sc)
-        shell.set_content(body)
-        shell.set_fab(lambda x: self.form_worker())
-        self.sc_ref['pracownicy'].add_widget(shell)
-        self.refresh_workers_module()
+        setup_workers_screen(self, AppLayout, SecondaryButton, PrimaryButton, ModernInput)
 
     def setup_zaklady_ui(self):
-        self.sc_ref["zaklady"].clear_widgets()
-        shell = AppLayout(title="Zakłady")
-        shell.nav_tabs.add_action(SecondaryButton(text='Powrót', on_press=lambda x: setattr(self.sm, 'current', 'home')))
-        shell.nav_tabs.add_action(PrimaryButton(text='Dodaj', on_press=lambda x: self.form_plant(), size_hint_x=None, width=dp(150)))
-        body = BoxLayout(orientation='vertical', spacing=dp(8))
-        self.ti_plants_search = ModernInput(hint_text='Szukaj zakładu (nazwa, miasto, telefon)')
-        self.ti_plants_search.bind(text=self.refresh_plants_list)
-        body.add_widget(self.ti_plants_search)
-        self.plants_grid = GridLayout(cols=1, spacing=dp(8), size_hint_y=None)
-        self.plants_grid.bind(minimum_height=self.plants_grid.setter('height'))
-        sc = ScrollView(); sc.add_widget(self.plants_grid)
-        body.add_widget(sc)
-        shell.set_content(body)
-        shell.set_fab(lambda x: self.form_plant())
-        self.sc_ref['zaklady'].add_widget(shell)
-        self.refresh_plants_list()
+        setup_plants_screen(self, AppLayout, SecondaryButton, PrimaryButton, ModernInput)
 
     def setup_settings_ui(self):
-        self.sc_ref["settings"].clear_widgets()
-        shell = AppLayout(title="Ustawienia i narzędzia")
-        shell.nav_tabs.add_action(SecondaryButton(text="Powrót", on_press=lambda x: setattr(self.sm, 'current', 'home')))
-
-        body = BoxLayout(orientation="vertical", spacing=dp(10))
-        try:
-            contacts_count = self.conn.execute("SELECT COUNT(*) FROM contacts").fetchone()[0]
-            workers_count = self.conn.execute("SELECT COUNT(*) FROM workers").fetchone()[0]
-            cars_count = self.conn.execute("SELECT COUNT(*) FROM fleet_cars").fetchone()[0]
-            plants_count = self.conn.execute("SELECT COUNT(*) FROM plants").fetchone()[0]
-            body.add_widget(Label(text=f"Baza: kontakty {contacts_count} | pracownicy {workers_count} | auta {cars_count} | zakłady {plants_count}", size_hint_y=None, height=dp(34), color=(0.75,0.82,0.92,1)))
-        except Exception:
-            pass
-
-        actions = ScrollView()
-        action_grid = GridLayout(cols=1, spacing=dp(10), size_hint_y=None, padding=[dp(2), dp(2)])
-        action_grid.bind(minimum_height=action_grid.setter('height'))
-        action_grid.add_widget(PrimaryButton(text="Dodaj bazę danych", on_press=lambda x: self.open_picker("book"), height=dp(54), size_hint_y=None))
-        action_grid.add_widget(PrimaryButton(text="Ustawienia SMTP", on_press=lambda x: setattr(self.sm, 'current', 'smtp'), height=dp(54), size_hint_y=None))
-        action_grid.add_widget(PrimaryButton(text="Edytuj szablon email", on_press=lambda x: setattr(self.sm, 'current', 'tmpl'), height=dp(54), size_hint_y=None))
-        action_grid.add_widget(PrimaryButton(text="Wczytaj arkusz płac", on_press=lambda x: self.open_picker("data"), height=dp(54), size_hint_y=None))
-        action_grid.add_widget(SecondaryButton(text="Pokaż logi", on_press=self.show_logs, height=dp(54), size_hint_y=None))
-        actions.add_widget(action_grid)
-        body.add_widget(actions)
-        shell.set_content(body)
-        self.sc_ref["settings"].add_widget(shell)
+        setup_settings_screen(self, AppLayout, SecondaryButton, PrimaryButton)
 
     def setup_paski_ui(self):
-        self.sc_ref["paski"].clear_widgets()
-        shell = AppLayout(title="Moduł Paski")
-        shell.nav_tabs.add_action(SecondaryButton(text="Powrót", on_press=lambda x: setattr(self.sm, 'current', 'home')))
-
-        body = BoxLayout(orientation="vertical", spacing=dp(10))
-        auto_row = Card(orientation="horizontal", size_hint_y=None, height=dp(52), spacing=dp(10))
-        self.cb_paski_auto = CheckBox(size_hint_x=None, width=dp(45))
-        self.cb_paski_auto.active = self.auto_send_mode
-        self.cb_paski_auto.bind(active=self.on_auto_checkbox_changed)
-        auto_row.add_widget(self.cb_paski_auto)
-        auto_row.add_widget(Label(text="AUTOMATYCZNA WYSYŁKA", bold=True))
-        body.add_widget(auto_row)
-
-        self.lbl_stats_paski = Label(text="Baza: 0 | Załączniki: 0", size_hint_y=None, height=dp(32)); body.add_widget(self.lbl_stats_paski)
-        self.pb_label_paski = Label(text="Gotowy", size_hint_y=None, height=dp(28)); self.pb_paski = ProgressBar(max=100, size_hint_y=None, height=dp(24)); body.add_widget(self.pb_label_paski); body.add_widget(self.pb_paski)
-
-        actions = AppActionBar()
-        actions.add_action(PrimaryButton(text="Wczytaj arkusz płac", on_press=lambda x: self.open_picker("data"), size_hint_x=None))
-        actions.add_action(PrimaryButton(text="Podgląd i eksport", on_press=lambda x: [self.refresh_table(), setattr(self.sm, 'current', 'table')] if self.full_data else self.msg("!", "Wczytaj arkusz!"), size_hint_x=None))
-        actions.add_action(PrimaryButton(text="Edytuj szablon", on_press=lambda x: setattr(self.sm, 'current', 'tmpl'), size_hint_x=None))
-        actions.add_action(PrimaryButton(text="Dołącz załącznik", on_press=lambda x: self.open_picker("attachment"), size_hint_x=None))
-        actions.add_action(PrimaryButton(text="Wyślij jeden plik", on_press=self.start_special_send_flow, size_hint_x=None))
-        actions.add_action(PrimaryButton(text="Start masowa wysyłka", on_press=self.start_mass_mailing, size_hint_x=None))
-        actions.add_action(SecondaryButton(text="PAUZA/RESUME", on_press=self.toggle_pause_mailing, size_hint_x=None))
-        actions.add_action(SecondaryButton(text="Raporty sesji", on_press=lambda x: [self.refresh_reports(), setattr(self.sm, 'current', 'report')], size_hint_x=None))
-        actions.add_action(DangerButton(text="Wyczyść załączniki", on_press=self.clear_all_attachments, size_hint_x=None))
-
-        body.add_widget(actions)
-        shell.set_content(body)
-        self.sc_ref["paski"].add_widget(shell)
-        self.update_stats()
+        setup_paski_screen(self, AppLayout, Card, AppActionBar, SecondaryButton, PrimaryButton, DangerButton)
 
     def toggle_pause_mailing(self, _=None):
         self.mailing_paused = not self.mailing_paused
