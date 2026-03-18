@@ -24,3 +24,8 @@ android {
         jvmTarget = "17"
     }
 }
+
+dependencies {
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.9.0")
+    implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.8.7")
+}
