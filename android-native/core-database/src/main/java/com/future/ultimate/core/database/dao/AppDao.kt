@@ -4,7 +4,6 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
-import androidx.room.Update
 import com.future.ultimate.core.database.entity.CarEntity
 import com.future.ultimate.core.database.entity.ClothesOrderEntity
 import com.future.ultimate.core.database.entity.ClothesOrderItemEntity
@@ -23,6 +22,9 @@ interface AppDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsertContact(entity: ContactEntity)
+
+    @Query("SELECT * FROM contacts WHERE lower(name)=lower(:name) AND lower(surname)=lower(:surname) LIMIT 1")
+    suspend fun getContact(name: String, surname: String): ContactEntity?
 
     @Query("DELETE FROM contacts WHERE name = :name AND surname = :surname")
     suspend fun deleteContact(name: String, surname: String)
@@ -51,8 +53,14 @@ interface AppDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsertWorker(entity: WorkerEntity)
 
+    @Query("SELECT * FROM workers WHERE lower(name)=lower(:name) AND lower(surname)=lower(:surname) LIMIT 1")
+    suspend fun getWorkerByName(name: String, surname: String): WorkerEntity?
+
     @Query("DELETE FROM workers WHERE id = :id")
     suspend fun deleteWorker(id: Long)
+
+    @Query("DELETE FROM workers WHERE lower(name)=lower(:name) AND lower(surname)=lower(:surname)")
+    suspend fun deleteWorkerByName(name: String, surname: String)
 
     @Query("SELECT * FROM plants ORDER BY name")
     fun observePlants(): Flow<List<PlantEntity>>
@@ -69,8 +77,14 @@ interface AppDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsertClothesSize(entity: ClothesSizeEntity)
 
+    @Query("SELECT * FROM clothes_sizes WHERE lower(name)=lower(:name) AND lower(surname)=lower(:surname) LIMIT 1")
+    suspend fun getClothesSizeByName(name: String, surname: String): ClothesSizeEntity?
+
     @Query("DELETE FROM clothes_sizes WHERE id = :id")
     suspend fun deleteClothesSize(id: Long)
+
+    @Query("DELETE FROM clothes_sizes WHERE lower(name)=lower(:name) AND lower(surname)=lower(:surname)")
+    suspend fun deleteClothesSizeByName(name: String, surname: String)
 
     @Query("SELECT * FROM clothes_orders ORDER BY id DESC")
     fun observeClothesOrders(): Flow<List<ClothesOrderEntity>>

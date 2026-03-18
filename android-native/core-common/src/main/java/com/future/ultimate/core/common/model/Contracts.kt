@@ -18,6 +18,25 @@ data class CarDraft(
     val serviceInterval: String = "15000",
 )
 
+data class WorkerDraft(
+    val id: Long? = null,
+    val name: String = "",
+    val surname: String = "",
+    val plant: String = "",
+    val phone: String = "",
+    val position: String = "",
+    val hireDate: String = "",
+)
+
+data class PlantDraft(
+    val id: Long? = null,
+    val name: String = "",
+    val city: String = "",
+    val address: String = "",
+    val contactPhone: String = "",
+    val notes: String = "",
+)
+
 data class VehicleReportDraft(
     val marka: String = "",
     val rej: String = "",

@@ -2,7 +2,9 @@ package com.future.ultimate.core.common.repository
 
 import com.future.ultimate.core.common.model.CarDraft
 import com.future.ultimate.core.common.model.ContactDraft
+import com.future.ultimate.core.common.model.PlantDraft
 import com.future.ultimate.core.common.model.VehicleReportDraft
+import com.future.ultimate.core.common.model.WorkerDraft
 import kotlinx.coroutines.flow.Flow
 
 data class ContactListItem(
@@ -60,7 +62,12 @@ interface AdminRepository {
     suspend fun deleteCar(id: Long)
 
     fun observeWorkers(): Flow<List<WorkerListItem>>
+    suspend fun saveWorker(draft: WorkerDraft)
+    suspend fun deleteWorker(id: Long)
+
     fun observePlants(): Flow<List<PlantListItem>>
+    suspend fun savePlant(draft: PlantDraft)
+    suspend fun deletePlant(id: Long)
 
     suspend fun saveVehicleReportDraft(draft: VehicleReportDraft)
 }

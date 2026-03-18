@@ -2,7 +2,9 @@ package com.future.ultimate.core.database.repository
 
 import com.future.ultimate.core.common.model.CarDraft
 import com.future.ultimate.core.common.model.ContactDraft
+import com.future.ultimate.core.common.model.PlantDraft
 import com.future.ultimate.core.common.model.VehicleReportDraft
+import com.future.ultimate.core.common.model.WorkerDraft
 import com.future.ultimate.core.common.repository.AdminRepository
 import com.future.ultimate.core.common.repository.CarListItem
 import com.future.ultimate.core.common.repository.ContactListItem
@@ -10,8 +12,11 @@ import com.future.ultimate.core.common.repository.PlantListItem
 import com.future.ultimate.core.common.repository.WorkerListItem
 import com.future.ultimate.core.database.dao.AppDao
 import com.future.ultimate.core.database.entity.CarEntity
+import com.future.ultimate.core.database.entity.ClothesSizeEntity
 import com.future.ultimate.core.database.entity.ContactEntity
+import com.future.ultimate.core.database.entity.PlantEntity
 import com.future.ultimate.core.database.entity.SettingEntity
+import com.future.ultimate.core.database.entity.WorkerEntity
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
@@ -33,10 +38,12 @@ class LocalAdminRepository(
     }
 
     override suspend fun saveContact(draft: ContactDraft) {
+        val normalizedName = draft.name.trim().lowercase()
+        val normalizedSurname = draft.surname.trim().lowercase()
         dao.upsertContact(
             ContactEntity(
-                name = draft.name.trim().lowercase(),
-                surname = draft.surname.trim().lowercase(),
+                name = normalizedName,
+                surname = normalizedSurname,
                 email = draft.email.trim(),
                 pesel = draft.pesel.trim(),
                 phone = draft.phone.trim(),
@@ -45,10 +52,40 @@ class LocalAdminRepository(
                 notes = draft.notes.trim(),
             ),
         )
+
+        val existingWorker = dao.getWorkerByName(normalizedName, normalizedSurname)
+        dao.upsertWorker(
+            WorkerEntity(
+                id = existingWorker?.id ?: 0,
+                name = draft.name.trim(),
+                surname = draft.surname.trim(),
+                plant = draft.workplace.trim(),
+                phone = draft.phone.trim(),
+                position = existingWorker?.position.orEmpty(),
+                hireDate = existingWorker?.hireDate.orEmpty(),
+            ),
+        )
+
+        val existingSize = dao.getClothesSizeByName(normalizedName, normalizedSurname)
+        dao.upsertClothesSize(
+            ClothesSizeEntity(
+                id = existingSize?.id ?: 0,
+                name = draft.name.trim(),
+                surname = draft.surname.trim(),
+                plant = draft.workplace.trim(),
+                shirt = existingSize?.shirt.orEmpty(),
+                hoodie = existingSize?.hoodie.orEmpty(),
+                pants = existingSize?.pants.orEmpty(),
+                jacket = existingSize?.jacket.orEmpty(),
+                shoes = existingSize?.shoes.orEmpty(),
+            ),
+        )
     }
 
     override suspend fun deleteContact(name: String, surname: String) {
         dao.deleteContact(name, surname)
+        dao.deleteWorkerByName(name, surname)
+        dao.deleteClothesSizeByName(name, surname)
     }
 
     override fun observeCars(): Flow<List<CarListItem>> = dao.observeCars().map { items ->
@@ -78,11 +115,8 @@ class LocalAdminRepository(
     }
 
     override suspend fun updateCarMileage(id: Long, mileage: Int) = dao.updateMileage(id, mileage.coerceAtLeast(0))
-
     override suspend fun updateCarDriver(id: Long, driver: String) = dao.updateDriver(id, driver.trim())
-
     override suspend fun confirmCarService(id: Long) = dao.confirmService(id)
-
     override suspend fun deleteCar(id: Long) = dao.deleteCar(id)
 
     override fun observeWorkers(): Flow<List<WorkerListItem>> = dao.observeWorkers().map { items ->
@@ -99,6 +133,35 @@ class LocalAdminRepository(
         }
     }
 
+    override suspend fun saveWorker(draft: WorkerDraft) {
+        dao.upsertWorker(
+            WorkerEntity(
+                id = draft.id ?: 0,
+                name = draft.name.trim(),
+                surname = draft.surname.trim(),
+                plant = draft.plant.trim(),
+                phone = draft.phone.trim(),
+                position = draft.position.trim(),
+                hireDate = draft.hireDate.trim(),
+            ),
+        )
+        val contact = dao.getContact(draft.name.trim().lowercase(), draft.surname.trim().lowercase())
+        dao.upsertContact(
+            ContactEntity(
+                name = draft.name.trim().lowercase(),
+                surname = draft.surname.trim().lowercase(),
+                email = contact?.email.orEmpty(),
+                pesel = contact?.pesel.orEmpty(),
+                phone = draft.phone.trim(),
+                workplace = draft.plant.trim(),
+                apartment = contact?.apartment.orEmpty(),
+                notes = contact?.notes.orEmpty(),
+            ),
+        )
+    }
+
+    override suspend fun deleteWorker(id: Long) = dao.deleteWorker(id)
+
     override fun observePlants(): Flow<List<PlantListItem>> = dao.observePlants().map { items ->
         items.map {
             PlantListItem(
@@ -111,6 +174,21 @@ class LocalAdminRepository(
             )
         }
     }
+
+    override suspend fun savePlant(draft: PlantDraft) {
+        dao.upsertPlant(
+            PlantEntity(
+                id = draft.id ?: 0,
+                name = draft.name.trim(),
+                city = draft.city.trim(),
+                address = draft.address.trim(),
+                contactPhone = draft.contactPhone.trim(),
+                notes = draft.notes.trim(),
+            ),
+        )
+    }
+
+    override suspend fun deletePlant(id: Long) = dao.deletePlant(id)
 
     override suspend fun saveVehicleReportDraft(draft: VehicleReportDraft) {
         dao.upsertSetting(SettingEntity(key = "vehicle_report_last_registration", valText = draft.rej))
