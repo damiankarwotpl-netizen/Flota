@@ -6,7 +6,7 @@ from kivy.uix.screenmanager import ScreenManager, SlideTransition
 from kivy.uix.scrollview import ScrollView
 
 
-def setup_table_screen(app, AppLayout, SecondaryButton, PrimaryButton, ModernInput):
+def setup_table_screen(app, AppLayout, Card, SecondaryButton, PrimaryButton, ModernInput):
     app.sc_ref["table"].clear_widgets()
     shell = AppLayout(title="Podgląd i eksport")
     shell.nav_tabs.add_action(SecondaryButton(text="Wróć", on_press=lambda x: setattr(app.sm, 'current', 'paski')))
@@ -14,27 +14,33 @@ def setup_table_screen(app, AppLayout, SecondaryButton, PrimaryButton, ModernInp
 
     root = BoxLayout(orientation="vertical", spacing=dp(10), padding=[dp(4), dp(2), dp(4), dp(4)])
     root.add_widget(Label(text="Tabela danych i eksport", size_hint_y=None, height=dp(24), color=(0.72, 0.80, 0.92, 1), bold=True))
+    header_card = Card(orientation="vertical", size_hint_y=None, height=dp(70), padding=dp(12))
     app.ti_tab_search = ModernInput(hint_text="Szukaj w tabeli...")
     app.ti_tab_search.bind(text=app.filter_table)
-    root.add_widget(app.ti_tab_search)
+    header_card.add_widget(app.ti_tab_search)
+    root.add_widget(header_card)
 
+    hs_card = Card(orientation="vertical", size_hint_y=None, height=dp(74), padding=dp(8))
     hs = ScrollView(size_hint_y=None, height=dp(58), do_scroll_y=False)
     app.table_header_layout = GridLayout(rows=1, size_hint=(None, None), height=dp(58))
     hs.add_widget(app.table_header_layout)
+    hs_card.add_widget(hs)
 
+    ds_card = Card(orientation="vertical", padding=dp(6))
     ds = ScrollView(do_scroll_x=True, do_scroll_y=True)
     app.table_content_layout = GridLayout(size_hint=(None, None), spacing=dp(2))
     app.table_content_layout.bind(minimum_height=app.table_content_layout.setter('height'), minimum_width=app.table_content_layout.setter('width'))
     ds.add_widget(app.table_content_layout)
     ds.bind(scroll_x=lambda inst, val: setattr(hs, 'scroll_x', val))
+    ds_card.add_widget(ds)
 
-    root.add_widget(hs)
-    root.add_widget(ds)
+    root.add_widget(hs_card)
+    root.add_widget(ds_card)
     shell.set_content(root)
     app.sc_ref["table"].add_widget(shell)
 
 
-def setup_clothes_screen(app, AppLayout, AppActionBar, SecondaryButton, PrimaryButton, ClothesSizesScreen, ClothesOrdersScreen, ClothesReportsScreen):
+def setup_clothes_screen(app, AppLayout, Card, AppActionBar, SecondaryButton, PrimaryButton, ClothesSizesScreen, ClothesOrdersScreen, ClothesReportsScreen):
     app.sc_ref["clothes"].clear_widgets()
     shell = AppLayout(title="Ubranie robocze")
     shell.nav_tabs.add_action(SecondaryButton(text="Wróć", on_press=lambda x: setattr(app.sm, 'current', 'home')))
@@ -55,8 +61,12 @@ def setup_clothes_screen(app, AppLayout, AppActionBar, SecondaryButton, PrimaryB
 
     body = BoxLayout(orientation='vertical', spacing=dp(10), padding=[dp(4), dp(2), dp(4), dp(4)])
     body.add_widget(Label(text="Ubranie robocze • moduły", size_hint_y=None, height=dp(24), color=(0.72, 0.80, 0.92, 1), bold=True))
-    body.add_widget(tabs)
-    body.add_widget(app.clothes_sm)
+    tabs_card = Card(orientation='vertical', size_hint_y=None, height=dp(88), padding=dp(8))
+    tabs_card.add_widget(tabs)
+    body.add_widget(tabs_card)
+    body_card = Card(orientation='vertical', padding=dp(6))
+    body_card.add_widget(app.clothes_sm)
+    body.add_widget(body_card)
     shell.set_content(body)
     app.sc_ref["clothes"].add_widget(shell)
     app._push_nav_state()

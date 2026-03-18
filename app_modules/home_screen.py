@@ -5,69 +5,53 @@ from kivy.uix.anchorlayout import AnchorLayout
 from kivy.uix.gridlayout import GridLayout
 from kivy.uix.label import Label
 from kivy.uix.scrollview import ScrollView
-try:
-    from kivymd.uix.card import MDCard
-    from kivymd.uix.label import MDLabel
-except Exception:
-    MDCard = None
-    MDLabel = None
 
 
-def setup_home_screen(app, AppLayout, SecondaryButton, PrimaryButton, DangerButton):
+def setup_home_screen(app, AppLayout, Card, SecondaryButton, PrimaryButton, DangerButton):
     app.sc_ref["home"].clear_widgets()
     layout = AppLayout(title="FUTURE ULTIMATE v20")
     layout.nav_tabs.add_action(SecondaryButton(text="Dark", on_press=lambda x: app.switch_theme("dark")))
     layout.nav_tabs.add_action(SecondaryButton(text="Light", on_press=lambda x: app.switch_theme("light")))
 
     content = BoxLayout(orientation="vertical", spacing=dp(12), padding=[0, dp(8), 0, 0])
-    title_cls = MDLabel if MDLabel is not None else Label
-    sub_cls = MDLabel if MDLabel is not None else Label
-    content.add_widget(
-        title_cls(
-            text="Panel główny aplikacji",
-            font_size='18sp',
-            bold=True,
-            color=(0.86, 0.90, 0.98, 1),
-            size_hint_y=None,
-            height=dp(32),
-        )
+    hero_card = Card(orientation="vertical", size_hint_y=None, height=dp(120), spacing=dp(6), padding=dp(14))
+    title = Label(
+        text="Panel główny aplikacji",
+        font_size='20sp',
+        bold=True,
+        color=(0.86, 0.90, 0.98, 1),
+        size_hint_y=None,
+        height=dp(34),
+        halign="left",
+        valign="middle",
     )
-    sub = sub_cls(
+    title.bind(size=lambda inst, _: setattr(inst, "text_size", (inst.width - dp(4), None)))
+    hero_card.add_widget(title)
+    subtitle = Label(
         text="Wybierz moduł, aby kontynuować",
         font_size='13sp',
         color=(0.66, 0.73, 0.86, 1),
         size_hint_y=None,
         height=dp(24),
+        halign="left",
+        valign="middle",
     )
-    content.add_widget(sub)
+    subtitle.bind(size=lambda inst, _: setattr(inst, "text_size", (inst.width - dp(4), None)))
+    hero_card.add_widget(subtitle)
+    hero_card.add_widget(Label(text="Nowy układ UI • pełna funkcjonalność", color=(0.78, 0.85, 0.96, 1), bold=True, halign="left"))
+    content.add_widget(hero_card)
 
     welcome = AnchorLayout(size_hint_y=None, height=dp(82))
-    if MDCard is not None and MDLabel is not None:
-        welcome_card = MDCard(
-            size_hint=(1, None),
-            height=dp(64),
-            radius=[dp(16)] * 4,
-            padding=[dp(12), 0, dp(12), 0],
-            md_bg_color=(0.16, 0.25, 0.44, 1),
-        )
-        welcome_card.add_widget(
-            MDLabel(
-                text="Nowy wygląd UI • Funkcje bez zmian",
-                halign="center",
-                valign="middle",
-                bold=True,
-                theme_text_color="Custom",
-                text_color=(0.93, 0.96, 1, 1),
-            )
-        )
-    else:
-        welcome_card = Label(
+    welcome_card = Card(size_hint=(1, None), height=dp(64), padding=dp(10))
+    welcome_card.add_widget(
+        Label(
             text="Nowy wygląd UI • Funkcje bez zmian",
-            size_hint=(1, None),
-            height=dp(64),
             color=(0.93, 0.96, 1, 1),
             bold=True,
+            halign="center",
+            valign="middle",
         )
+    )
     welcome.add_widget(welcome_card)
     content.add_widget(welcome)
 
