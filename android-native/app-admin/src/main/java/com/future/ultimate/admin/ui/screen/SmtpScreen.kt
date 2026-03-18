@@ -6,25 +6,32 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.future.ultimate.admin.AdminApp
+import com.future.ultimate.admin.ui.viewmodel.AdminViewModelFactory
+import com.future.ultimate.admin.ui.viewmodel.SmtpViewModel
 
 @Composable
 fun SmtpScreen() {
-    val host = remember { mutableStateOf("") }
-    val port = remember { mutableStateOf("587") }
-    val user = remember { mutableStateOf("") }
-    val password = remember { mutableStateOf("") }
+    val app = LocalContext.current.applicationContext as AdminApp
+    val viewModel: SmtpViewModel = viewModel(factory = AdminViewModelFactory(app.container.repository))
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val settings = uiState.settings
+
     ScreenColumn("Ustawienia SMTP", "Konfiguracja serwera SMTP") {
         item {
             Column {
-                OutlinedTextField(host.value, { host.value = it }, label = { Text("Host") }, modifier = Modifier.fillMaxWidth())
-                OutlinedTextField(port.value, { port.value = it }, label = { Text("Port") }, modifier = Modifier.fillMaxWidth())
-                OutlinedTextField(user.value, { user.value = it }, label = { Text("Email/Login") }, modifier = Modifier.fillMaxWidth())
-                OutlinedTextField(password.value, { password.value = it }, label = { Text("Hasło/Klucz") }, modifier = Modifier.fillMaxWidth())
-                Button(onClick = {}, modifier = Modifier.fillMaxWidth()) { Text("Zapisz") }
-                Button(onClick = {}, modifier = Modifier.fillMaxWidth()) { Text("Test połączenia") }
+                OutlinedTextField(settings.host, { viewModel.updateSettings(settings.copy(host = it)) }, label = { Text("Host") }, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(settings.port, { viewModel.updateSettings(settings.copy(port = it)) }, label = { Text("Port") }, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(settings.user, { viewModel.updateSettings(settings.copy(user = it)) }, label = { Text("Email/Login") }, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(settings.password, { viewModel.updateSettings(settings.copy(password = it)) }, label = { Text("Hasło/Klucz") }, modifier = Modifier.fillMaxWidth())
+                Button(onClick = viewModel::save, modifier = Modifier.fillMaxWidth()) { Text(if (uiState.isSaving) "Zapisywanie..." else "Zapisz") }
+                Button(onClick = viewModel::validate, modifier = Modifier.fillMaxWidth()) { Text("Test połączenia") }
+                uiState.message?.let { Text(it) }
             }
         }
     }

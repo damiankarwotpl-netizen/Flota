@@ -7,7 +7,11 @@ import com.future.ultimate.core.common.model.VehicleReportDraft
 import com.future.ultimate.core.common.model.WorkerDraft
 import com.future.ultimate.core.common.repository.CarListItem
 import com.future.ultimate.core.common.repository.ContactListItem
+import com.future.ultimate.core.common.repository.DashboardStats
+import com.future.ultimate.core.common.repository.EmailTemplateData
 import com.future.ultimate.core.common.repository.PlantListItem
+import com.future.ultimate.core.common.repository.SessionReportListItem
+import com.future.ultimate.core.common.repository.SmtpSettingsData
 import com.future.ultimate.core.common.repository.WorkerListItem
 
 data class ContactsUiState(
@@ -55,4 +59,24 @@ data class PlantsUiState(
     val items: List<PlantListItem> = emptyList(),
     val editor: PlantDraft = PlantDraft(),
     val isSaving: Boolean = false,
+)
+
+data class SmtpUiState(
+    val settings: SmtpSettingsData = SmtpSettingsData(),
+    val message: String? = null,
+    val isSaving: Boolean = false,
+)
+
+data class TemplateUiState(
+    val template: EmailTemplateData = EmailTemplateData(),
+    val message: String? = null,
+    val isSaving: Boolean = false,
+)
+
+data class ReportsUiState(
+    val items: List<SessionReportListItem> = emptyList(),
+)
+
+data class SettingsUiState(
+    val stats: DashboardStats = DashboardStats(),
 )

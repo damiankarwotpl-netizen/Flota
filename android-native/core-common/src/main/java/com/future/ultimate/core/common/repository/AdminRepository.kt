@@ -52,6 +52,33 @@ data class PlantListItem(
     val notes: String,
 )
 
+data class SmtpSettingsData(
+    val host: String = "",
+    val port: String = "587",
+    val user: String = "",
+    val password: String = "",
+)
+
+data class EmailTemplateData(
+    val subject: String = "",
+    val body: String = "",
+)
+
+data class SessionReportListItem(
+    val date: String,
+    val ok: Int,
+    val fail: Int,
+    val skip: Int,
+    val details: String,
+)
+
+data class DashboardStats(
+    val contactCount: Int = 0,
+    val workerCount: Int = 0,
+    val carCount: Int = 0,
+    val plantCount: Int = 0,
+)
+
 interface AdminRepository {
     fun observeContacts(): Flow<List<ContactListItem>>
     suspend fun saveContact(draft: ContactDraft)
@@ -71,6 +98,15 @@ interface AdminRepository {
     fun observePlants(): Flow<List<PlantListItem>>
     suspend fun savePlant(draft: PlantDraft)
     suspend fun deletePlant(id: Long)
+
+    fun observeSmtpSettings(): Flow<SmtpSettingsData>
+    suspend fun saveSmtpSettings(settings: SmtpSettingsData)
+
+    fun observeEmailTemplate(): Flow<EmailTemplateData>
+    suspend fun saveEmailTemplate(template: EmailTemplateData)
+
+    fun observeSessionReports(): Flow<List<SessionReportListItem>>
+    fun observeDashboardStats(): Flow<DashboardStats>
 
     suspend fun saveVehicleReportDraft(draft: VehicleReportDraft)
     suspend fun exportVehicleReportPdf(draft: VehicleReportDraft): String

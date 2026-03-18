@@ -132,6 +132,9 @@ interface AppDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertReport(entity: ReportEntity)
 
+    @Query("SELECT * FROM settings")
+    fun observeSettings(): Flow<List<SettingEntity>>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsertSetting(entity: SettingEntity)
 

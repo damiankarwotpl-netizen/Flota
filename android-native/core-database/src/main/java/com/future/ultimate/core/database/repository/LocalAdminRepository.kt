@@ -10,7 +10,11 @@ import com.future.ultimate.core.common.pdf.VehicleReportPdfExporter
 import com.future.ultimate.core.common.repository.AdminRepository
 import com.future.ultimate.core.common.repository.CarListItem
 import com.future.ultimate.core.common.repository.ContactListItem
+import com.future.ultimate.core.common.repository.DashboardStats
+import com.future.ultimate.core.common.repository.EmailTemplateData
 import com.future.ultimate.core.common.repository.PlantListItem
+import com.future.ultimate.core.common.repository.SessionReportListItem
+import com.future.ultimate.core.common.repository.SmtpSettingsData
 import com.future.ultimate.core.common.repository.WorkerListItem
 import com.future.ultimate.core.database.dao.AppDao
 import com.future.ultimate.core.database.entity.CarEntity
@@ -214,6 +218,60 @@ class LocalAdminRepository(
     }
 
     override suspend fun deletePlant(id: Long) = dao.deletePlant(id)
+
+    override fun observeSmtpSettings(): Flow<SmtpSettingsData> = dao.observeSettings().map { settings ->
+        val map = settings.associateBy({ it.key }, { it.valText })
+        SmtpSettingsData(
+            host = map["smtp_host"].orEmpty(),
+            port = map["smtp_port"].orEmpty().ifBlank { "587" },
+            user = map["smtp_user"].orEmpty(),
+            password = map["smtp_password"].orEmpty(),
+        )
+    }
+
+    override suspend fun saveSmtpSettings(settings: SmtpSettingsData) {
+        dao.upsertSetting(SettingEntity(key = "smtp_host", valText = settings.host.trim()))
+        dao.upsertSetting(SettingEntity(key = "smtp_port", valText = settings.port.trim()))
+        dao.upsertSetting(SettingEntity(key = "smtp_user", valText = settings.user.trim()))
+        dao.upsertSetting(SettingEntity(key = "smtp_password", valText = settings.password))
+    }
+
+    override fun observeEmailTemplate(): Flow<EmailTemplateData> = dao.observeSettings().map { settings ->
+        val map = settings.associateBy({ it.key }, { it.valText })
+        EmailTemplateData(
+            subject = map["t_sub"].orEmpty(),
+            body = map["t_body"].orEmpty(),
+        )
+    }
+
+    override suspend fun saveEmailTemplate(template: EmailTemplateData) {
+        dao.upsertSetting(SettingEntity(key = "t_sub", valText = template.subject.trim()))
+        dao.upsertSetting(SettingEntity(key = "t_body", valText = template.body.trim()))
+    }
+
+    override fun observeSessionReports(): Flow<List<SessionReportListItem>> = dao.observeReports().map { items ->
+        items.map {
+            SessionReportListItem(
+                date = it.date,
+                ok = it.ok,
+                fail = it.fail,
+                skip = it.skip,
+                details = it.details,
+            )
+        }
+    }
+
+    override fun observeDashboardStats(): Flow<DashboardStats> =
+        combine(dao.observeContacts(), dao.observeWorkers()) { contacts, workers -> contacts.size to workers.size }
+            .combine(dao.observeCars()) { (contactCount, workerCount), cars -> Triple(contactCount, workerCount, cars.size) }
+            .combine(dao.observePlants()) { (contactCount, workerCount, carCount), plants ->
+                DashboardStats(
+                    contactCount = contactCount,
+                    workerCount = workerCount,
+                    carCount = carCount,
+                    plantCount = plants.size,
+                )
+            }
 
     override suspend fun saveVehicleReportDraft(draft: VehicleReportDraft) {
         dao.upsertSetting(SettingEntity(key = "vehicle_report_last_registration", valText = draft.rej))

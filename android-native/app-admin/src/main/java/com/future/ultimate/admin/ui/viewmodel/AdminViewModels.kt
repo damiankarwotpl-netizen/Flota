@@ -9,10 +9,16 @@ import com.future.ultimate.core.common.model.PlantDraft
 import com.future.ultimate.core.common.model.VehicleReportDraft
 import com.future.ultimate.core.common.model.WorkerDraft
 import com.future.ultimate.core.common.repository.AdminRepository
+import com.future.ultimate.core.common.repository.EmailTemplateData
+import com.future.ultimate.core.common.repository.SmtpSettingsData
 import com.future.ultimate.core.common.ui.CarsUiState
 import com.future.ultimate.core.common.ui.ContactsUiState
 import com.future.ultimate.core.common.ui.PayrollUiState
 import com.future.ultimate.core.common.ui.PlantsUiState
+import com.future.ultimate.core.common.ui.ReportsUiState
+import com.future.ultimate.core.common.ui.SettingsUiState
+import com.future.ultimate.core.common.ui.SmtpUiState
+import com.future.ultimate.core.common.ui.TemplateUiState
 import com.future.ultimate.core.common.ui.VehicleReportUiState
 import com.future.ultimate.core.common.ui.WorkersUiState
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -148,6 +154,80 @@ class PlantsViewModel(private val repository: AdminRepository) : ViewModel() {
     }
 }
 
+class SmtpViewModel(private val repository: AdminRepository) : ViewModel() {
+    private val _uiState = MutableStateFlow(SmtpUiState())
+    val uiState: StateFlow<SmtpUiState> = _uiState.asStateFlow()
+
+    init {
+        repository.observeSmtpSettings().onEach { settings ->
+            _uiState.value = _uiState.value.copy(settings = settings)
+        }.launchIn(viewModelScope)
+    }
+
+    fun updateSettings(update: SmtpSettingsData) {
+        _uiState.value = _uiState.value.copy(settings = update, message = null)
+    }
+
+    fun save() = viewModelScope.launch {
+        _uiState.value = _uiState.value.copy(isSaving = true, message = null)
+        repository.saveSmtpSettings(_uiState.value.settings)
+        _uiState.value = _uiState.value.copy(isSaving = false, message = "Ustawienia SMTP zapisane")
+    }
+
+    fun validate() {
+        val current = _uiState.value.settings
+        val message = when {
+            current.host.isBlank() || current.user.isBlank() || current.password.isBlank() -> "Uzupełnij host, login i hasło"
+            current.port.toIntOrNull() == null -> "Port SMTP musi być liczbą"
+            else -> "Konfiguracja wygląda poprawnie. Realny test połączenia wróci w etapie SMTP pipeline."
+        }
+        _uiState.value = _uiState.value.copy(message = message)
+    }
+}
+
+class TemplateViewModel(private val repository: AdminRepository) : ViewModel() {
+    private val _uiState = MutableStateFlow(TemplateUiState())
+    val uiState: StateFlow<TemplateUiState> = _uiState.asStateFlow()
+
+    init {
+        repository.observeEmailTemplate().onEach { template ->
+            _uiState.value = _uiState.value.copy(template = template)
+        }.launchIn(viewModelScope)
+    }
+
+    fun updateTemplate(update: EmailTemplateData) {
+        _uiState.value = _uiState.value.copy(template = update, message = null)
+    }
+
+    fun save() = viewModelScope.launch {
+        _uiState.value = _uiState.value.copy(isSaving = true, message = null)
+        repository.saveEmailTemplate(_uiState.value.template)
+        _uiState.value = _uiState.value.copy(isSaving = false, message = "Szablon email zapisany")
+    }
+}
+
+class ReportsViewModel(private val repository: AdminRepository) : ViewModel() {
+    private val _uiState = MutableStateFlow(ReportsUiState())
+    val uiState: StateFlow<ReportsUiState> = _uiState.asStateFlow()
+
+    init {
+        repository.observeSessionReports().onEach { items ->
+            _uiState.value = _uiState.value.copy(items = items)
+        }.launchIn(viewModelScope)
+    }
+}
+
+class SettingsViewModel(private val repository: AdminRepository) : ViewModel() {
+    private val _uiState = MutableStateFlow(SettingsUiState())
+    val uiState: StateFlow<SettingsUiState> = _uiState.asStateFlow()
+
+    init {
+        repository.observeDashboardStats().onEach { stats ->
+            _uiState.value = _uiState.value.copy(stats = stats)
+        }.launchIn(viewModelScope)
+    }
+}
+
 class AdminViewModelFactory(private val repository: AdminRepository) : ViewModelProvider.Factory {
     override fun <T : ViewModel> create(modelClass: Class<T>): T = when {
         modelClass.isAssignableFrom(ContactsViewModel::class.java) -> ContactsViewModel(repository) as T
@@ -156,6 +236,10 @@ class AdminViewModelFactory(private val repository: AdminRepository) : ViewModel
         modelClass.isAssignableFrom(PayrollViewModel::class.java) -> PayrollViewModel() as T
         modelClass.isAssignableFrom(WorkersViewModel::class.java) -> WorkersViewModel(repository) as T
         modelClass.isAssignableFrom(PlantsViewModel::class.java) -> PlantsViewModel(repository) as T
+        modelClass.isAssignableFrom(SmtpViewModel::class.java) -> SmtpViewModel(repository) as T
+        modelClass.isAssignableFrom(TemplateViewModel::class.java) -> TemplateViewModel(repository) as T
+        modelClass.isAssignableFrom(ReportsViewModel::class.java) -> ReportsViewModel(repository) as T
+        modelClass.isAssignableFrom(SettingsViewModel::class.java) -> SettingsViewModel(repository) as T
         else -> error("Unsupported modelClass: ${modelClass.name}")
     }
 }
