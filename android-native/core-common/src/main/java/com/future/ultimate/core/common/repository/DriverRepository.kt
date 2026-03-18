@@ -17,4 +17,5 @@ interface DriverRepository {
     suspend fun changePassword(login: String, password: String)
     suspend fun saveMileage(login: String, registration: String, mileage: Int)
     suspend fun saveVehicleReportDraft(draft: VehicleReportDraft)
+    suspend fun exportVehicleReportPdf(draft: VehicleReportDraft): String
 }

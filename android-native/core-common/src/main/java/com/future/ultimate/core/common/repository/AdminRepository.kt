@@ -73,4 +73,5 @@ interface AdminRepository {
     suspend fun deletePlant(id: Long)
 
     suspend fun saveVehicleReportDraft(draft: VehicleReportDraft)
+    suspend fun exportVehicleReportPdf(draft: VehicleReportDraft): String
 }

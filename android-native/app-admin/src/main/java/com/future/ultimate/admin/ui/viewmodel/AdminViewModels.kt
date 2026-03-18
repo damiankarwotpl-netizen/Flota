@@ -98,10 +98,19 @@ class VehicleReportViewModel(private val repository: AdminRepository) : ViewMode
     private val _uiState = MutableStateFlow(VehicleReportUiState())
     val uiState: StateFlow<VehicleReportUiState> = _uiState.asStateFlow()
     fun updateDraft(draft: VehicleReportDraft) { _uiState.value = _uiState.value.copy(draft = draft) }
-    fun saveDraft() = viewModelScope.launch {
-        _uiState.value = _uiState.value.copy(isSaving = true)
-        repository.saveVehicleReportDraft(_uiState.value.draft)
-        _uiState.value = _uiState.value.copy(isSaving = false, exportMessage = "Szkic raportu zapisany")
+    fun exportPdf() = viewModelScope.launch {
+        _uiState.value = _uiState.value.copy(isSaving = true, exportMessage = null)
+        runCatching {
+            repository.saveVehicleReportDraft(_uiState.value.draft)
+            repository.exportVehicleReportPdf(_uiState.value.draft)
+        }.onSuccess { path ->
+            _uiState.value = _uiState.value.copy(isSaving = false, exportMessage = "PDF zapisany: $path")
+        }.onFailure { error ->
+            _uiState.value = _uiState.value.copy(
+                isSaving = false,
+                exportMessage = error.message ?: "Nie udało się wygenerować PDF",
+            )
+        }
     }
 }
 

@@ -10,6 +10,6 @@ class DriverApp : Application() {
 
     override fun onCreate() {
         super.onCreate()
-        container = DriverAppContainer(LocalDriverRepository(DatabaseFactory.create(this).appDao()))
+        container = DriverAppContainer(LocalDriverRepository(DatabaseFactory.create(this).appDao(), this))
     }
 }

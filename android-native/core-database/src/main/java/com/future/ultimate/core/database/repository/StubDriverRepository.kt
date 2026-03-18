@@ -28,4 +28,6 @@ class StubDriverRepository : DriverRepository {
     override suspend fun saveMileage(login: String, registration: String, mileage: Int) = Unit
 
     override suspend fun saveVehicleReportDraft(draft: VehicleReportDraft) = Unit
+
+    override suspend fun exportVehicleReportPdf(draft: VehicleReportDraft): String = "/tmp/vehicle_report.pdf"
 }

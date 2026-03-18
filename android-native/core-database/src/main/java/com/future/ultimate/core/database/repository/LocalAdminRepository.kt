@@ -1,10 +1,12 @@
 package com.future.ultimate.core.database.repository
 
+import android.content.Context
 import com.future.ultimate.core.common.model.CarDraft
 import com.future.ultimate.core.common.model.ContactDraft
 import com.future.ultimate.core.common.model.PlantDraft
 import com.future.ultimate.core.common.model.VehicleReportDraft
 import com.future.ultimate.core.common.model.WorkerDraft
+import com.future.ultimate.core.common.pdf.VehicleReportPdfExporter
 import com.future.ultimate.core.common.repository.AdminRepository
 import com.future.ultimate.core.common.repository.CarListItem
 import com.future.ultimate.core.common.repository.ContactListItem
@@ -25,6 +27,7 @@ import kotlinx.coroutines.flow.map
 
 class LocalAdminRepository(
     private val dao: AppDao,
+    private val context: Context,
 ) : AdminRepository {
     override fun observeContacts(): Flow<List<ContactListItem>> = dao.observeContacts().map { items ->
         items.map {
@@ -217,6 +220,9 @@ class LocalAdminRepository(
         dao.upsertSetting(SettingEntity(key = "vehicle_report_last_payload", valText = draft.toString()))
     }
 
+    override suspend fun exportVehicleReportPdf(draft: VehicleReportDraft): String =
+        VehicleReportPdfExporter.export(context, draft, ownerTag = "admin")
+
     private suspend fun syncDriverAccount(driverName: String, registration: String) {
         val normalizedDriver = driverName.trim()
         val normalizedRegistration = registration.trim().uppercase()
@@ -237,7 +243,7 @@ class LocalAdminRepository(
         val sanitized = name.trim().lowercase()
             .replace(" ", ".")
             .replace(Regex("[^a-z0-9._-]"), "")
-            .replace(Regex("\.{2,}"), ".")
+            .replace(Regex("\\.{2,}"), ".")
             .trim('.')
         return sanitized.ifBlank { "driver" }
     }

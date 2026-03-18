@@ -114,7 +114,7 @@ fun DriverVehicleReportScreen(navController: NavController) {
         editableFields(draft) { viewModel.updateDraft(it) }
         checklist(draft) { viewModel.updateDraft(it) }
         Button(onClick = { navController.navigate(DriverRoute.Mileage.route) }, modifier = Modifier.fillMaxWidth()) { Text("Wróć") }
-        Button(onClick = viewModel::save, modifier = Modifier.fillMaxWidth()) { Text(if (uiState.isSaving) "Zapisywanie..." else "Zapisz szkic PDF") }
+        Button(onClick = viewModel::save, modifier = Modifier.fillMaxWidth()) { Text(if (uiState.isSaving) "Zapisywanie..." else "Zapisz PDF") }
         uiState.message?.let { Text(it) }
     }
 }

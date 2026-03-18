@@ -109,8 +109,9 @@ class DriverVehicleReportViewModel(
             _uiState.value = _uiState.value.copy(isSaving = true, message = null)
             runCatching {
                 repository.saveVehicleReportDraft(_uiState.value.draft)
-            }.onSuccess {
-                _uiState.value = _uiState.value.copy(isSaving = false, message = "Szkic raportu zapisany")
+                repository.exportVehicleReportPdf(_uiState.value.draft)
+            }.onSuccess { path ->
+                _uiState.value = _uiState.value.copy(isSaving = false, message = "PDF zapisany: $path")
             }.onFailure { error ->
                 _uiState.value = _uiState.value.copy(
                     isSaving = false,

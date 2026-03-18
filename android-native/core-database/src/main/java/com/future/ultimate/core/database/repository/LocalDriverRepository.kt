@@ -1,6 +1,8 @@
 package com.future.ultimate.core.database.repository
 
+import android.content.Context
 import com.future.ultimate.core.common.model.VehicleReportDraft
+import com.future.ultimate.core.common.pdf.VehicleReportPdfExporter
 import com.future.ultimate.core.common.repository.DriverRepository
 import com.future.ultimate.core.common.repository.DriverSession
 import com.future.ultimate.core.database.dao.AppDao
@@ -11,6 +13,7 @@ import kotlinx.coroutines.flow.asStateFlow
 
 class LocalDriverRepository(
     private val dao: AppDao,
+    private val context: Context,
 ) : DriverRepository {
     private val session = MutableStateFlow<DriverSession?>(null)
 
@@ -54,4 +57,7 @@ class LocalDriverRepository(
         dao.upsertSetting(SettingEntity(key = "driver_vehicle_report_registration", valText = registration))
         dao.upsertSetting(SettingEntity(key = "driver_vehicle_report_payload", valText = draft.copy(rej = registration).toString()))
     }
+
+    override suspend fun exportVehicleReportPdf(draft: VehicleReportDraft): String =
+        VehicleReportPdfExporter.export(context, draft, ownerTag = "driver")
 }
