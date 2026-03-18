@@ -356,18 +356,39 @@ class SimplePdfDocument:
 
 
 def vehicle_protocol_template_path():
-    candidates = [
-        Path(__file__).with_name("assets").joinpath("vehicle_protocol_template.pdf"),
-        Path(__file__).with_name("assets").joinpath("vehicle_protocol_template.jpg"),
-        Path(__file__).with_name("assets").joinpath("vehicle_protocol_template.jpeg"),
-        Path(__file__).with_name("vehicle_protocol_template.pdf"),
-        Path(__file__).with_name("vehicle_protocol_template.jpg"),
-        Path(__file__).with_name("vehicle_protocol_template.jpeg"),
+    base = Path(__file__).resolve().parent
+    roots = [
+        base / "assets",
+        base,
+        base.parent / "assets",
+        base.parent,
+        Path.cwd() / "assets",
+        Path.cwd(),
     ]
-    for path in candidates:
-        if path.exists():
-            return path
+    names = [
+        "vehicle_protocol_template.pdf",
+        "vehicle_protocol_template.jpg",
+        "vehicle_protocol_template.jpeg",
+    ]
+    checked = set()
+    for root_path in roots:
+        for name in names:
+            path = (root_path / name).resolve()
+            if path in checked:
+                continue
+            checked.add(path)
+            if path.exists():
+                return path
     return None
+
+
+def vehicle_protocol_output_filename(registration):
+    date_part = datetime.now().strftime("%Y-%m-%d")
+    raw = pdf_safe_text(registration or "")
+    safe = "".join(ch if ch.isalnum() else "_" for ch in raw).strip("_")
+    if not safe:
+        safe = "brak_rejestracji"
+    return f"{date_part}_{safe}.pdf"
 
 
 def draw_vehicle_protocol_template(pdf):
@@ -1840,7 +1861,7 @@ class FutureApp(App):
     def generate_vehicle_protocol_pdf(self, d):
         out_dir = self._documents_dir()
         out_dir.mkdir(parents=True, exist_ok=True)
-        file_path = out_dir / "protokol_stanu_pojazdu.pdf"
+        file_path = out_dir / vehicle_protocol_output_filename(d.get("rej"))
 
         template_path = vehicle_protocol_template_path()
         is_pdf_template = bool(template_path and template_path.suffix.lower() == ".pdf")
