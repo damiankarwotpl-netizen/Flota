@@ -65,6 +65,11 @@ try:
 except Exception:
     pd = None
 
+try:
+    from fpdf import FPDF
+except Exception:
+    FPDF = None
+
 from collections import defaultdict
 
 try:
