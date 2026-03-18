@@ -76,37 +76,56 @@ def setup_plants_screen(app, AppLayout, SecondaryButton, PrimaryButton, ModernIn
     app.refresh_plants_list()
 
 
-def setup_settings_screen(app, AppLayout, SecondaryButton, PrimaryButton):
+def setup_settings_screen(app, AppLayout, SecondaryButton, PrimaryButton, Card):
     app.sc_ref["settings"].clear_widgets()
-    shell = AppLayout(title="Ustawienia i narzędzia")
+    shell = AppLayout(title="Ustawienia")
     shell.nav_tabs.add_action(SecondaryButton(text="Powrót", on_press=lambda x: setattr(app.sm, 'current', 'home')))
 
     body = BoxLayout(orientation="vertical", spacing=dp(12), padding=[dp(4), dp(4), dp(4), dp(6)])
     body.add_widget(Label(text="Ustawienia i narzędzia systemowe", size_hint_y=None, height=dp(24), color=(0.72, 0.80, 0.92, 1), bold=True))
+
+    stats_card = Card(orientation="vertical", size_hint_y=None, height=dp(92), spacing=dp(6), padding=dp(12))
+    stats_card.add_widget(Label(text="Ogólne", size_hint_y=None, height=dp(24), bold=True, halign="left", valign="middle"))
+    stats_label = Label(
+        text="Baza: brak danych",
+        size_hint_y=None,
+        height=dp(40),
+        color=(0.75, 0.82, 0.92, 1),
+        halign="left",
+        valign="middle",
+    )
+    stats_label.bind(size=lambda inst, _: setattr(inst, "text_size", (inst.width - dp(8), None)))
     try:
         contacts_count = app.conn.execute("SELECT COUNT(*) FROM contacts").fetchone()[0]
         workers_count = app.conn.execute("SELECT COUNT(*) FROM workers").fetchone()[0]
         cars_count = app.conn.execute("SELECT COUNT(*) FROM fleet_cars").fetchone()[0]
         plants_count = app.conn.execute("SELECT COUNT(*) FROM plants").fetchone()[0]
-        body.add_widget(
-            Label(
-                text=f"Baza: kontakty {contacts_count} | pracownicy {workers_count} | auta {cars_count} | zakłady {plants_count}",
-                size_hint_y=None,
-                height=dp(34),
-                color=(0.75, 0.82, 0.92, 1),
-            )
+        stats_label.text = (
+            f"Kontakty: {contacts_count}   Pracownicy: {workers_count}\n"
+            f"Auta: {cars_count}   Zakłady: {plants_count}"
         )
     except Exception:
-        pass
+        stats_label.text = "Baza: odczyt statystyk niedostępny."
+    stats_card.add_widget(stats_label)
+    body.add_widget(stats_card)
 
     actions = ScrollView()
     action_grid = GridLayout(cols=1, spacing=dp(10), size_hint_y=None, padding=[dp(2), dp(2)])
     action_grid.bind(minimum_height=action_grid.setter('height'))
-    action_grid.add_widget(PrimaryButton(text="Dodaj bazę danych", on_press=lambda x: app.open_picker("book"), height=dp(54), size_hint_y=None))
-    action_grid.add_widget(PrimaryButton(text="Ustawienia SMTP", on_press=lambda x: setattr(app.sm, 'current', 'smtp'), height=dp(54), size_hint_y=None))
-    action_grid.add_widget(PrimaryButton(text="Edytuj szablon email", on_press=lambda x: setattr(app.sm, 'current', 'tmpl'), height=dp(54), size_hint_y=None))
-    action_grid.add_widget(PrimaryButton(text="Wczytaj arkusz płac", on_press=lambda x: app.open_picker("data"), height=dp(54), size_hint_y=None))
-    action_grid.add_widget(SecondaryButton(text="Pokaż logi", on_press=app.show_logs, height=dp(54), size_hint_y=None))
+
+    notifications_card = Card(orientation="vertical", size_hint_y=None, height=dp(154), spacing=dp(8), padding=dp(12))
+    notifications_card.add_widget(Label(text="Powiadomienia", size_hint_y=None, height=dp(24), bold=True, halign="left"))
+    notifications_card.add_widget(SecondaryButton(text="Pokaż logi", on_press=app.show_logs, height=dp(48), size_hint_y=None))
+    notifications_card.add_widget(PrimaryButton(text="Wczytaj arkusz płac", on_press=lambda x: app.open_picker("data"), height=dp(48), size_hint_y=None))
+    action_grid.add_widget(notifications_card)
+
+    integration_card = Card(orientation="vertical", size_hint_y=None, height=dp(214), spacing=dp(8), padding=dp(12))
+    integration_card.add_widget(Label(text="Integracje i moduły", size_hint_y=None, height=dp(24), bold=True, halign="left"))
+    integration_card.add_widget(PrimaryButton(text="Dodaj bazę danych", on_press=lambda x: app.open_picker("book"), height=dp(48), size_hint_y=None))
+    integration_card.add_widget(PrimaryButton(text="Ustawienia SMTP", on_press=lambda x: setattr(app.sm, 'current', 'smtp'), height=dp(48), size_hint_y=None))
+    integration_card.add_widget(PrimaryButton(text="Edytuj szablon email", on_press=lambda x: setattr(app.sm, 'current', 'tmpl'), height=dp(48), size_hint_y=None))
+    action_grid.add_widget(integration_card)
+
     actions.add_widget(action_grid)
     body.add_widget(actions)
     shell.set_content(body)
