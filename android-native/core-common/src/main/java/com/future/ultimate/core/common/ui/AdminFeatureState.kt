@@ -33,6 +33,7 @@ data class ContactsUiState(
 
 data class CarsUiState(
     val query: String = "",
+    val showServiceOnly: Boolean = false,
     val items: List<CarListItem> = emptyList(),
     val editor: CarDraft = CarDraft(),
     val driverSuggestions: List<String> = emptyList(),

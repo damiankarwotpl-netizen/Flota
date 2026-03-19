@@ -87,6 +87,7 @@ class CarsViewModel(private val repository: AdminRepository) : ViewModel() {
     }
 
     fun updateQuery(value: String) { _uiState.value = _uiState.value.copy(query = value, actionMessage = null) }
+    fun toggleServiceFilter() { _uiState.value = _uiState.value.copy(showServiceOnly = !_uiState.value.showServiceOnly, actionMessage = null) }
     fun updateEditor(draft: CarDraft) { _uiState.value = _uiState.value.copy(editor = draft, actionMessage = null) }
     fun applyEditorDriverSuggestion(driver: String) { _uiState.value = _uiState.value.copy(editor = _uiState.value.editor.copy(driver = driver), actionMessage = null) }
 

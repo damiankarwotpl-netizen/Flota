@@ -34,6 +34,9 @@ fun CarsScreen() {
                     label = { Text("Szukaj: nazwa / rejestracja / kierowca") },
                     modifier = Modifier.fillMaxWidth(),
                 )
+                Button(onClick = viewModel::toggleServiceFilter, modifier = Modifier.fillMaxWidth()) {
+                    Text(if (uiState.showServiceOnly) "Pokaż całą flotę" else "Pokaż tylko auta do serwisu")
+                }
                 OutlinedTextField(
                     value = uiState.editor.name,
                     onValueChange = { viewModel.updateEditor(uiState.editor.copy(name = it)) },
@@ -82,7 +85,9 @@ fun CarsScreen() {
         uiState.items
             .filter {
                 val blob = "${it.name} ${it.registration} ${it.driver}".lowercase()
-                uiState.query.isBlank() || uiState.query.lowercase() in blob
+                val matchesQuery = uiState.query.isBlank() || uiState.query.lowercase() in blob
+                val matchesService = !uiState.showServiceOnly || carNeedsService(it.remainingToService)
+                matchesQuery && matchesService
             }
             .forEach { car ->
                 item {
@@ -91,9 +96,11 @@ fun CarsScreen() {
                             modifier = Modifier.fillMaxWidth().padding(16.dp),
                             verticalArrangement = Arrangement.spacedBy(8.dp),
                         ) {
+                            val serviceStatus = serviceStatusLabel(car.remainingToService)
                             Text("${car.name} • ${car.registration}")
                             Text("Kierowca: ${car.driver.ifBlank { "nieprzypisany" }}")
                             Text("Przebieg: ${car.mileage} km • do serwisu: ${car.remainingToService} km")
+                            Text("Status serwisu: $serviceStatus")
                             if (car.driverLogin.isNotBlank()) {
                                 Text("Login kierowcy: ${car.driverLogin}")
                                 Text(
@@ -166,4 +173,12 @@ fun CarsScreen() {
                 }
             }
     }
+}
+
+private fun carNeedsService(remainingToService: Int): Boolean = remainingToService <= 3000
+
+private fun serviceStatusLabel(remainingToService: Int): String = when {
+    remainingToService <= 0 -> "Serwis pilny"
+    remainingToService <= 3000 -> "Serwis wkrótce"
+    else -> "OK"
 }
