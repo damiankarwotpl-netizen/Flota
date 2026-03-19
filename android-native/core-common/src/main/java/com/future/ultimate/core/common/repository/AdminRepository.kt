@@ -35,6 +35,9 @@ data class CarListItem(
     val queuedMileage: Int? = null,
     val lastMileageSyncAt: String = "",
     val lastMileageSyncStatus: String = "",
+    val remoteDriverSyncAt: String = "",
+    val remoteDriverSyncStatus: String = "",
+    val remoteDriverSyncError: String = "",
 ) {
     val remainingToService: Int
         get() = serviceInterval - (mileage - lastService)
@@ -200,6 +203,7 @@ interface AdminRepository {
     suspend fun updateCarMileage(id: Long, mileage: Int)
     suspend fun updateCarDriver(id: Long, driver: String)
     suspend fun resetCarDriverCredentials(id: Long): DriverAccountCredentials
+    suspend fun retryCarDriverRemoteSync(id: Long)
     suspend fun confirmCarService(id: Long)
     suspend fun deleteCar(id: Long)
 

@@ -47,6 +47,8 @@ import com.future.ultimate.core.database.entity.ReportEntity
 import com.future.ultimate.core.database.entity.SettingEntity
 import com.future.ultimate.core.database.entity.WorkerEntity
 import java.io.File
+import java.net.HttpURLConnection
+import java.net.URL
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
@@ -54,6 +56,7 @@ import java.util.Properties
 import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
 import kotlin.random.Random
+import org.json.JSONObject
 import javax.activation.DataHandler
 import javax.activation.FileDataSource
 import javax.mail.Message
@@ -76,6 +79,11 @@ class LocalAdminRepository(
     private val dao: AppDao,
     private val context: Context,
 ) : AdminRepository {
+    private companion object {
+        const val DefaultDriverRemoteApiUrl =
+            "https://script.google.com/macros/s/AKfycbxFQLZU-sg8Gg58J2dE-Bbt2jTyXrdcd1DOUM78vcqFLa789gpeOC9S4MyjGHpQ12_l/exec"
+    }
+
     override fun observeContacts(): Flow<List<ContactListItem>> = dao.observeContacts().map { items ->
         items.map {
             ContactListItem(
@@ -170,6 +178,9 @@ class LocalAdminRepository(
                         queuedMileage = queuedMileage,
                         lastMileageSyncAt = settings["driver_mileage_sync_at_$registrationKey"].orEmpty(),
                         lastMileageSyncStatus = settings["driver_mileage_sync_status_$registrationKey"].orEmpty(),
+                        remoteDriverSyncAt = settings["driver_remote_sync_at_$registrationKey"].orEmpty(),
+                        remoteDriverSyncStatus = settings["driver_remote_sync_status_$registrationKey"].orEmpty(),
+                        remoteDriverSyncError = settings["driver_remote_sync_error_$registrationKey"].orEmpty(),
                     )
                 }
             }
@@ -210,6 +221,7 @@ class LocalAdminRepository(
         val normalizedDriver = car.driver.trim()
         if (normalizedDriver.isBlank()) {
             dao.deleteDriverAccountByRegistration(car.registration)
+            syncRemoteDriverDeletion(car.registration)
             return DriverAccountCredentials()
         }
         val account = syncDriverAccount(normalizedDriver, car.registration, forceReset = true)
@@ -219,12 +231,20 @@ class LocalAdminRepository(
         )
     }
 
+    override suspend fun retryCarDriverRemoteSync(id: Long) {
+        val car = dao.getCar(id) ?: return
+        syncDriverAccount(car.driver, car.registration, forceReset = false, forceRemote = true)
+    }
+
     override suspend fun confirmCarService(id: Long) = dao.confirmService(id)
 
     override suspend fun deleteCar(id: Long) {
         val car = dao.getCar(id)
         dao.deleteCar(id)
-        car?.registration?.let { dao.deleteDriverAccountByRegistration(it) }
+        car?.registration?.let { registration ->
+            dao.deleteDriverAccountByRegistration(registration)
+            syncRemoteDriverDeletion(registration)
+        }
     }
 
     override fun observeWorkers(): Flow<List<WorkerListItem>> = dao.observeWorkers().map { items ->
@@ -1234,12 +1254,14 @@ class LocalAdminRepository(
         driverName: String,
         registration: String,
         forceReset: Boolean = false,
+        forceRemote: Boolean = false,
     ): DriverAccountEntity? {
         val normalizedDriver = driverName.trim()
         val normalizedRegistration = registration.trim().uppercase()
         if (normalizedRegistration.isBlank()) return null
         if (normalizedDriver.isBlank()) {
             dao.deleteDriverAccountByRegistration(normalizedRegistration)
+            syncRemoteDriverDeletion(normalizedRegistration)
             return null
         }
 
@@ -1253,6 +1275,11 @@ class LocalAdminRepository(
             changePassword = if (shouldRotateCredentials) 1 else existing.changePassword,
         )
         dao.upsertDriverAccount(account)
+        if (shouldRotateCredentials || forceRemote) {
+            syncRemoteDriverUpsert(account, action = if (forceReset) "reset_driver" else "create_driver")
+        } else {
+            syncRemoteDriverAssignment(account)
+        }
         return account
     }
 
@@ -1396,5 +1423,99 @@ class LocalAdminRepository(
 
     private fun generatePassword(length: Int = 6): String = buildString {
         repeat(length) { append(Random.nextInt(0, 10)) }
+    }
+
+    private suspend fun syncRemoteDriverUpsert(account: DriverAccountEntity, action: String) {
+        val payload = JSONObject().apply {
+            put("action", action)
+            put("login", account.login)
+            put("password", account.password)
+            put("name", account.driverName)
+            put("registration", account.registration)
+        }
+        postDriverRemotePayload(account.registration, payload, successStatus = "Zdalne konto kierowcy zsynchronizowane")
+        syncRemoteDriverAssignment(account)
+    }
+
+    private suspend fun syncRemoteDriverAssignment(account: DriverAccountEntity) {
+        val payload = JSONObject().apply {
+            put("action", "sync_driver_assignment")
+            put("login", account.login)
+            put("name", account.driverName)
+            put("registration", account.registration)
+        }
+        postDriverRemotePayload(account.registration, payload, successStatus = "Zdalne przypisanie kierowcy zsynchronizowane")
+    }
+
+    private suspend fun syncRemoteDriverDeletion(registration: String) {
+        val normalizedRegistration = registration.trim().uppercase()
+        if (normalizedRegistration.isBlank()) return
+        val payload = JSONObject().apply {
+            put("action", "delete_driver")
+            put("registration", normalizedRegistration)
+        }
+        postDriverRemotePayload(normalizedRegistration, payload, successStatus = "Zdalne konto kierowcy usunięte")
+    }
+
+    private suspend fun postDriverRemotePayload(
+        registration: String,
+        payload: JSONObject,
+        successStatus: String,
+    ) {
+        val normalizedRegistration = registration.trim().uppercase()
+        if (normalizedRegistration.isBlank()) return
+        val endpoint = loadDriverRemoteEndpoint()
+        if (endpoint.isBlank()) {
+            markDriverRemoteSync(normalizedRegistration, status = "Zdalny sync kierowców wyłączony", error = "")
+            return
+        }
+
+        runCatching {
+            val response = postJson(endpoint, payload)
+            require(response.first in 200..299) { "HTTP ${response.first}" }
+        }.onSuccess {
+            markDriverRemoteSync(normalizedRegistration, status = successStatus, error = "")
+        }.onFailure { error ->
+            markDriverRemoteSync(
+                normalizedRegistration,
+                status = "Błąd zdalnej synchronizacji kierowcy",
+                error = error.message.orEmpty().ifBlank { "Nieznany błąd zdalnego syncu" },
+            )
+        }
+    }
+
+    private suspend fun loadDriverRemoteEndpoint(): String =
+        dao.observeSettings().first().associateBy({ it.key }, { it.valText })["driver_remote_api_url"].orEmpty()
+            .ifBlank { DefaultDriverRemoteApiUrl }
+
+    private suspend fun markDriverRemoteSync(registration: String, status: String, error: String) {
+        val normalizedRegistration = registration.trim().uppercase()
+        val timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
+        dao.upsertSetting(SettingEntity(key = "driver_remote_sync_at_$normalizedRegistration", valText = timestamp))
+        dao.upsertSetting(SettingEntity(key = "driver_remote_sync_status_$normalizedRegistration", valText = status))
+        dao.upsertSetting(SettingEntity(key = "driver_remote_sync_error_$normalizedRegistration", valText = error))
+    }
+
+    private fun postJson(url: String, payload: JSONObject): Pair<Int, String> {
+        val connection = (URL(url).openConnection() as HttpURLConnection).apply {
+            requestMethod = "POST"
+            connectTimeout = 10000
+            readTimeout = 10000
+            doOutput = true
+            setRequestProperty("Content-Type", "application/json; charset=utf-8")
+        }
+        return try {
+            connection.outputStream.bufferedWriter(Charsets.UTF_8).use { writer ->
+                writer.write(payload.toString())
+            }
+            val responseCode = connection.responseCode
+            val responseBody = runCatching {
+                val source = if (responseCode in 200..299) connection.inputStream else connection.errorStream
+                source?.bufferedReader(Charsets.UTF_8)?.use { it.readText() }.orEmpty()
+            }.getOrDefault("")
+            responseCode to responseBody
+        } finally {
+            connection.disconnect()
+        }
     }
 }

@@ -154,6 +154,13 @@ fun CarsScreen() {
                             if (car.lastMileageSyncAt.isNotBlank()) {
                                 Text("Ostatnia synchronizacja przebiegu: ${car.lastMileageSyncAt}")
                             }
+                            Text("Zdalny sync kierowcy: ${car.remoteDriverSyncStatus.ifBlank { "brak danych" }}")
+                            if (car.remoteDriverSyncAt.isNotBlank()) {
+                                Text("Ostatni zdalny sync kierowcy: ${car.remoteDriverSyncAt}")
+                            }
+                            if (car.remoteDriverSyncError.isNotBlank()) {
+                                Text("Błąd zdalnego syncu: ${car.remoteDriverSyncError}")
+                            }
                             Button(onClick = { viewModel.editCar(car) }, modifier = Modifier.fillMaxWidth()) {
                                 Text("Edytuj samochód")
                             }
@@ -211,6 +218,12 @@ fun CarsScreen() {
                                 modifier = Modifier.fillMaxWidth(),
                             ) {
                                 Text(if (uiState.actionInFlightId == car.id) "Zapisywanie..." else "Resetuj dane kierowcy")
+                            }
+                            Button(
+                                onClick = { viewModel.retryRemoteDriverSync(car.id) },
+                                modifier = Modifier.fillMaxWidth(),
+                            ) {
+                                Text(if (uiState.actionInFlightId == car.id) "Synchronizowanie..." else "Ponów zdalny sync kierowcy")
                             }
                             Button(
                                 onClick = { viewModel.confirmService(car.id) },
