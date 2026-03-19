@@ -14,6 +14,7 @@ data class DriverSession(
 interface DriverRepository {
     fun observeSession(): Flow<DriverSession?>
     suspend fun login(login: String, password: String): DriverSession
+    suspend fun logout()
     suspend fun changePassword(login: String, password: String)
     suspend fun saveMileage(login: String, registration: String, mileage: Int)
     suspend fun saveVehicleReportDraft(draft: VehicleReportDraft)

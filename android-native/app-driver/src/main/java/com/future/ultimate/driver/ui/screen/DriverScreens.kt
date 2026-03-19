@@ -96,6 +96,18 @@ fun DriverMileageScreen(navController: NavController) {
         Button(onClick = { navController.navigate(DriverRoute.VehicleReport.route) }, modifier = Modifier.fillMaxWidth()) {
             Text("Raport stanu samochodu")
         }
+        Button(
+            onClick = {
+                viewModel.logout {
+                    navController.navigate(DriverRoute.Login.route) {
+                        popUpTo(DriverRoute.Login.route) { inclusive = true }
+                    }
+                }
+            },
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Text("Wyloguj")
+        }
         uiState.status?.let { Text(it) }
     }
 }
@@ -115,6 +127,16 @@ fun DriverVehicleReportScreen(navController: NavController) {
         checklist(draft) { viewModel.updateDraft(it) }
         Button(onClick = { navController.navigate(DriverRoute.Mileage.route) }, modifier = Modifier.fillMaxWidth()) { Text("Wróć") }
         Button(onClick = viewModel::save, modifier = Modifier.fillMaxWidth()) { Text(if (uiState.isSaving) "Zapisywanie..." else "Zapisz PDF") }
+        Button(
+            onClick = {
+                viewModel.logout {
+                    navController.navigate(DriverRoute.Login.route) {
+                        popUpTo(DriverRoute.Login.route) { inclusive = true }
+                    }
+                }
+            },
+            modifier = Modifier.fillMaxWidth(),
+        ) { Text("Wyloguj") }
         uiState.message?.let { Text(it) }
     }
 }

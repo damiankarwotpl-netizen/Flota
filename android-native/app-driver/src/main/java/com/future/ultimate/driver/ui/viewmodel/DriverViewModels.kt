@@ -81,6 +81,14 @@ class DriverMileageViewModel(
             }
         }
     }
+
+    fun logout(onSuccess: () -> Unit) {
+        viewModelScope.launch {
+            repository.logout()
+            _uiState.value = DriverMileageUiState()
+            onSuccess()
+        }
+    }
 }
 
 class DriverVehicleReportViewModel(
@@ -118,6 +126,14 @@ class DriverVehicleReportViewModel(
                     message = error.message ?: "Nie udało się zapisać raportu",
                 )
             }
+        }
+    }
+
+    fun logout(onSuccess: () -> Unit) {
+        viewModelScope.launch {
+            repository.logout()
+            _uiState.value = DriverVehicleReportUiState()
+            onSuccess()
         }
     }
 }

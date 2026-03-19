@@ -32,6 +32,10 @@ class LocalDriverRepository(
         ).also { session.value = it }
     }
 
+    override suspend fun logout() {
+        session.value = null
+    }
+
     override suspend fun changePassword(login: String, password: String) {
         val current = session.value ?: throw IllegalStateException("Brak aktywnej sesji kierowcy")
         if (!current.login.equals(login.trim(), ignoreCase = true)) {

@@ -20,6 +20,10 @@ class StubDriverRepository : DriverRepository {
         changePasswordRequired = true,
     ).also { session.value = it }
 
+    override suspend fun logout() {
+        session.value = null
+    }
+
     override suspend fun changePassword(login: String, password: String) {
         val current = session.value ?: return
         session.value = current.copy(password = password, changePasswordRequired = false)
