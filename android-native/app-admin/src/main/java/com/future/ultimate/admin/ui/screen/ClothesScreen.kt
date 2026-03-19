@@ -279,6 +279,9 @@ fun ClothesScreen() {
                                             }
                                         }
                                     }
+                                    Button(onClick = ordersViewModel::togglePendingItemsFilter, modifier = Modifier.fillMaxWidth()) {
+                                        Text(if (ordersUiState.showOnlyPendingItems) "Pokaż wszystkie pozycje" else "Pokaż tylko niewydane")
+                                    }
                                     OutlinedTextField(
                                         ordersUiState.itemEditor.name,
                                         { ordersViewModel.updateItemEditor(ordersUiState.itemEditor.copy(name = it)) },
@@ -316,7 +319,9 @@ fun ClothesScreen() {
                                     if (ordersUiState.itemEditor.id != null) {
                                         Button(onClick = ordersViewModel::clearItemEditor, modifier = Modifier.fillMaxWidth()) { Text("Anuluj edycję pozycji") }
                                     }
-                                    ordersUiState.selectedOrderItems.forEach { orderItem ->
+                                    ordersUiState.selectedOrderItems
+                                        .filter { !ordersUiState.showOnlyPendingItems || !it.issued }
+                                        .forEach { orderItem ->
                                         Card(modifier = Modifier.fillMaxWidth()) {
                                             Column(modifier = Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                                                 Text("${orderItem.name} ${orderItem.surname}".trim().ifBlank { "Pracownik nieuzupełniony" })

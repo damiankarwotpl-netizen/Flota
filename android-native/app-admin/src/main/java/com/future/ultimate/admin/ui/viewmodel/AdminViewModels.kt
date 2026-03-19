@@ -514,6 +514,7 @@ class ClothesOrdersViewModel(private val repository: AdminRepository) : ViewMode
                 selectedOrderId = null,
                 selectedOrderItems = emptyList(),
                 selectedOrderSummary = emptyList(),
+                showOnlyPendingItems = false,
                 itemEditor = ClothesOrderItemDraft(),
             )
             return
@@ -523,6 +524,7 @@ class ClothesOrdersViewModel(private val repository: AdminRepository) : ViewMode
             selectedOrderId = orderId,
             selectedOrderItems = emptyList(),
             selectedOrderSummary = emptyList(),
+            showOnlyPendingItems = false,
             itemEditor = ClothesOrderItemDraft(),
         )
         orderItemsJob = repository.observeClothesOrderItems(orderId).onEach { items ->
@@ -590,12 +592,20 @@ class ClothesOrdersViewModel(private val repository: AdminRepository) : ViewMode
         _uiState.value = _uiState.value.copy(itemEditor = ClothesOrderItemDraft(), actionMessage = null)
     }
 
+    fun togglePendingItemsFilter() {
+        _uiState.value = _uiState.value.copy(
+            showOnlyPendingItems = !_uiState.value.showOnlyPendingItems,
+            actionMessage = null,
+        )
+    }
+
     fun deleteOrder(orderId: Long) = viewModelScope.launch {
         repository.deleteClothesOrder(orderId)
         _uiState.value = _uiState.value.copy(
             selectedOrderId = if (_uiState.value.selectedOrderId == orderId) null else _uiState.value.selectedOrderId,
             selectedOrderItems = if (_uiState.value.selectedOrderId == orderId) emptyList() else _uiState.value.selectedOrderItems,
             selectedOrderSummary = if (_uiState.value.selectedOrderId == orderId) emptyList() else _uiState.value.selectedOrderSummary,
+            showOnlyPendingItems = if (_uiState.value.selectedOrderId == orderId) false else _uiState.value.showOnlyPendingItems,
             editor = if (_uiState.value.editor.id == orderId) ClothesOrderDraft() else _uiState.value.editor,
             itemEditor = ClothesOrderItemDraft(),
             actionMessage = "Zamówienie usunięte",
