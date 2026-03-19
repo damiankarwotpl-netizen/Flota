@@ -10,7 +10,7 @@ This directory contains the native Android migration baseline for the legacy Kiv
 
 ## Current state
 Feature implementation is in place for the native migration baseline.
-The remaining top-level work is operational: execute the QA/UAT/release-cutover checklist in `docs/ANDROID_NATIVE_QA_UAT_RELEASE.md` and record sign-off with `docs/ANDROID_NATIVE_UAT_SIGNOFF_TEMPLATE.md`.
+The remaining top-level work is operational: do the first build using `docs/ANDROID_NATIVE_FIRST_BUILD.md`, then execute the QA/UAT/release-cutover checklist in `docs/ANDROID_NATIVE_QA_UAT_RELEASE.md` and record sign-off with `docs/ANDROID_NATIVE_UAT_SIGNOFF_TEMPLATE.md`.
 
 ## Remaining work
 See `docs/ANDROID_NATIVE_MIGRATION_BACKLOG.md` for the current final step and rollout status.

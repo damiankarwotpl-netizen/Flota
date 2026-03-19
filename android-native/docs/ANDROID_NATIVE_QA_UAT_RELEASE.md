@@ -2,6 +2,8 @@
 
 This document supports the final migration workstream by codifying how to verify parity against the legacy Kivy apps, prepare signed Android builds, execute UAT, and cut over production usage to the native applications.
 
+Start with `docs/ANDROID_NATIVE_FIRST_BUILD.md` if you need the exact first-build sequence.
+
 ## 1. Release prerequisites
 
 ### Toolchain
