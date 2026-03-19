@@ -40,6 +40,9 @@ fun SmtpScreen() {
                         Text(if (portValid) "Port: OK" else "Port: nieprawidłowy")
                         Text(if (settings.user.isBlank()) "Login: brak" else "Login: OK")
                         Text(if (settings.password.isBlank()) "Hasło: brak" else "Hasło: ustawione")
+                        Text("Zabezpieczenie: ${settings.security.ifBlank { "STARTTLS" }}")
+                        Text("Nazwa nadawcy: ${settings.senderName.ifBlank { "domyślnie login" }}")
+                        Text("Opóźnienie: ${settings.throttleMs.ifBlank { "0" }} ms")
                     }
                 }
                 OutlinedTextField(settings.host, { viewModel.updateSettings(settings.copy(host = it)) }, label = { Text("Host") }, modifier = Modifier.fillMaxWidth())
@@ -51,6 +54,24 @@ fun SmtpScreen() {
                     label = { Text("Hasło/Klucz") },
                     modifier = Modifier.fillMaxWidth(),
                     visualTransformation = if (showPassword.value) VisualTransformation.None else PasswordVisualTransformation(),
+                )
+                OutlinedTextField(
+                    settings.security,
+                    { viewModel.updateSettings(settings.copy(security = it)) },
+                    label = { Text("Tryb bezpieczeństwa: STARTTLS / SSL/TLS / PLAINTEXT") },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                OutlinedTextField(
+                    settings.senderName,
+                    { viewModel.updateSettings(settings.copy(senderName = it)) },
+                    label = { Text("Nazwa nadawcy") },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                OutlinedTextField(
+                    settings.throttleMs,
+                    { viewModel.updateSettings(settings.copy(throttleMs = it)) },
+                    label = { Text("Opóźnienie między emailami (ms)") },
+                    modifier = Modifier.fillMaxWidth(),
                 )
                 Button(onClick = { showPassword.value = !showPassword.value }, modifier = Modifier.fillMaxWidth()) {
                     Text(if (showPassword.value) "Ukryj hasło" else "Pokaż hasło")

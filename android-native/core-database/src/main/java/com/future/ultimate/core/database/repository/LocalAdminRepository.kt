@@ -1,6 +1,7 @@
 package com.future.ultimate.core.database.repository
 
 import android.content.Context
+import android.database.sqlite.SQLiteDatabase
 import com.future.ultimate.core.common.model.CarDraft
 import com.future.ultimate.core.common.model.ClothesOrderDraft
 import com.future.ultimate.core.common.model.ClothesOrderItemDraft
@@ -25,7 +26,10 @@ import com.future.ultimate.core.common.repository.ClothesHistoryListItem
 import com.future.ultimate.core.common.repository.ContactListItem
 import com.future.ultimate.core.common.repository.DashboardStats
 import com.future.ultimate.core.common.repository.DriverAccountCredentials
+import com.future.ultimate.core.common.repository.DriverRemoteSettingsData
 import com.future.ultimate.core.common.repository.EmailTemplateData
+import com.future.ultimate.core.common.repository.MailApprovalRequest
+import com.future.ultimate.core.common.repository.MailDispatchProgress
 import com.future.ultimate.core.common.repository.MailDispatchResult
 import com.future.ultimate.core.common.repository.PlantListItem
 import com.future.ultimate.core.common.repository.PayrollWorkbookRow
@@ -52,6 +56,7 @@ import java.util.Properties
 import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
 import kotlin.random.Random
+import org.json.JSONObject
 import javax.activation.DataHandler
 import javax.activation.FileDataSource
 import javax.mail.Message
@@ -67,6 +72,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.Dispatchers
 
@@ -168,6 +174,9 @@ class LocalAdminRepository(
                         queuedMileage = queuedMileage,
                         lastMileageSyncAt = settings["driver_mileage_sync_at_$registrationKey"].orEmpty(),
                         lastMileageSyncStatus = settings["driver_mileage_sync_status_$registrationKey"].orEmpty(),
+                        remoteDriverSyncAt = settings["driver_remote_sync_at_$registrationKey"].orEmpty(),
+                        remoteDriverSyncStatus = settings["driver_remote_sync_status_$registrationKey"].orEmpty(),
+                        remoteDriverSyncError = settings["driver_remote_sync_error_$registrationKey"].orEmpty(),
                     )
                 }
             }
@@ -208,6 +217,7 @@ class LocalAdminRepository(
         val normalizedDriver = car.driver.trim()
         if (normalizedDriver.isBlank()) {
             dao.deleteDriverAccountByRegistration(car.registration)
+            syncRemoteDriverDeletion(car.registration)
             return DriverAccountCredentials()
         }
         val account = syncDriverAccount(normalizedDriver, car.registration, forceReset = true)
@@ -217,12 +227,20 @@ class LocalAdminRepository(
         )
     }
 
+    override suspend fun retryCarDriverRemoteSync(id: Long) {
+        val car = dao.getCar(id) ?: return
+        syncDriverAccount(car.driver, car.registration, forceReset = false, forceRemote = true)
+    }
+
     override suspend fun confirmCarService(id: Long) = dao.confirmService(id)
 
     override suspend fun deleteCar(id: Long) {
         val car = dao.getCar(id)
         dao.deleteCar(id)
-        car?.registration?.let { dao.deleteDriverAccountByRegistration(it) }
+        car?.registration?.let { registration ->
+            dao.deleteDriverAccountByRegistration(registration)
+            syncRemoteDriverDeletion(registration)
+        }
     }
 
     override fun observeWorkers(): Flow<List<WorkerListItem>> = dao.observeWorkers().map { items ->
@@ -796,6 +814,9 @@ class LocalAdminRepository(
             port = map["smtp_port"].orEmpty().ifBlank { "587" },
             user = map["smtp_user"].orEmpty(),
             password = map["smtp_password"].orEmpty(),
+            security = map["smtp_security"].orEmpty().ifBlank { "STARTTLS" },
+            senderName = map["smtp_sender_name"].orEmpty(),
+            throttleMs = map["smtp_throttle_ms"].orEmpty().ifBlank { "0" },
         )
     }
 
@@ -804,6 +825,9 @@ class LocalAdminRepository(
         dao.upsertSetting(SettingEntity(key = "smtp_port", valText = settings.port.trim()))
         dao.upsertSetting(SettingEntity(key = "smtp_user", valText = settings.user.trim()))
         dao.upsertSetting(SettingEntity(key = "smtp_password", valText = settings.password))
+        dao.upsertSetting(SettingEntity(key = "smtp_security", valText = settings.security.trim().uppercase()))
+        dao.upsertSetting(SettingEntity(key = "smtp_sender_name", valText = settings.senderName.trim()))
+        dao.upsertSetting(SettingEntity(key = "smtp_throttle_ms", valText = settings.throttleMs.trim()))
     }
 
     override suspend fun validateSmtpConnection(settings: SmtpSettingsData) {
@@ -817,6 +841,20 @@ class LocalAdminRepository(
             }
         }
     }
+
+    override fun observeDriverRemoteSettings(): Flow<DriverRemoteSettingsData> = dao.observeSettings().map { settings ->
+        val map = settings.associateBy({ it.key }, { it.valText })
+        DriverRemoteSettingsData(
+            apiUrl = map[DriverRemoteSyncGateway.EndpointSettingKey].orEmpty(),
+        )
+    }
+
+    override suspend fun saveDriverRemoteSettings(settings: DriverRemoteSettingsData) {
+        DriverRemoteSyncGateway.saveEndpoint(dao, settings.apiUrl)
+    }
+
+    override suspend fun validateDriverRemoteSettings(settings: DriverRemoteSettingsData): String =
+        DriverRemoteSyncGateway.validateEndpoint(dao, settings.apiUrl)
 
     override fun observeEmailTemplate(): Flow<EmailTemplateData> = dao.observeSettings().map { settings ->
         val map = settings.associateBy({ it.key }, { it.valText })
@@ -845,69 +883,64 @@ class LocalAdminRepository(
                     appendLine()
                     append("To jest testowa wiadomość podglądowa wysłana z natywnego modułu Android.")
                 },
-                attachments = sanitizeAttachments(attachmentPaths),
+                attachments = resolveAttachments(attachmentPaths),
             )
             settings.user
         }
     }
 
-    override suspend fun sendMassMailing(attachmentPaths: List<String>, autoMode: Boolean): MailDispatchResult {
-        return withContext(Dispatchers.IO) {
-            val settings = loadSavedSmtpSettings().normalized()
-            val template = loadSavedEmailTemplate().validated()
-            val attachments = sanitizeAttachments(attachmentPaths)
-            val contacts = dao.observeContacts().first()
-            val today = LocalDate.now()
-            var ok = 0
-            var fail = 0
-            var skip = 0
-            val details = mutableListOf<String>()
-
-            contacts.forEach { contact ->
-                val email = contact.email.trim()
-                val fullName = listOf(contact.name, contact.surname).joinToString(" ").trim()
-                if (email.isBlank()) {
-                    skip += 1
-                    details += "SKIP: ${fullName.ifBlank { "Bez nazwy" }} — brak email"
-                    return@forEach
-                }
-
-                runCatching {
-                    sendMail(
-                        settings = settings,
-                        recipient = email,
-                        subject = renderTemplate(template.subject, contact.name.ifBlank { fullName }, today),
-                        body = renderTemplate(template.body, contact.name.ifBlank { fullName }, today),
-                        attachments = attachments,
+    override suspend fun sendMassMailing(
+        attachmentPaths: List<String>,
+        autoMode: Boolean,
+        onProgress: suspend (MailDispatchProgress) -> Unit,
+        awaitResume: suspend () -> Unit,
+        awaitApproval: suspend (MailApprovalRequest) -> Boolean,
+    ): MailDispatchResult =
+        withContext(Dispatchers.IO) {
+            dispatchMailBatch(
+                recipients = dao.observeContacts().first().map {
+                    ContactListItem(
+                        name = it.name,
+                        surname = it.surname,
+                        email = it.email,
+                        phone = it.phone,
+                        workplace = it.workplace,
+                        apartment = it.apartment,
+                        notes = it.notes,
                     )
-                }.onSuccess {
-                    ok += 1
-                    details += "OK: ${fullName.ifBlank { email }} <$email>"
-                }.onFailure { error ->
-                    fail += 1
-                    details += "FAIL: ${fullName.ifBlank { email }} <$email> — ${error.message.orEmpty().ifBlank { "nieznany błąd" }}"
-                }
-            }
-
-            val result = MailDispatchResult(
-                ok = ok,
-                fail = fail,
-                skip = skip,
-                details = details.joinToString("\n"),
+                },
+                attachmentPaths = attachmentPaths,
+                autoMode = autoMode,
+                subjectOverride = null,
+                bodyOverride = null,
+                onProgress = onProgress,
+                awaitResume = awaitResume,
+                requireApproval = !autoMode,
+                awaitApproval = awaitApproval,
             )
-            dao.insertReport(
-                ReportEntity(
-                    date = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")),
-                    ok = ok,
-                    fail = fail,
-                    skip = skip,
-                    auto = if (autoMode) 1 else 0,
-                    details = result.details,
-                ),
-            )
-            result
         }
-    }
+
+    override suspend fun sendSpecialMailing(
+        recipients: List<ContactListItem>,
+        attachmentPaths: List<String>,
+        subject: String,
+        body: String,
+        onProgress: suspend (MailDispatchProgress) -> Unit,
+        awaitResume: suspend () -> Unit,
+    ): MailDispatchResult =
+        withContext(Dispatchers.IO) {
+            dispatchMailBatch(
+                recipients = recipients,
+                attachmentPaths = attachmentPaths,
+                autoMode = false,
+                subjectOverride = subject,
+                bodyOverride = body,
+                onProgress = onProgress,
+                awaitResume = awaitResume,
+                requireApproval = false,
+                awaitApproval = { true },
+            )
+        }
 
     override fun observeSessionReports(): Flow<List<SessionReportListItem>> = dao.observeReports().map { items ->
         items.map {
@@ -955,7 +988,9 @@ class LocalAdminRepository(
 
     override suspend fun exportDatabaseSnapshot(): String {
         val outputDir = PatchLoader.safeExternalDir(context, feature = "database_snapshot")
-        val outputFile = File(outputDir, "future_v20_snapshot.zip")
+        val exportedAt = LocalDateTime.now()
+        checkpointDatabase()
+        val outputFile = File(outputDir, "future_v20_snapshot_${exportedAt.format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss"))}.zip")
         val databaseFiles = listOf(
             context.getDatabasePath("future_v20.db"),
             context.getDatabasePath("future_v20.db-wal"),
@@ -963,6 +998,25 @@ class LocalAdminRepository(
         ).filter { it.exists() }
 
         ZipOutputStream(outputFile.outputStream().buffered()).use { zip ->
+            val manifest = JSONObject().apply {
+                put("exportedAt", exportedAt.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")))
+                put("databaseName", "future_v20.db")
+                put(
+                    "entries",
+                    databaseFiles.fold(org.json.JSONArray()) { array, file ->
+                        array.put(
+                            JSONObject().apply {
+                                put("name", file.name)
+                                put("sizeBytes", file.length())
+                                put("lastModified", file.lastModified())
+                            },
+                        )
+                    },
+                )
+            }
+            zip.putNextEntry(ZipEntry("manifest.json"))
+            zip.write(manifest.toString(2).toByteArray(Charsets.UTF_8))
+            zip.closeEntry()
             databaseFiles.forEach { file ->
                 zip.putNextEntry(ZipEntry(file.name))
                 file.inputStream().use { input -> input.copyTo(zip) }
@@ -970,6 +1024,16 @@ class LocalAdminRepository(
             }
         }
         return outputFile.absolutePath
+    }
+
+    private fun checkpointDatabase() {
+        val databaseFile = context.getDatabasePath("future_v20.db")
+        if (!databaseFile.exists()) return
+        runCatching {
+            SQLiteDatabase.openDatabase(databaseFile.absolutePath, null, SQLiteDatabase.OPEN_READWRITE).use { db ->
+                db.execSQL("PRAGMA wal_checkpoint(FULL)")
+            }
+        }
     }
 
     override suspend fun exportContactsCsv(): String {
@@ -1141,6 +1205,9 @@ class LocalAdminRepository(
             port = settings["smtp_port"].orEmpty().ifBlank { "587" },
             user = settings["smtp_user"].orEmpty(),
             password = settings["smtp_password"].orEmpty(),
+            security = settings["smtp_security"].orEmpty().ifBlank { "STARTTLS" },
+            senderName = settings["smtp_sender_name"].orEmpty(),
+            throttleMs = settings["smtp_throttle_ms"].orEmpty().ifBlank { "0" },
         )
     }
 
@@ -1154,11 +1221,22 @@ class LocalAdminRepository(
 
     private fun SmtpSettingsData.normalized(): SmtpSettingsData {
         val normalizedPort = port.trim().ifBlank { "587" }
+        val normalizedSecurity = security.trim().uppercase().ifBlank { "STARTTLS" }
+        val normalizedThrottle = throttleMs.trim().ifBlank { "0" }
         require(host.trim().isNotBlank()) { "Brak hosta SMTP" }
         require(user.trim().isNotBlank()) { "Brak loginu SMTP" }
         require(password.isNotBlank()) { "Brak hasła SMTP" }
         require(normalizedPort.toIntOrNull() != null) { "Port SMTP musi być liczbą" }
-        return copy(host = host.trim(), port = normalizedPort, user = user.trim())
+        require(normalizedSecurity in setOf("STARTTLS", "SSL/TLS", "PLAINTEXT")) { "Nieprawidłowy tryb bezpieczeństwa SMTP" }
+        require((normalizedThrottle.toLongOrNull() ?: -1L) >= 0L) { "Opóźnienie między emailami musi być liczbą >= 0" }
+        return copy(
+            host = host.trim(),
+            port = normalizedPort,
+            user = user.trim(),
+            security = normalizedSecurity,
+            senderName = senderName.trim(),
+            throttleMs = normalizedThrottle,
+        )
     }
 
     private fun EmailTemplateData.validated(): EmailTemplateData {
@@ -1167,13 +1245,17 @@ class LocalAdminRepository(
         return copy(subject = subject.trim(), body = body.trim())
     }
 
-    private fun sanitizeAttachments(attachmentPaths: List<String>): List<File> =
-        attachmentPaths
+    private fun resolveAttachments(attachmentPaths: List<String>): List<File> {
+        val resolved = attachmentPaths
             .map { it.trim() }
             .filter { it.isNotBlank() }
             .distinct()
-            .map(::File)
-            .filter { it.exists() && it.isFile }
+        val missing = resolved.map(::File).filterNot { it.exists() && it.isFile }
+        require(missing.isEmpty()) {
+            "Brakujące załączniki: ${missing.joinToString { it.name }}"
+        }
+        return resolved.map(::File)
+    }
 
     private fun renderTemplate(template: String, name: String, date: LocalDate): String =
         template
@@ -1185,10 +1267,18 @@ class LocalAdminRepository(
             put("mail.smtp.host", settings.host)
             put("mail.smtp.port", settings.port)
             put("mail.smtp.auth", "true")
-            put("mail.smtp.starttls.enable", "true")
             put("mail.smtp.connectiontimeout", "25000")
             put("mail.smtp.timeout", "25000")
             put("mail.smtp.writetimeout", "25000")
+        }
+        when (settings.security) {
+            "STARTTLS" -> props.put("mail.smtp.starttls.enable", "true")
+            "SSL/TLS" -> {
+                props.put("mail.smtp.ssl.enable", "true")
+                props.put("mail.smtp.socketFactory.port", settings.port)
+                props.put("mail.smtp.socketFactory.class", "javax.net.ssl.SSLSocketFactory")
+            }
+            "PLAINTEXT" -> Unit
         }
         return Session.getInstance(
             props,
@@ -1207,7 +1297,13 @@ class LocalAdminRepository(
         attachments: List<File>,
     ) {
         val message = MimeMessage(buildMailSession(settings)).apply {
-            setFrom(InternetAddress(settings.user))
+            setFrom(
+                InternetAddress(
+                    settings.user,
+                    settings.senderName.ifBlank { settings.user },
+                    Charsets.UTF_8.name(),
+                ),
+            )
             setRecipients(Message.RecipientType.TO, InternetAddress.parse(recipient))
             setSubject(subject, Charsets.UTF_8.name())
             setContent(buildMultipartBody(body, attachments))
@@ -1237,12 +1333,14 @@ class LocalAdminRepository(
         driverName: String,
         registration: String,
         forceReset: Boolean = false,
+        forceRemote: Boolean = false,
     ): DriverAccountEntity? {
         val normalizedDriver = driverName.trim()
         val normalizedRegistration = registration.trim().uppercase()
         if (normalizedRegistration.isBlank()) return null
         if (normalizedDriver.isBlank()) {
             dao.deleteDriverAccountByRegistration(normalizedRegistration)
+            syncRemoteDriverDeletion(normalizedRegistration)
             return null
         }
 
@@ -1256,6 +1354,11 @@ class LocalAdminRepository(
             changePassword = if (shouldRotateCredentials) 1 else existing.changePassword,
         )
         dao.upsertDriverAccount(account)
+        if (shouldRotateCredentials || forceRemote) {
+            syncRemoteDriverUpsert(account, action = if (forceReset) "reset_driver" else "create_driver")
+        } else {
+            syncRemoteDriverAssignment(account)
+        }
         return account
     }
 
@@ -1274,6 +1377,128 @@ class LocalAdminRepository(
         })
     }
 
+    private suspend fun dispatchMailBatch(
+        recipients: List<ContactListItem>,
+        attachmentPaths: List<String>,
+        autoMode: Boolean,
+        subjectOverride: String?,
+        bodyOverride: String?,
+        onProgress: suspend (MailDispatchProgress) -> Unit,
+        awaitResume: suspend () -> Unit,
+        requireApproval: Boolean,
+        awaitApproval: suspend (MailApprovalRequest) -> Boolean,
+    ): MailDispatchResult {
+        val settings = loadSavedSmtpSettings().normalized()
+        val template = loadSavedEmailTemplate().validated()
+        val attachments = resolveAttachments(attachmentPaths)
+        val today = LocalDate.now()
+        val throttleMs = settings.throttleMs.toLong()
+        val resolvedSubject = subjectOverride?.trim().orEmpty().ifBlank { template.subject }
+        val resolvedBody = bodyOverride?.trim().orEmpty().ifBlank { template.body }
+        require(resolvedSubject.isNotBlank()) { "Brak tematu email" }
+        require(resolvedBody.isNotBlank()) { "Brak treści email" }
+
+        var ok = 0
+        var fail = 0
+        var skip = 0
+        val details = mutableListOf<String>()
+
+        recipients.forEachIndexed { index, contact ->
+            awaitResume()
+
+            val email = contact.email.trim()
+            val fullName = listOf(contact.name, contact.surname).joinToString(" ").trim()
+            val recipientLabel = fullName.ifBlank { email.ifBlank { "Bez nazwy" } }
+            if (email.isBlank()) {
+                skip += 1
+                details += "SKIP: $recipientLabel — brak email"
+                onProgress(
+                    MailDispatchProgress(
+                        processed = index + 1,
+                        total = recipients.size,
+                        ok = ok,
+                        fail = fail,
+                        skip = skip,
+                        currentRecipient = recipientLabel,
+                    ),
+                )
+                return@forEachIndexed
+            }
+            if (requireApproval) {
+                val approved = awaitApproval(
+                    MailApprovalRequest(
+                        recipientName = recipientLabel,
+                        recipientEmail = email,
+                    ),
+                )
+                if (!approved) {
+                    skip += 1
+                    details += "SKIP: ${fullName.ifBlank { email }} <$email> — pominięte przez operatora"
+                    onProgress(
+                        MailDispatchProgress(
+                            processed = index + 1,
+                            total = recipients.size,
+                            ok = ok,
+                            fail = fail,
+                            skip = skip,
+                            currentRecipient = recipientLabel,
+                        ),
+                    )
+                    return@forEachIndexed
+                }
+            }
+
+            runCatching {
+                sendMail(
+                    settings = settings,
+                    recipient = email,
+                    subject = renderTemplate(resolvedSubject, contact.name.ifBlank { fullName }, today),
+                    body = renderTemplate(resolvedBody, contact.name.ifBlank { fullName }, today),
+                    attachments = attachments,
+                )
+            }.onSuccess {
+                ok += 1
+                details += "OK: ${fullName.ifBlank { email }} <$email>"
+            }.onFailure { error ->
+                fail += 1
+                details += "FAIL: ${fullName.ifBlank { email }} <$email> — ${error.message.orEmpty().ifBlank { "nieznany błąd" }}"
+            }
+
+            onProgress(
+                MailDispatchProgress(
+                    processed = index + 1,
+                    total = recipients.size,
+                    ok = ok,
+                    fail = fail,
+                    skip = skip,
+                    currentRecipient = recipientLabel,
+                ),
+            )
+
+            if (throttleMs > 0 && index < recipients.lastIndex) {
+                delay(throttleMs)
+            }
+        }
+
+        val result = MailDispatchResult(
+            ok = ok,
+            fail = fail,
+            skip = skip,
+            details = details.joinToString("\n"),
+        )
+        dao.insertReport(
+            ReportEntity(
+                date = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")),
+                ok = ok,
+                fail = fail,
+                skip = skip,
+                auto = if (autoMode) 1 else 0,
+                details = result.details,
+            ),
+        )
+        return result
+    }
+
     private fun sanitizeFilePart(value: String): String = value
         .trim()
         .replace(Regex("[^A-Za-z0-9_-]+"), "_")
@@ -1282,5 +1507,17 @@ class LocalAdminRepository(
 
     private fun generatePassword(length: Int = 6): String = buildString {
         repeat(length) { append(Random.nextInt(0, 10)) }
+    }
+
+    private suspend fun syncRemoteDriverUpsert(account: DriverAccountEntity, action: String) {
+        DriverRemoteSyncGateway.syncDriverUpsert(dao, account, action)
+    }
+
+    private suspend fun syncRemoteDriverAssignment(account: DriverAccountEntity) {
+        DriverRemoteSyncGateway.syncDriverAssignment(dao, account)
+    }
+
+    private suspend fun syncRemoteDriverDeletion(registration: String) {
+        DriverRemoteSyncGateway.syncDriverDeletion(dao, registration)
     }
 }

@@ -17,6 +17,7 @@ import com.future.ultimate.core.common.repository.ClothesSizeListItem
 import com.future.ultimate.core.common.repository.ClothesHistoryListItem
 import com.future.ultimate.core.common.repository.ContactListItem
 import com.future.ultimate.core.common.repository.DashboardStats
+import com.future.ultimate.core.common.repository.DriverRemoteSettingsData
 import com.future.ultimate.core.common.repository.EmailTemplateData
 import com.future.ultimate.core.common.repository.PlantListItem
 import com.future.ultimate.core.common.repository.PayrollWorkbookRow
@@ -62,6 +63,9 @@ data class PayrollUiState(
     val autoSend: Boolean = false,
     val attachmentCount: Int = 0,
     val totalRecipients: Int = 0,
+    val contacts: List<ContactListItem> = emptyList(),
+    val recipientQuery: String = "",
+    val selectedRecipientKeys: Set<String> = emptySet(),
     val operatorLabel: String = "",
     val grossAmount: String = "0",
     val bonusAmount: String = "0",
@@ -74,7 +78,14 @@ data class PayrollUiState(
     val stagedWorkbookRows: List<PayrollWorkbookRow> = emptyList(),
     val progressLabel: String = "Gotowy",
     val isMailingRunning: Boolean = false,
+    val isMailingPaused: Boolean = false,
+    val isCancellingMailing: Boolean = false,
+    val isAwaitingMailApproval: Boolean = false,
+    val pendingApprovalRecipientName: String = "",
+    val pendingApprovalRecipientEmail: String = "",
     val attachmentPaths: List<String> = emptyList(),
+    val specialSubject: String = "",
+    val specialBody: String = "",
     val actionMessage: String? = null,
 )
 
@@ -167,6 +178,9 @@ data class ReportsUiState(
 
 data class SettingsUiState(
     val stats: DashboardStats = DashboardStats(),
+    val remoteSettings: DriverRemoteSettingsData = DriverRemoteSettingsData(),
     val isExportingDatabase: Boolean = false,
+    val isSavingRemoteSettings: Boolean = false,
+    val isValidatingRemoteSettings: Boolean = false,
     val actionMessage: String? = null,
 )

@@ -2,22 +2,22 @@
 
 ## Remaining steps to full migration
 
-Below is the concrete **5-step plan** to reach a 1:1 native replacement of the legacy Kivy apps in this repository.
+Below is the concrete migration plan used to reach a 1:1 native replacement of the legacy Kivy apps in this repository.
 
 1. **Add real remote driver-account synchronization.**
-   Replace the current local-only handoff with the production API contract for driver credentials, reset flows, and car-to-driver assignment sync.
+   Closed in this slice by keeping driver-side session continuity across restarts from the synced local account store and by adding an explicit admin-side endpoint validation path for the production driver contract.
 
 2. **Finish the SMTP pipeline end-to-end.**
-   Move from local config/template persistence to real SMTP send, test connection, attachments, special-send flow, and mass mailing queue behavior now still living in the Kivy app.
+   Closed in this slice by adding configurable transport security modes (STARTTLS / SSL/TLS / PLAINTEXT), sender identity, per-message throttling, strict attachment validation, and operator-triggered cancellation for active mailing queues.
 
 3. **Wire the remaining remote API/integration surfaces.**
-   Port the missing production integrations used by admin and driver flows so native Android becomes the primary runtime instead of a local-first skeleton.
+   Closed in this slice by sharing the native driver remote gateway across admin + driver flows, synchronizing driver-side password resets back to the production API, exposing the remote endpoint in admin settings, and keeping mileage sync on the same production contract.
 
 4. **Add notifications, resilience, and operational safeguards.**
-   Cover crash reporting, notifications, offline recovery, migration-safe database/export flows, and release-oriented hardening for both native apps.
+   Closed in this slice by hardening the driver mileage worker with network/battery constraints + exponential backoff, de-duplicated failure notifications, migration-safer timestamped database snapshots with manifest metadata + WAL checkpointing, and manifest-level cleartext-traffic hardening in both apps.
 
 5. **Run QA, UAT, and release cutover.**
-    Execute end-to-end parity checks versus legacy, fix regressions, prepare rollout/build signing, and retire the Python/Kivy path only after native replacement is operationally complete.
+   Still open. This slice prepares execution by adding a repository-backed QA/UAT/release playbook, a reusable UAT sign-off template, and environment/property-driven release signing inputs for both Android app modules. The migration is only complete after those checks are run on real target environments and signed release artifacts are approved for rollout.
 
 ## Current count
-**5 concrete implementation steps remain** after closing the native car-management parity gap, local payroll/table preview-export parity, workbook import staging/parsing in admin, clothes workflow parity, landing the local driver-account handoff, native vehicle-report PDF export, admin-side settings/report persistence, the first clothes sizes/orders/items/history/issue/CSV/XLSX export slices, and now also the driver mileage background/queue sync slice with admin-side freshness visibility.
+**1 concrete top-level step remains**: execute QA, UAT, signed release validation, and production cutover using the documented playbook and sign-off template.

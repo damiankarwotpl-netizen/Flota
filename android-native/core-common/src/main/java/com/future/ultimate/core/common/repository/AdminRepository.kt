@@ -35,6 +35,9 @@ data class CarListItem(
     val queuedMileage: Int? = null,
     val lastMileageSyncAt: String = "",
     val lastMileageSyncStatus: String = "",
+    val remoteDriverSyncAt: String = "",
+    val remoteDriverSyncStatus: String = "",
+    val remoteDriverSyncError: String = "",
 ) {
     val remainingToService: Int
         get() = serviceInterval - (mileage - lastService)
@@ -118,6 +121,13 @@ data class SmtpSettingsData(
     val port: String = "587",
     val user: String = "",
     val password: String = "",
+    val security: String = "STARTTLS",
+    val senderName: String = "",
+    val throttleMs: String = "0",
+)
+
+data class DriverRemoteSettingsData(
+    val apiUrl: String = "",
 )
 
 data class EmailTemplateData(
@@ -138,6 +148,20 @@ data class MailDispatchResult(
     val fail: Int,
     val skip: Int,
     val details: String,
+)
+
+data class MailDispatchProgress(
+    val processed: Int = 0,
+    val total: Int = 0,
+    val ok: Int = 0,
+    val fail: Int = 0,
+    val skip: Int = 0,
+    val currentRecipient: String = "",
+)
+
+data class MailApprovalRequest(
+    val recipientName: String = "",
+    val recipientEmail: String = "",
 )
 
 data class DashboardStats(
@@ -186,6 +210,7 @@ interface AdminRepository {
     suspend fun updateCarMileage(id: Long, mileage: Int)
     suspend fun updateCarDriver(id: Long, driver: String)
     suspend fun resetCarDriverCredentials(id: Long): DriverAccountCredentials
+    suspend fun retryCarDriverRemoteSync(id: Long)
     suspend fun confirmCarService(id: Long)
     suspend fun deleteCar(id: Long)
 
@@ -230,11 +255,28 @@ interface AdminRepository {
     fun observeSmtpSettings(): Flow<SmtpSettingsData>
     suspend fun saveSmtpSettings(settings: SmtpSettingsData)
     suspend fun validateSmtpConnection(settings: SmtpSettingsData)
+    fun observeDriverRemoteSettings(): Flow<DriverRemoteSettingsData>
+    suspend fun saveDriverRemoteSettings(settings: DriverRemoteSettingsData)
+    suspend fun validateDriverRemoteSettings(settings: DriverRemoteSettingsData): String
 
     fun observeEmailTemplate(): Flow<EmailTemplateData>
     suspend fun saveEmailTemplate(template: EmailTemplateData)
     suspend fun sendSinglePreviewMail(attachmentPaths: List<String>): String
-    suspend fun sendMassMailing(attachmentPaths: List<String>, autoMode: Boolean): MailDispatchResult
+    suspend fun sendMassMailing(
+        attachmentPaths: List<String>,
+        autoMode: Boolean,
+        onProgress: suspend (MailDispatchProgress) -> Unit = {},
+        awaitResume: suspend () -> Unit = {},
+        awaitApproval: suspend (MailApprovalRequest) -> Boolean = { true },
+    ): MailDispatchResult
+    suspend fun sendSpecialMailing(
+        recipients: List<ContactListItem>,
+        attachmentPaths: List<String>,
+        subject: String,
+        body: String,
+        onProgress: suspend (MailDispatchProgress) -> Unit = {},
+        awaitResume: suspend () -> Unit = {},
+    ): MailDispatchResult
 
     fun observeSessionReports(): Flow<List<SessionReportListItem>>
     fun observeDashboardStats(): Flow<DashboardStats>
