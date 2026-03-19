@@ -617,16 +617,43 @@ class ClothesOrdersViewModel(private val repository: AdminRepository) : ViewMode
     }
 
     fun markOrdered(orderId: Long) = viewModelScope.launch {
+        val order = _uiState.value.items.find { it.id == orderId }
+        if (order == null) return@launch
+        if (!canMarkClothesOrderOrdered(order.status)) {
+            _uiState.value = _uiState.value.copy(actionMessage = "Nie można cofnąć zamówienia wydanego lub częściowo wydanego do statusu Zamówione")
+            return@launch
+        }
         repository.markClothesOrderOrdered(orderId)
         _uiState.value = _uiState.value.copy(actionMessage = "Status zmieniony na Zamówione")
     }
 
     fun issueItem(id: Long) = viewModelScope.launch {
+        val orderId = _uiState.value.selectedOrderId ?: return@launch
+        val order = _uiState.value.items.find { it.id == orderId } ?: return@launch
+        val item = _uiState.value.selectedOrderItems.find { it.id == id }
+        if (!canIssueClothesOrder(order.status)) {
+            _uiState.value = _uiState.value.copy(actionMessage = "Najpierw oznacz zamówienie jako Zamówione")
+            return@launch
+        }
+        if (item?.issued == true) {
+            _uiState.value = _uiState.value.copy(actionMessage = "Ta pozycja została już wydana")
+            return@launch
+        }
         repository.issueClothesOrderItem(id)
         _uiState.value = _uiState.value.copy(actionMessage = "Pozycja wydana")
     }
 
     fun issueAll(orderId: Long) = viewModelScope.launch {
+        val order = _uiState.value.items.find { it.id == orderId }
+        if (order == null) return@launch
+        if (!canIssueClothesOrder(order.status)) {
+            _uiState.value = _uiState.value.copy(actionMessage = "Najpierw oznacz zamówienie jako Zamówione")
+            return@launch
+        }
+        if (_uiState.value.selectedOrderId == orderId && _uiState.value.selectedOrderItems.none { !it.issued }) {
+            _uiState.value = _uiState.value.copy(actionMessage = "Brak niewydanych pozycji do wydania")
+            return@launch
+        }
         repository.issueAllClothesOrderItems(orderId)
         _uiState.value = _uiState.value.copy(actionMessage = "Wydano wszystkie dostępne pozycje")
     }
@@ -682,6 +709,16 @@ class ClothesOrdersViewModel(private val repository: AdminRepository) : ViewMode
                     "${key.first} • rozmiar: ${key.second} • suma: ${groupedItems.sumOf { it.qty }}"
                 }
         }
+
+    private fun canIssueClothesOrder(status: String): Boolean {
+        val normalized = status.trim().lowercase()
+        return normalized == "zamówione" || normalized == "częściowo wydane"
+    }
+
+    private fun canMarkClothesOrderOrdered(status: String): Boolean {
+        val normalized = status.trim().lowercase()
+        return normalized != "częściowo wydane" && normalized != "wydane"
+    }
 }
 
 class ClothesReportsViewModel(private val repository: AdminRepository) : ViewModel() {

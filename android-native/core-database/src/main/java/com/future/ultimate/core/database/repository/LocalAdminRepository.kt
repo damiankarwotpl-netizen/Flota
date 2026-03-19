@@ -384,6 +384,7 @@ class LocalAdminRepository(
                 ),
             ),
         )
+        syncClothesOrderIssueStatus(orderId)
     }
 
     override suspend fun createClothesOrderStarter(
@@ -446,9 +447,15 @@ class LocalAdminRepository(
         return orderId
     }
 
-    override suspend fun deleteClothesOrderItem(id: Long) = dao.deleteClothesOrderItem(id)
+    override suspend fun deleteClothesOrderItem(id: Long) {
+        val item = dao.getClothesOrderItem(id)
+        dao.deleteClothesOrderItem(id)
+        item?.orderId?.let { syncClothesOrderIssueStatus(it) }
+    }
 
     override suspend fun markClothesOrderOrdered(orderId: Long) {
+        val order = dao.getClothesOrder(orderId) ?: return
+        if (!canMarkClothesOrderOrdered(order.status)) return
         dao.updateClothesOrderStatus(orderId, "Zamówione")
     }
 
@@ -467,7 +474,7 @@ class LocalAdminRepository(
             ),
         )
         dao.updateClothesOrderItemIssued(id, 1)
-        refreshClothesOrderIssueStatus(item.orderId)
+        syncClothesOrderIssueStatus(item.orderId)
     }
 
     override suspend fun issueAllClothesOrderItems(orderId: Long) {
@@ -486,7 +493,7 @@ class LocalAdminRepository(
             )
             dao.updateClothesOrderItemIssued(item.id, 1)
         }
-        refreshClothesOrderIssueStatus(orderId)
+        syncClothesOrderIssueStatus(orderId)
     }
 
     override suspend fun exportClothesOrderPdf(orderId: Long): String {
@@ -657,19 +664,35 @@ class LocalAdminRepository(
         )
     }
 
-    private suspend fun refreshClothesOrderIssueStatus(orderId: Long) {
+    private suspend fun syncClothesOrderIssueStatus(orderId: Long) {
+        val order = dao.getClothesOrder(orderId) ?: return
         val totalCount = dao.countClothesOrderItems(orderId)
         if (totalCount <= 0) return
         val issuedCount = dao.countIssuedClothesOrderItems(orderId)
-        when {
-            issuedCount >= totalCount -> dao.updateClothesOrderStatus(orderId, "Wydane")
-            issuedCount > 0 -> dao.updateClothesOrderStatus(orderId, "Częściowo wydane")
+        val nextStatus = when {
+            issuedCount >= totalCount -> "Wydane"
+            issuedCount > 0 -> "Częściowo wydane"
+            isClothesOrderIssueWorkflowStatus(order.status) -> "Zamówione"
+            else -> order.status
+        }
+        if (nextStatus != order.status) {
+            dao.updateClothesOrderStatus(orderId, nextStatus)
         }
     }
 
     private fun canIssueClothesOrder(status: String): Boolean {
         val normalized = status.trim().lowercase()
         return normalized == "zamówione" || normalized == "częściowo wydane"
+    }
+
+    private fun canMarkClothesOrderOrdered(status: String): Boolean {
+        val normalized = status.trim().lowercase()
+        return normalized != "częściowo wydane" && normalized != "wydane"
+    }
+
+    private fun isClothesOrderIssueWorkflowStatus(status: String): Boolean {
+        val normalized = status.trim().lowercase()
+        return normalized == "zamówione" || normalized == "częściowo wydane" || normalized == "wydane"
     }
 
     override fun observeClothesHistory(): Flow<List<ClothesHistoryListItem>> = dao.observeClothesHistory().map { items ->

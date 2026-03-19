@@ -238,7 +238,11 @@ fun ClothesScreen() {
                                 Button(onClick = { ordersViewModel.toggleOrderSelection(itemData.id) }, modifier = Modifier.fillMaxWidth()) {
                                     Text(if (ordersUiState.selectedOrderId == itemData.id) "Ukryj pozycje" else "Pokaż pozycje")
                                 }
-                                Button(onClick = { ordersViewModel.markOrdered(itemData.id) }, modifier = Modifier.fillMaxWidth()) {
+                                Button(
+                                    onClick = { ordersViewModel.markOrdered(itemData.id) },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    enabled = canMarkClothesOrderOrdered(itemData.status),
+                                ) {
                                     Text("Oznacz jako zamówione")
                                 }
                                 Button(
@@ -390,4 +394,9 @@ fun ClothesScreen() {
 private fun canIssueClothesOrder(status: String): Boolean {
     val normalized = status.trim().lowercase()
     return normalized == "zamówione" || normalized == "częściowo wydane"
+}
+
+private fun canMarkClothesOrderOrdered(status: String): Boolean {
+    val normalized = status.trim().lowercase()
+    return normalized != "częściowo wydane" && normalized != "wydane"
 }
