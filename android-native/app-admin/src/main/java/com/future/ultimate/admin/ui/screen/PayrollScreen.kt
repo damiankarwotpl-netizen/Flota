@@ -3,6 +3,7 @@ package com.future.ultimate.admin.ui.screen
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material3.Button
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -30,13 +31,41 @@ fun PayrollScreen(navController: NavController) {
                     Switch(checked = uiState.autoSend, onCheckedChange = { viewModel.toggleAutoSend() })
                     Text("AUTOMATYCZNA WYSYŁKA")
                 }
+                Text("Operator: ${uiState.operatorLabel}")
                 Text("Baza: ${uiState.totalRecipients} | Załączniki: ${uiState.attachmentCount}")
+                OutlinedTextField(
+                    value = uiState.grossAmount,
+                    onValueChange = viewModel::updateGrossAmount,
+                    label = { Text("Kwota brutto") },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                OutlinedTextField(
+                    value = uiState.bonusAmount,
+                    onValueChange = viewModel::updateBonusAmount,
+                    label = { Text("Premia") },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                OutlinedTextField(
+                    value = uiState.deductionsAmount,
+                    onValueChange = viewModel::updateDeductionsAmount,
+                    label = { Text("Potrącenia") },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                OutlinedTextField(
+                    value = uiState.taxPercent,
+                    onValueChange = viewModel::updateTaxPercent,
+                    label = { Text("Podatek %") },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Button(onClick = viewModel::calculatePayroll, modifier = Modifier.fillMaxWidth()) { Text("Przelicz płace") }
+                Text("Netto: ${uiState.netAmount} | Koszt pracodawcy: ${uiState.employerCostAmount}")
+                Text(uiState.calculationSummary)
                 Text(uiState.progressLabel)
                 uiState.actionMessage?.let { Text(it) }
                 uiState.attachmentPaths.forEach { path ->
                     Text("• ${path.substringAfterLast('/')}")
                 }
-                Button(onClick = {}, modifier = Modifier.fillMaxWidth()) { Text("Wczytaj arkusz płac") }
+                Button(onClick = viewModel::importWorkbookFallback, modifier = Modifier.fillMaxWidth()) { Text("Wczytaj arkusz płac") }
                 Button(onClick = { navController.navigate(AdminRoute.Table.route) }, modifier = Modifier.fillMaxWidth()) { Text("Podgląd i eksport") }
                 Button(onClick = { navController.navigate(AdminRoute.Template.route) }, modifier = Modifier.fillMaxWidth()) { Text("Edytuj szablon") }
                 Button(onClick = viewModel::attachSessionReportsCsv, modifier = Modifier.fillMaxWidth()) { Text("Dodaj CSV raportów") }

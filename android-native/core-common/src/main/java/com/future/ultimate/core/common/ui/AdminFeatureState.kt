@@ -11,6 +11,7 @@ import com.future.ultimate.core.common.model.WorkerDraft
 import com.future.ultimate.core.common.repository.CarListItem
 import com.future.ultimate.core.common.repository.ClothesOrderItemListItem
 import com.future.ultimate.core.common.repository.ClothesOrderListItem
+import com.future.ultimate.core.common.repository.ClothesOrderWorkerListItem
 import com.future.ultimate.core.common.repository.ClothesSizeListItem
 import com.future.ultimate.core.common.repository.ClothesHistoryListItem
 import com.future.ultimate.core.common.repository.ContactListItem
@@ -32,14 +33,22 @@ data class ContactsUiState(
 
 data class CarsUiState(
     val query: String = "",
+    val serviceFilter: CarsServiceFilter = CarsServiceFilter.All,
     val items: List<CarListItem> = emptyList(),
     val editor: CarDraft = CarDraft(),
+    val driverSuggestions: List<String> = emptyList(),
     val isSaving: Boolean = false,
     val mileageDrafts: Map<Long, String> = emptyMap(),
     val driverDrafts: Map<Long, String> = emptyMap(),
     val actionInFlightId: Long? = null,
     val actionMessage: String? = null,
 )
+
+enum class CarsServiceFilter {
+    All,
+    DueSoon,
+    Urgent,
+}
 
 data class VehicleReportUiState(
     val draft: VehicleReportDraft = VehicleReportDraft(),
@@ -51,6 +60,14 @@ data class PayrollUiState(
     val autoSend: Boolean = false,
     val attachmentCount: Int = 0,
     val totalRecipients: Int = 0,
+    val operatorLabel: String = "",
+    val grossAmount: String = "0",
+    val bonusAmount: String = "0",
+    val deductionsAmount: String = "0",
+    val taxPercent: String = "12",
+    val employerCostAmount: String = "0",
+    val netAmount: String = "0",
+    val calculationSummary: String = "Wprowadź kwoty i uruchom kalkulację.",
     val progressLabel: String = "Gotowy",
     val isMailingRunning: Boolean = false,
     val attachmentPaths: List<String> = emptyList(),
@@ -87,18 +104,32 @@ data class ClothesSizesUiState(
 
 data class ClothesOrdersUiState(
     val items: List<ClothesOrderListItem> = emptyList(),
+    val workerQuery: String = "",
+    val availableWorkers: List<ClothesOrderWorkerListItem> = emptyList(),
+    val selectedWorkerIds: Set<Long> = emptySet(),
+    val shirtQty: String = "1",
+    val hoodieQty: String = "1",
+    val pantsQty: String = "1",
+    val jacketQty: String = "1",
+    val shoesQty: String = "1",
     val selectedOrderId: Long? = null,
     val selectedOrderItems: List<ClothesOrderItemListItem> = emptyList(),
+    val selectedOrderSummary: List<String> = emptyList(),
+    val showOnlyPendingItems: Boolean = false,
     val editor: ClothesOrderDraft = ClothesOrderDraft(),
     val itemEditor: ClothesOrderItemDraft = ClothesOrderItemDraft(),
     val actionMessage: String? = null,
     val isSaving: Boolean = false,
     val isSavingItem: Boolean = false,
+    val isCreatingStarterOrder: Boolean = false,
+    val isExportingPdf: Boolean = false,
+    val isExportingIssuePdf: Boolean = false,
     val isExportingXlsx: Boolean = false,
 )
 
 data class ClothesReportsUiState(
     val year: String = "",
+    val workerQuery: String = "",
     val history: List<ClothesHistoryListItem> = emptyList(),
     val yearlySummary: List<String> = emptyList(),
     val exportMessage: String? = null,
