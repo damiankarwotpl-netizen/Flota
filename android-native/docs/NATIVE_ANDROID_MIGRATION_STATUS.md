@@ -16,12 +16,12 @@ This repository now contains a native Android migration foundation in `android-n
 - native SMTP send/test flow with saved templates, session-report/dashboard screens in admin, CSV export for session reports, special-send selection, pause/resume mass-mailing queue controls, and manual operator approval when auto-send is off
 - SMTP hardening for rollout parity: configurable security mode, sender identity, throttling, strict attachment validation, and operator cancellation of active queues
 - the first clothes-module slices: native size management plus order headers/items/history, starter-order generation from workers/saved sizes, basic issue actions, and CSV/XLSX/PDF order + issue exports backed by Room
-- a repository-backed QA/UAT/release cutover playbook plus environment/property-driven release signing for both Android apps
+- a repository-backed QA/UAT/release cutover playbook, reusable UAT sign-off template, and environment/property-driven release signing for both Android apps
 
 ## Important
-The implementation backlog for the native Android migration is now **fully closed in-repo**.
-Operational rollout still requires executing the documented QA/UAT/release process from `docs/ANDROID_NATIVE_QA_UAT_RELEASE.md` on real environments, with human sign-off.
+Feature implementation is broadly in place, but the native Android migration is **not yet operationally complete**.
+One top-level step still remains: execute QA/UAT/signed-release validation and production cutover on real environments, with human sign-off.
 
 ## Next implementation blocks
-There are currently **0 top-level implementation blocks remaining** in `docs/ANDROID_NATIVE_MIGRATION_BACKLOG.md`.
-The next work, if needed, is operational execution: run the documented QA/UAT/cutover checklist and address any issues found during rollout.
+The migration is currently tracked as a **1-step remaining plan** in `docs/ANDROID_NATIVE_MIGRATION_BACKLOG.md`:
+1. QA, UAT, and release cutover execution using `docs/ANDROID_NATIVE_QA_UAT_RELEASE.md` and `docs/ANDROID_NATIVE_UAT_SIGNOFF_TEMPLATE.md`

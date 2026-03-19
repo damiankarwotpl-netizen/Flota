@@ -1,6 +1,6 @@
 # Android native QA / UAT / release cutover
 
-This document closes the final migration workstream by codifying how to verify parity against the legacy Kivy apps, prepare signed Android builds, execute UAT, and cut over production usage to the native applications.
+This document supports the final migration workstream by codifying how to verify parity against the legacy Kivy apps, prepare signed Android builds, execute UAT, and cut over production usage to the native applications.
 
 ## 1. Release prerequisites
 
@@ -60,13 +60,7 @@ Capture explicit sign-off for each area below:
 - SMTP / email operations owner
 - Release owner responsible for keystore + store upload
 
-Recommended sign-off template:
-- build number tested
-- test date
-- tester name
-- pass/fail per flow
-- blocking issues / waivers
-- final release approval
+Use `docs/ANDROID_NATIVE_UAT_SIGNOFF_TEMPLATE.md` to capture the formal sign-off packet for each release candidate.
 
 ## 4. Cutover plan
 
@@ -91,8 +85,8 @@ Rollback if any blocking regression appears in mail delivery, mileage synchroniz
 
 ## 6. Completion rule
 
-The Android migration is considered operationally complete once:
+The Android migration is considered operationally complete only after all of the following happen in a real target environment:
 - the QA parity matrix passes
-- UAT sign-off is recorded
+- UAT sign-off is recorded in `docs/ANDROID_NATIVE_UAT_SIGNOFF_TEMPLATE.md`
 - signed release artifacts are produced
 - production operators complete cutover without rollback
