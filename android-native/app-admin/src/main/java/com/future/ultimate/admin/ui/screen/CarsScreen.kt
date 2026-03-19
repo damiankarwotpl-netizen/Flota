@@ -61,6 +61,7 @@ fun CarsScreen() {
                 Button(onClick = viewModel::save, modifier = Modifier.fillMaxWidth()) {
                     Text(if (uiState.isSaving) "Zapisywanie..." else "+ DODAJ SAMOCHÓD")
                 }
+                uiState.actionMessage?.let { Text(it) }
             }
         }
         uiState.items
@@ -111,6 +112,12 @@ fun CarsScreen() {
                                 modifier = Modifier.fillMaxWidth(),
                             ) {
                                 Text(if (uiState.actionInFlightId == car.id) "Zapisywanie..." else "Zapisz przebieg")
+                            }
+                            Button(
+                                onClick = { viewModel.resetDriverCredentials(car.id) },
+                                modifier = Modifier.fillMaxWidth(),
+                            ) {
+                                Text(if (uiState.actionInFlightId == car.id) "Zapisywanie..." else "Resetuj dane kierowcy")
                             }
                             Button(
                                 onClick = { viewModel.confirmService(car.id) },

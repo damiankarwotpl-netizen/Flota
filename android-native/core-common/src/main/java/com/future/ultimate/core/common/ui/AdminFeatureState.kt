@@ -38,6 +38,7 @@ data class CarsUiState(
     val mileageDrafts: Map<Long, String> = emptyMap(),
     val driverDrafts: Map<Long, String> = emptyMap(),
     val actionInFlightId: Long? = null,
+    val actionMessage: String? = null,
 )
 
 data class VehicleReportUiState(

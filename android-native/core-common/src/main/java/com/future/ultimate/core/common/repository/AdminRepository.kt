@@ -127,6 +127,11 @@ data class DashboardStats(
     val clothesHistoryCount: Int = 0,
 )
 
+data class DriverAccountCredentials(
+    val login: String = "",
+    val password: String = "",
+)
+
 data class ClothesOrderXlsxExport(
     val supplierPath: String = "",
     val issuePath: String = "",
@@ -141,6 +146,7 @@ interface AdminRepository {
     suspend fun saveCar(draft: CarDraft)
     suspend fun updateCarMileage(id: Long, mileage: Int)
     suspend fun updateCarDriver(id: Long, driver: String)
+    suspend fun resetCarDriverCredentials(id: Long): DriverAccountCredentials
     suspend fun confirmCarService(id: Long)
     suspend fun deleteCar(id: Long)
 

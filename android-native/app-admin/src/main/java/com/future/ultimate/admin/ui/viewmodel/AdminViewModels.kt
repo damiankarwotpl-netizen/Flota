@@ -70,46 +70,63 @@ class CarsViewModel(private val repository: AdminRepository) : ViewModel() {
         }.launchIn(viewModelScope)
     }
 
-    fun updateQuery(value: String) { _uiState.value = _uiState.value.copy(query = value) }
-    fun updateEditor(draft: CarDraft) { _uiState.value = _uiState.value.copy(editor = draft) }
+    fun updateQuery(value: String) { _uiState.value = _uiState.value.copy(query = value, actionMessage = null) }
+    fun updateEditor(draft: CarDraft) { _uiState.value = _uiState.value.copy(editor = draft, actionMessage = null) }
 
     fun updateMileageDraft(id: Long, value: String) {
-        _uiState.value = _uiState.value.copy(mileageDrafts = _uiState.value.mileageDrafts + (id to value))
+        _uiState.value = _uiState.value.copy(mileageDrafts = _uiState.value.mileageDrafts + (id to value), actionMessage = null)
     }
 
     fun updateDriverDraft(id: Long, value: String) {
-        _uiState.value = _uiState.value.copy(driverDrafts = _uiState.value.driverDrafts + (id to value))
+        _uiState.value = _uiState.value.copy(driverDrafts = _uiState.value.driverDrafts + (id to value), actionMessage = null)
     }
 
     fun save() = viewModelScope.launch {
-        _uiState.value = _uiState.value.copy(isSaving = true)
+        _uiState.value = _uiState.value.copy(isSaving = true, actionMessage = null)
         repository.saveCar(_uiState.value.editor)
-        _uiState.value = _uiState.value.copy(isSaving = false, editor = CarDraft())
+        _uiState.value = _uiState.value.copy(isSaving = false, editor = CarDraft(), actionMessage = "Samochód zapisany")
     }
 
     fun saveMileage(id: Long) = viewModelScope.launch {
-        _uiState.value = _uiState.value.copy(actionInFlightId = id)
+        _uiState.value = _uiState.value.copy(actionInFlightId = id, actionMessage = null)
         val mileage = _uiState.value.mileageDrafts[id]?.toIntOrNull() ?: 0
         repository.updateCarMileage(id, mileage)
-        _uiState.value = _uiState.value.copy(actionInFlightId = null)
+        _uiState.value = _uiState.value.copy(actionInFlightId = null, actionMessage = "Przebieg zapisany")
     }
 
     fun saveDriver(id: Long) = viewModelScope.launch {
-        _uiState.value = _uiState.value.copy(actionInFlightId = id)
-        repository.updateCarDriver(id, _uiState.value.driverDrafts[id].orEmpty())
-        _uiState.value = _uiState.value.copy(actionInFlightId = null)
+        _uiState.value = _uiState.value.copy(actionInFlightId = id, actionMessage = null)
+        val driver = _uiState.value.driverDrafts[id].orEmpty()
+        repository.updateCarDriver(id, driver)
+        _uiState.value = _uiState.value.copy(
+            actionInFlightId = null,
+            actionMessage = if (driver.isBlank()) "Kierowca usunięty, konto kierowcy wyczyszczone" else "Kierowca zapisany",
+        )
     }
 
     fun confirmService(id: Long) = viewModelScope.launch {
-        _uiState.value = _uiState.value.copy(actionInFlightId = id)
+        _uiState.value = _uiState.value.copy(actionInFlightId = id, actionMessage = null)
         repository.confirmCarService(id)
-        _uiState.value = _uiState.value.copy(actionInFlightId = null)
+        _uiState.value = _uiState.value.copy(actionInFlightId = null, actionMessage = "Serwis potwierdzony")
     }
 
     fun deleteCar(id: Long) = viewModelScope.launch {
-        _uiState.value = _uiState.value.copy(actionInFlightId = id)
+        _uiState.value = _uiState.value.copy(actionInFlightId = id, actionMessage = null)
         repository.deleteCar(id)
-        _uiState.value = _uiState.value.copy(actionInFlightId = null)
+        _uiState.value = _uiState.value.copy(actionInFlightId = null, actionMessage = "Samochód usunięty")
+    }
+
+    fun resetDriverCredentials(id: Long) = viewModelScope.launch {
+        _uiState.value = _uiState.value.copy(actionInFlightId = id, actionMessage = null)
+        val credentials = repository.resetCarDriverCredentials(id)
+        _uiState.value = _uiState.value.copy(
+            actionInFlightId = null,
+            actionMessage = if (credentials.login.isBlank()) {
+                "Brak kierowcy — konto kierowcy usunięte"
+            } else {
+                "Nowe dane kierowcy: ${credentials.login} / ${credentials.password}"
+            },
+        )
     }
 }
 

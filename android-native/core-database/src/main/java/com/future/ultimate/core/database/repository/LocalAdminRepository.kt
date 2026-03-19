@@ -20,6 +20,7 @@ import com.future.ultimate.core.common.repository.ClothesSizeListItem
 import com.future.ultimate.core.common.repository.ClothesHistoryListItem
 import com.future.ultimate.core.common.repository.ContactListItem
 import com.future.ultimate.core.common.repository.DashboardStats
+import com.future.ultimate.core.common.repository.DriverAccountCredentials
 import com.future.ultimate.core.common.repository.EmailTemplateData
 import com.future.ultimate.core.common.repository.PlantListItem
 import com.future.ultimate.core.common.repository.SessionReportListItem
@@ -153,6 +154,20 @@ class LocalAdminRepository(
         dao.updateDriver(id, normalizedDriver)
         val car = dao.getCar(id) ?: return
         syncDriverAccount(normalizedDriver, car.registration)
+    }
+
+    override suspend fun resetCarDriverCredentials(id: Long): DriverAccountCredentials {
+        val car = dao.getCar(id) ?: return DriverAccountCredentials()
+        val normalizedDriver = car.driver.trim()
+        if (normalizedDriver.isBlank()) {
+            dao.deleteDriverAccountByRegistration(car.registration)
+            return DriverAccountCredentials()
+        }
+        val account = syncDriverAccount(normalizedDriver, car.registration, forceReset = true)
+        return DriverAccountCredentials(
+            login = account?.login.orEmpty(),
+            password = account?.password.orEmpty(),
+        )
     }
 
     override suspend fun confirmCarService(id: Long) = dao.confirmService(id)
@@ -691,20 +706,30 @@ class LocalAdminRepository(
         return outputFile.absolutePath
     }
 
-    private suspend fun syncDriverAccount(driverName: String, registration: String) {
+    private suspend fun syncDriverAccount(
+        driverName: String,
+        registration: String,
+        forceReset: Boolean = false,
+    ): DriverAccountEntity? {
         val normalizedDriver = driverName.trim()
         val normalizedRegistration = registration.trim().uppercase()
-        if (normalizedDriver.isBlank() || normalizedRegistration.isBlank()) return
+        if (normalizedRegistration.isBlank()) return null
+        if (normalizedDriver.isBlank()) {
+            dao.deleteDriverAccountByRegistration(normalizedRegistration)
+            return null
+        }
 
-        dao.upsertDriverAccount(
-            DriverAccountEntity(
-                registration = normalizedRegistration,
-                login = generateLogin(normalizedDriver),
-                password = generatePassword(),
-                driverName = normalizedDriver,
-                changePassword = 1,
-            ),
+        val existing = dao.getDriverAccountByRegistration(normalizedRegistration)
+        val shouldRotateCredentials = forceReset || existing == null || !existing.driverName.equals(normalizedDriver, ignoreCase = true)
+        val account = DriverAccountEntity(
+            registration = normalizedRegistration,
+            login = generateLogin(normalizedDriver),
+            password = if (shouldRotateCredentials) generatePassword() else existing.password,
+            driverName = normalizedDriver,
+            changePassword = if (shouldRotateCredentials) 1 else existing.changePassword,
         )
+        dao.upsertDriverAccount(account)
+        return account
     }
 
     private fun generateLogin(name: String): String {
