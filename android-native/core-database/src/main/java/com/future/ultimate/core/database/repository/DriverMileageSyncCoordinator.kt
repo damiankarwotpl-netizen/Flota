@@ -3,11 +3,18 @@ package com.future.ultimate.core.database.repository
 import com.future.ultimate.core.common.repository.DriverMileageSyncState
 import com.future.ultimate.core.database.dao.AppDao
 import com.future.ultimate.core.database.entity.SettingEntity
+import java.net.HttpURLConnection
+import java.net.URL
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.withContext
+import org.json.JSONObject
 
 internal object DriverMileageSyncCoordinator {
+    private const val DefaultDriverRemoteApiUrl =
+        "https://script.google.com/macros/s/AKfycbxFQLZU-sg8Gg58J2dE-Bbt2jTyXrdcd1DOUM78vcqFLa789gpeOC9S4MyjGHpQ12_l/exec"
     private const val PendingPrefix = "driver_mileage_sync_pending_"
     private const val StatusPrefix = "driver_mileage_sync_status_"
     private const val AttemptPrefix = "driver_mileage_sync_attempt_"
@@ -48,16 +55,25 @@ internal object DriverMileageSyncCoordinator {
                 dao.upsertSetting(SettingEntity(key = errorKey(reg), valText = "Nie znaleziono auta o rejestracji $reg"))
                 return@forEach
             }
+            val driverAccount = dao.getDriverAccountByRegistration(reg)
 
             runCatching {
                 dao.updateMileageByRegistration(reg, pending.mileage)
+                syncRemoteMileage(
+                    dao = dao,
+                    registration = reg,
+                    mileage = pending.mileage,
+                    queuedAt = pending.queuedAt.ifBlank { attemptAt },
+                    login = driverAccount?.login.orEmpty(),
+                    driverName = driverAccount?.driverName.orEmpty(),
+                )
                 dao.upsertSetting(SettingEntity(key = "driver_last_mileage_$reg", valText = pending.mileage.toString()))
                 dao.upsertSetting(SettingEntity(key = syncedKey(reg), valText = attemptAt))
                 dao.upsertSetting(SettingEntity(key = statusKey(reg), valText = "Zsynchronizowano"))
                 dao.upsertSetting(SettingEntity(key = errorKey(reg), valText = ""))
                 dao.upsertSetting(SettingEntity(key = pendingKey(reg), valText = ""))
             }.onFailure { error ->
-                dao.upsertSetting(SettingEntity(key = statusKey(reg), valText = "Retry po błędzie"))
+                dao.upsertSetting(SettingEntity(key = statusKey(reg), valText = "Retry po błędzie synchronizacji"))
                 dao.upsertSetting(
                     SettingEntity(
                         key = errorKey(reg),
@@ -108,6 +124,72 @@ internal object DriverMileageSyncCoordinator {
     private fun syncedKey(registration: String): String = "$SyncedPrefix$registration"
     private fun errorKey(registration: String): String = "$ErrorPrefix$registration"
     private fun nowText(): String = LocalDateTime.now().format(timestampFormatter)
+
+    private suspend fun syncRemoteMileage(
+        dao: AppDao,
+        registration: String,
+        mileage: Int,
+        queuedAt: String,
+        login: String,
+        driverName: String,
+    ) {
+        val endpoint = loadRemoteEndpoint(dao)
+        require(endpoint.isNotBlank()) { "Brak endpointu zdalnej synchronizacji przebiegu" }
+
+        val payload = JSONObject().apply {
+            put("action", "mileage_update")
+            put("registration", registration)
+            put("plate", registration)
+            put("mileage", mileage.coerceAtLeast(0))
+            put("timestamp", queuedAt.ifBlank { nowText() })
+            if (login.isNotBlank()) put("login", login)
+            if (driverName.isNotBlank()) put("name", driverName)
+        }
+
+        val (statusCode, responseBody) = postJson(endpoint, payload)
+        require(statusCode in 200..299) { "HTTP $statusCode" }
+        validateRemoteResponse(responseBody)
+    }
+
+    private suspend fun loadRemoteEndpoint(dao: AppDao): String =
+        dao.getSetting("driver_remote_api_url")?.valText.orEmpty().ifBlank { DefaultDriverRemoteApiUrl }
+
+    private suspend fun postJson(url: String, payload: JSONObject): Pair<Int, String> = withContext(Dispatchers.IO) {
+        val connection = (URL(url).openConnection() as HttpURLConnection).apply {
+            requestMethod = "POST"
+            connectTimeout = 10000
+            readTimeout = 10000
+            doOutput = true
+            setRequestProperty("Content-Type", "application/json; charset=utf-8")
+        }
+
+        try {
+            connection.outputStream.bufferedWriter(Charsets.UTF_8).use { writer ->
+                writer.write(payload.toString())
+            }
+            val responseCode = connection.responseCode
+            val responseBody = runCatching {
+                val source = if (responseCode in 200..299) connection.inputStream else connection.errorStream
+                source?.bufferedReader(Charsets.UTF_8)?.use { it.readText() }.orEmpty()
+            }.getOrDefault("")
+            responseCode to responseBody
+        } finally {
+            connection.disconnect()
+        }
+    }
+
+    private fun validateRemoteResponse(body: String) {
+        if (body.isBlank()) return
+        val json = runCatching { JSONObject(body) }.getOrNull() ?: return
+        val status = json.optString("status").trim().lowercase()
+        val okStatuses = setOf("", "ok", "queued", "saved", "created", "success")
+        require(status in okStatuses) {
+            json.optString("message")
+                .takeIf { it.isNotBlank() }
+                ?: json.optString("error").takeIf { it.isNotBlank() }
+                ?: "Zdalny endpoint odrzucił aktualizację przebiegu"
+        }
+    }
 
     private data class PendingMileagePayload(
         val mileage: Int,
