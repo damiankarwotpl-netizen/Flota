@@ -6,6 +6,7 @@
         android:allowBackup="true"
         android:label="Future Ultimate Admin"
         android:supportsRtl="true"
+        android:usesCleartextTraffic="false"
         android:theme="@android:style/Theme.Material.Light.NoActionBar">
         <activity
             android:name=".MainActivity"

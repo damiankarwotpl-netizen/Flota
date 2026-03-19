@@ -1,6 +1,7 @@
 package com.future.ultimate.core.database.repository
 
 import android.content.Context
+import android.database.sqlite.SQLiteDatabase
 import com.future.ultimate.core.common.model.CarDraft
 import com.future.ultimate.core.common.model.ClothesOrderDraft
 import com.future.ultimate.core.common.model.ClothesOrderItemDraft
@@ -55,6 +56,7 @@ import java.util.Properties
 import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
 import kotlin.random.Random
+import org.json.JSONObject
 import javax.activation.DataHandler
 import javax.activation.FileDataSource
 import javax.mail.Message
@@ -976,7 +978,9 @@ class LocalAdminRepository(
 
     override suspend fun exportDatabaseSnapshot(): String {
         val outputDir = PatchLoader.safeExternalDir(context, feature = "database_snapshot")
-        val outputFile = File(outputDir, "future_v20_snapshot.zip")
+        val exportedAt = LocalDateTime.now()
+        checkpointDatabase()
+        val outputFile = File(outputDir, "future_v20_snapshot_${exportedAt.format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss"))}.zip")
         val databaseFiles = listOf(
             context.getDatabasePath("future_v20.db"),
             context.getDatabasePath("future_v20.db-wal"),
@@ -984,6 +988,25 @@ class LocalAdminRepository(
         ).filter { it.exists() }
 
         ZipOutputStream(outputFile.outputStream().buffered()).use { zip ->
+            val manifest = JSONObject().apply {
+                put("exportedAt", exportedAt.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")))
+                put("databaseName", "future_v20.db")
+                put(
+                    "entries",
+                    databaseFiles.fold(org.json.JSONArray()) { array, file ->
+                        array.put(
+                            JSONObject().apply {
+                                put("name", file.name)
+                                put("sizeBytes", file.length())
+                                put("lastModified", file.lastModified())
+                            },
+                        )
+                    },
+                )
+            }
+            zip.putNextEntry(ZipEntry("manifest.json"))
+            zip.write(manifest.toString(2).toByteArray(Charsets.UTF_8))
+            zip.closeEntry()
             databaseFiles.forEach { file ->
                 zip.putNextEntry(ZipEntry(file.name))
                 file.inputStream().use { input -> input.copyTo(zip) }
@@ -991,6 +1014,16 @@ class LocalAdminRepository(
             }
         }
         return outputFile.absolutePath
+    }
+
+    private fun checkpointDatabase() {
+        val databaseFile = context.getDatabasePath("future_v20.db")
+        if (!databaseFile.exists()) return
+        runCatching {
+            SQLiteDatabase.openDatabase(databaseFile.absolutePath, null, SQLiteDatabase.OPEN_READWRITE).use { db ->
+                db.execSQL("PRAGMA wal_checkpoint(FULL)")
+            }
+        }
     }
 
     override suspend fun exportContactsCsv(): String {
