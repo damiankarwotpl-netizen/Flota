@@ -12,6 +12,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.AlertDialog
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
@@ -56,6 +57,9 @@ fun EmailScreen(navController: NavController) {
                 Row(modifier = Modifier.fillMaxWidth()) {
                     Switch(checked = uiState.autoSend, onCheckedChange = { viewModel.toggleAutoSend() })
                     Text("AUTOMATYCZNA WYSYŁKA")
+                }
+                if (!uiState.autoSend) {
+                    Text("Tryb ręcznej akceptacji: każdy odbiorca masowej wysyłki wymaga decyzji operatora.")
                 }
                 Text("Baza: ${uiState.totalRecipients} | Załączniki: ${uiState.attachmentCount}")
                 Text(uiState.progressLabel)
@@ -148,5 +152,28 @@ fun EmailScreen(navController: NavController) {
                 }
             }
         }
+    }
+    if (uiState.isAwaitingMailApproval) {
+        AlertDialog(
+            onDismissRequest = {},
+            title = { Text("Weryfikacja odbiorcy") },
+            text = {
+                Column {
+                    Text(uiState.pendingApprovalRecipientName.ifBlank { "Bez nazwy" })
+                    Text(uiState.pendingApprovalRecipientEmail.ifBlank { "Brak email" })
+                    Text("Czy kontynuować wysyłkę do tego odbiorcy?")
+                }
+            },
+            confirmButton = {
+                Button(onClick = { viewModel.resolvePendingApproval(true) }) {
+                    Text("Wyślij")
+                }
+            },
+            dismissButton = {
+                Button(onClick = { viewModel.resolvePendingApproval(false) }) {
+                    Text("Pomiń")
+                }
+            },
+        )
     }
 }

@@ -8,7 +8,7 @@ This repository now contains a native Android migration foundation in `android-n
 - local driver-account handoff between admin car management and the driver app login/mileage/report flows
 - native driver mileage queue + periodic background sync worker, with retry metadata and admin-side sync freshness visibility
 - real PDF export of the vehicle report in both Android apps
-- native SMTP send/test flow with saved templates, session-report/dashboard screens in admin, CSV export for session reports, special-send selection, and pause/resume mass-mailing queue controls
+- native SMTP send/test flow with saved templates, session-report/dashboard screens in admin, CSV export for session reports, special-send selection, pause/resume mass-mailing queue controls, and manual operator approval when auto-send is off
 - the first clothes-module slices: native size management plus order headers/items/history, starter-order generation from workers/saved sizes, basic issue actions, and CSV/XLSX/PDF order + issue exports backed by Room
 
 ## Important

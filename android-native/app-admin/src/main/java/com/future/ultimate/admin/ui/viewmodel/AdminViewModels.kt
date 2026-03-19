@@ -19,6 +19,7 @@ import com.future.ultimate.core.common.repository.ClothesOrderListItem
 import com.future.ultimate.core.common.repository.ClothesSizeListItem
 import com.future.ultimate.core.common.repository.EmailTemplateData
 import com.future.ultimate.core.common.repository.ContactListItem
+import com.future.ultimate.core.common.repository.MailApprovalRequest
 import com.future.ultimate.core.common.repository.PayrollWorkbookRow
 import com.future.ultimate.core.common.repository.SmtpSettingsData
 import com.future.ultimate.core.common.ui.CarsUiState
@@ -37,6 +38,7 @@ import com.future.ultimate.core.common.ui.TemplateUiState
 import com.future.ultimate.core.common.ui.VehicleReportUiState
 import com.future.ultimate.core.common.ui.WorkersUiState
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -232,6 +234,7 @@ class PayrollViewModel(private val repository: AdminRepository) : ViewModel() {
     private var contactsCache: List<ContactListItem> = emptyList()
     private var templateCache: EmailTemplateData = EmailTemplateData()
     private var mailingJob: Job? = null
+    private var pendingApprovalDecision: CompletableDeferred<Boolean>? = null
     @Volatile
     private var mailingPaused: Boolean = false
 
@@ -431,11 +434,15 @@ class PayrollViewModel(private val repository: AdminRepository) : ViewModel() {
                     autoMode = _uiState.value.autoSend,
                     onProgress = ::handleMailProgress,
                     awaitResume = ::awaitMailResume,
+                    awaitApproval = ::awaitMailApproval,
                 )
             }.onSuccess { result ->
                 _uiState.value = _uiState.value.copy(
                     isMailingRunning = false,
                     isMailingPaused = false,
+                    isAwaitingMailApproval = false,
+                    pendingApprovalRecipientName = "",
+                    pendingApprovalRecipientEmail = "",
                     progressLabel = "Sesja zakończona: OK ${result.ok} / Błędy ${result.fail} / Skip ${result.skip}",
                     actionMessage = if (result.details.isBlank()) {
                         "Brak szczegółów sesji"
@@ -447,12 +454,16 @@ class PayrollViewModel(private val repository: AdminRepository) : ViewModel() {
                 _uiState.value = _uiState.value.copy(
                     isMailingRunning = false,
                     isMailingPaused = false,
+                    isAwaitingMailApproval = false,
+                    pendingApprovalRecipientName = "",
+                    pendingApprovalRecipientEmail = "",
                     progressLabel = "Masowa wysyłka przerwana",
                     actionMessage = error.message ?: "Nie udało się uruchomić masowej wysyłki",
                 )
             }
             mailingJob = null
             mailingPaused = false
+            pendingApprovalDecision = null
         }
     }
 
@@ -559,6 +570,9 @@ class PayrollViewModel(private val repository: AdminRepository) : ViewModel() {
                 _uiState.value = _uiState.value.copy(
                     isMailingRunning = false,
                     isMailingPaused = false,
+                    isAwaitingMailApproval = false,
+                    pendingApprovalRecipientName = "",
+                    pendingApprovalRecipientEmail = "",
                     progressLabel = "Specjalna sesja zakończona: OK ${result.ok} / Błędy ${result.fail} / Skip ${result.skip}",
                     actionMessage = if (result.details.isBlank()) {
                         "Brak szczegółów sesji"
@@ -570,13 +584,31 @@ class PayrollViewModel(private val repository: AdminRepository) : ViewModel() {
                 _uiState.value = _uiState.value.copy(
                     isMailingRunning = false,
                     isMailingPaused = false,
+                    isAwaitingMailApproval = false,
+                    pendingApprovalRecipientName = "",
+                    pendingApprovalRecipientEmail = "",
                     progressLabel = "Specjalna wysyłka przerwana",
                     actionMessage = error.message ?: "Nie udało się uruchomić wysyłki specjalnej",
                 )
             }
             mailingJob = null
             mailingPaused = false
+            pendingApprovalDecision = null
         }
+    }
+
+    fun resolvePendingApproval(approved: Boolean) {
+        val deferred = pendingApprovalDecision ?: return
+        if (deferred.isActive) {
+            deferred.complete(approved)
+        }
+        _uiState.value = _uiState.value.copy(
+            isAwaitingMailApproval = false,
+            pendingApprovalRecipientName = "",
+            pendingApprovalRecipientEmail = "",
+            actionMessage = if (approved) "Operator zatwierdził wysyłkę" else "Operator pominął odbiorcę",
+            progressLabel = if (approved) "Wysyłanie zatwierdzone — trwa dalej" else "Odbiorca pominięty przez operatora",
+        )
     }
 
     private fun addAttachment(path: String, label: String) {
@@ -600,6 +632,25 @@ class PayrollViewModel(private val repository: AdminRepository) : ViewModel() {
     private suspend fun awaitMailResume() {
         while (mailingPaused) {
             delay(200)
+        }
+    }
+
+    private suspend fun awaitMailApproval(request: MailApprovalRequest): Boolean {
+        val deferred = CompletableDeferred<Boolean>()
+        pendingApprovalDecision = deferred
+        _uiState.value = _uiState.value.copy(
+            isAwaitingMailApproval = true,
+            pendingApprovalRecipientName = request.recipientName,
+            pendingApprovalRecipientEmail = request.recipientEmail,
+            actionMessage = "Oczekiwanie na decyzję operatora",
+            progressLabel = "Weryfikacja odbiorcy przed wysyłką",
+        )
+        return try {
+            deferred.await()
+        } finally {
+            if (pendingApprovalDecision === deferred) {
+                pendingApprovalDecision = null
+            }
         }
     }
 

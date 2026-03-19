@@ -8,7 +8,7 @@ Below is the concrete **5-step plan** to reach a 1:1 native replacement of the l
    Replace the current local-only handoff with the production API contract for driver credentials, reset flows, and car-to-driver assignment sync.
 
 2. **Finish the SMTP pipeline end-to-end.**
-   The native app now covers real SMTP send, test connection, attachments, special-send flow, and pausable mass-mailing queue behavior. Remaining work is operator-review parity, production delivery edge cases, and final rollout validation.
+   The native app now covers real SMTP send, test connection, attachments, special-send flow, pausable mass-mailing queue behavior, and operator-review gating when auto-send is disabled. Remaining work is production delivery edge cases and final rollout validation.
 
 3. **Wire the remaining remote API/integration surfaces.**
    Port the missing production integrations used by admin and driver flows so native Android becomes the primary runtime instead of a local-first skeleton.
@@ -20,4 +20,4 @@ Below is the concrete **5-step plan** to reach a 1:1 native replacement of the l
     Execute end-to-end parity checks versus legacy, fix regressions, prepare rollout/build signing, and retire the Python/Kivy path only after native replacement is operationally complete.
 
 ## Current count
-**5 concrete implementation steps remain** after closing the native car-management parity gap, local payroll/table preview-export parity, workbook import staging/parsing in admin, clothes workflow parity, landing the local driver-account handoff, native vehicle-report PDF export, admin-side settings/report persistence, the first clothes sizes/orders/items/history/issue/CSV/XLSX export slices, the driver mileage background/queue sync slice with admin-side freshness visibility, and now also the native SMTP special-send + pausable mailing-queue slice.
+**5 concrete implementation steps remain** after closing the native car-management parity gap, local payroll/table preview-export parity, workbook import staging/parsing in admin, clothes workflow parity, landing the local driver-account handoff, native vehicle-report PDF export, admin-side settings/report persistence, the first clothes sizes/orders/items/history/issue/CSV/XLSX export slices, the driver mileage background/queue sync slice with admin-side freshness visibility, and now also the native SMTP special-send + pausable mailing-queue + operator-review slice.

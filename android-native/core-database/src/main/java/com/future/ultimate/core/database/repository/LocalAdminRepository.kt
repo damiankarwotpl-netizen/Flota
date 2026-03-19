@@ -26,6 +26,7 @@ import com.future.ultimate.core.common.repository.ContactListItem
 import com.future.ultimate.core.common.repository.DashboardStats
 import com.future.ultimate.core.common.repository.DriverAccountCredentials
 import com.future.ultimate.core.common.repository.EmailTemplateData
+import com.future.ultimate.core.common.repository.MailApprovalRequest
 import com.future.ultimate.core.common.repository.MailDispatchProgress
 import com.future.ultimate.core.common.repository.MailDispatchResult
 import com.future.ultimate.core.common.repository.PlantListItem
@@ -857,6 +858,7 @@ class LocalAdminRepository(
         autoMode: Boolean,
         onProgress: suspend (MailDispatchProgress) -> Unit,
         awaitResume: suspend () -> Unit,
+        awaitApproval: suspend (MailApprovalRequest) -> Boolean,
     ): MailDispatchResult =
         withContext(Dispatchers.IO) {
             dispatchMailBatch(
@@ -877,6 +879,8 @@ class LocalAdminRepository(
                 bodyOverride = null,
                 onProgress = onProgress,
                 awaitResume = awaitResume,
+                requireApproval = !autoMode,
+                awaitApproval = awaitApproval,
             )
         }
 
@@ -897,6 +901,8 @@ class LocalAdminRepository(
                 bodyOverride = body,
                 onProgress = onProgress,
                 awaitResume = awaitResume,
+                requireApproval = false,
+                awaitApproval = { true },
             )
         }
 
@@ -1273,6 +1279,8 @@ class LocalAdminRepository(
         bodyOverride: String?,
         onProgress: suspend (MailDispatchProgress) -> Unit,
         awaitResume: suspend () -> Unit,
+        requireApproval: Boolean,
+        awaitApproval: suspend (MailApprovalRequest) -> Boolean,
     ): MailDispatchResult {
         val settings = loadSavedSmtpSettings().normalized()
         val template = loadSavedEmailTemplate().validated()
@@ -1308,6 +1316,29 @@ class LocalAdminRepository(
                     ),
                 )
                 return@forEachIndexed
+            }
+            if (requireApproval) {
+                val approved = awaitApproval(
+                    MailApprovalRequest(
+                        recipientName = recipientLabel,
+                        recipientEmail = email,
+                    ),
+                )
+                if (!approved) {
+                    skip += 1
+                    details += "SKIP: ${fullName.ifBlank { email }} <$email> — pominięte przez operatora"
+                    onProgress(
+                        MailDispatchProgress(
+                            processed = index + 1,
+                            total = recipients.size,
+                            ok = ok,
+                            fail = fail,
+                            skip = skip,
+                            currentRecipient = recipientLabel,
+                        ),
+                    )
+                    return@forEachIndexed
+                }
             }
 
             runCatching {

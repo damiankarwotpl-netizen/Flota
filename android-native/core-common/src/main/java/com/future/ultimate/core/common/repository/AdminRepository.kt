@@ -149,6 +149,11 @@ data class MailDispatchProgress(
     val currentRecipient: String = "",
 )
 
+data class MailApprovalRequest(
+    val recipientName: String = "",
+    val recipientEmail: String = "",
+)
+
 data class DashboardStats(
     val contactCount: Int = 0,
     val workerCount: Int = 0,
@@ -248,6 +253,7 @@ interface AdminRepository {
         autoMode: Boolean,
         onProgress: suspend (MailDispatchProgress) -> Unit = {},
         awaitResume: suspend () -> Unit = {},
+        awaitApproval: suspend (MailApprovalRequest) -> Boolean = { true },
     ): MailDispatchResult
     suspend fun sendSpecialMailing(
         recipients: List<ContactListItem>,
