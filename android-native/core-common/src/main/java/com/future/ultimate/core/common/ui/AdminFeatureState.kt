@@ -54,6 +54,13 @@ data class PayrollUiState(
     val isMailingRunning: Boolean = false,
 )
 
+data class TableUiState(
+    val query: String = "",
+    val items: List<ContactListItem> = emptyList(),
+    val exportMessage: String? = null,
+    val isExporting: Boolean = false,
+)
+
 data class WorkersUiState(
     val query: String = "",
     val items: List<WorkerListItem> = emptyList(),

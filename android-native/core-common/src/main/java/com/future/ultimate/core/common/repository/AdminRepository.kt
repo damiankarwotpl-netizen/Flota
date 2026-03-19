@@ -180,6 +180,8 @@ interface AdminRepository {
 
     suspend fun saveVehicleReportDraft(draft: VehicleReportDraft)
     suspend fun exportVehicleReportPdf(draft: VehicleReportDraft): String
+    suspend fun exportContactsCsv(): String
+    suspend fun exportContactRowXlsx(name: String, surname: String): String
     suspend fun exportClothesHistoryCsv(): String
     suspend fun exportSessionReportsCsv(): String
 }

@@ -27,6 +27,7 @@ import com.future.ultimate.core.common.ui.PlantsUiState
 import com.future.ultimate.core.common.ui.ReportsUiState
 import com.future.ultimate.core.common.ui.SettingsUiState
 import com.future.ultimate.core.common.ui.SmtpUiState
+import com.future.ultimate.core.common.ui.TableUiState
 import com.future.ultimate.core.common.ui.TemplateUiState
 import com.future.ultimate.core.common.ui.VehicleReportUiState
 import com.future.ultimate.core.common.ui.WorkersUiState
@@ -136,6 +137,36 @@ class PayrollViewModel : ViewModel() {
     private val _uiState = MutableStateFlow(PayrollUiState())
     val uiState: StateFlow<PayrollUiState> = _uiState.asStateFlow()
     fun toggleAutoSend() { _uiState.value = _uiState.value.copy(autoSend = !_uiState.value.autoSend) }
+}
+
+class TableViewModel(private val repository: AdminRepository) : ViewModel() {
+    private val _uiState = MutableStateFlow(TableUiState())
+    val uiState: StateFlow<TableUiState> = _uiState.asStateFlow()
+
+    init {
+        repository.observeContacts().onEach { items ->
+            _uiState.value = _uiState.value.copy(items = items)
+        }.launchIn(viewModelScope)
+    }
+
+    fun updateQuery(value: String) {
+        _uiState.value = _uiState.value.copy(query = value, exportMessage = null)
+    }
+
+    fun exportCsv() = viewModelScope.launch {
+        _uiState.value = _uiState.value.copy(isExporting = true, exportMessage = null)
+        val path = repository.exportContactsCsv()
+        _uiState.value = _uiState.value.copy(isExporting = false, exportMessage = "CSV kontaktów zapisany: $path")
+    }
+
+    fun exportRow(item: com.future.ultimate.core.common.repository.ContactListItem) = viewModelScope.launch {
+        _uiState.value = _uiState.value.copy(isExporting = true, exportMessage = null)
+        val path = repository.exportContactRowXlsx(item.name, item.surname)
+        _uiState.value = _uiState.value.copy(
+            isExporting = false,
+            exportMessage = if (path.isBlank()) "Nie znaleziono rekordu do eksportu" else "XLSX kontaktu zapisany: $path",
+        )
+    }
 }
 
 class WorkersViewModel(private val repository: AdminRepository) : ViewModel() {
@@ -520,6 +551,7 @@ class AdminViewModelFactory(private val repository: AdminRepository) : ViewModel
         modelClass.isAssignableFrom(CarsViewModel::class.java) -> CarsViewModel(repository) as T
         modelClass.isAssignableFrom(VehicleReportViewModel::class.java) -> VehicleReportViewModel(repository) as T
         modelClass.isAssignableFrom(PayrollViewModel::class.java) -> PayrollViewModel() as T
+        modelClass.isAssignableFrom(TableViewModel::class.java) -> TableViewModel(repository) as T
         modelClass.isAssignableFrom(WorkersViewModel::class.java) -> WorkersViewModel(repository) as T
         modelClass.isAssignableFrom(PlantsViewModel::class.java) -> PlantsViewModel(repository) as T
         modelClass.isAssignableFrom(ClothesSizesViewModel::class.java) -> ClothesSizesViewModel(repository) as T

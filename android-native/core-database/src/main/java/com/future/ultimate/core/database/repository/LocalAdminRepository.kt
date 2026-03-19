@@ -591,6 +591,61 @@ class LocalAdminRepository(
     override suspend fun exportVehicleReportPdf(draft: VehicleReportDraft): String =
         VehicleReportPdfExporter.export(context, draft, ownerTag = "admin")
 
+    override suspend fun exportContactsCsv(): String {
+        val outputDir = context.getExternalFilesDir(null) ?: context.filesDir
+        val outputFile = File(outputDir, "contacts_table.csv")
+        val rows = dao.observeContacts().first().sortedWith(compareBy<ContactEntity> { it.surname }.thenBy { it.name })
+        outputFile.bufferedWriter(Charsets.UTF_8).use { writer ->
+            writer.appendLine("name,surname,email,phone,workplace,apartment,notes")
+            rows.forEach { row ->
+                writer.appendCsvLine(
+                    row.name,
+                    row.surname,
+                    row.email,
+                    row.phone,
+                    row.workplace,
+                    row.apartment,
+                    row.notes,
+                )
+            }
+        }
+        return outputFile.absolutePath
+    }
+
+    override suspend fun exportContactRowXlsx(name: String, surname: String): String {
+        val contact = dao.getContact(name.trim().lowercase(), surname.trim().lowercase())
+            ?: return ""
+        val outputDir = context.getExternalFilesDir(null) ?: context.filesDir
+        val safeName = sanitizeFilePart(contact.name.ifBlank { "kontakt" })
+        val safeSurname = sanitizeFilePart(contact.surname.ifBlank { "rekord" })
+        val outputFile = File(outputDir, "kontakt_${safeName}_${safeSurname}.xlsx")
+        SimpleXlsxWorkbookWriter.writeSingleSheet(
+            file = outputFile,
+            sheetName = "Kontakty",
+            rows = listOf(
+                listOf(
+                    SimpleXlsxWorkbookWriter.Cell.text("Imię"),
+                    SimpleXlsxWorkbookWriter.Cell.text("Nazwisko"),
+                    SimpleXlsxWorkbookWriter.Cell.text("Email"),
+                    SimpleXlsxWorkbookWriter.Cell.text("Telefon"),
+                    SimpleXlsxWorkbookWriter.Cell.text("Miejsce pracy"),
+                    SimpleXlsxWorkbookWriter.Cell.text("Mieszkanie"),
+                    SimpleXlsxWorkbookWriter.Cell.text("Notatki"),
+                ),
+                listOf(
+                    SimpleXlsxWorkbookWriter.Cell.text(contact.name),
+                    SimpleXlsxWorkbookWriter.Cell.text(contact.surname),
+                    SimpleXlsxWorkbookWriter.Cell.text(contact.email),
+                    SimpleXlsxWorkbookWriter.Cell.text(contact.phone),
+                    SimpleXlsxWorkbookWriter.Cell.text(contact.workplace),
+                    SimpleXlsxWorkbookWriter.Cell.text(contact.apartment),
+                    SimpleXlsxWorkbookWriter.Cell.text(contact.notes),
+                ),
+            ),
+        )
+        return outputFile.absolutePath
+    }
+
     override suspend fun exportClothesHistoryCsv(): String {
         val outputDir = context.getExternalFilesDir(null) ?: context.filesDir
         val outputFile = File(outputDir, "clothes_history.csv")
@@ -666,6 +721,12 @@ class LocalAdminRepository(
             "\"${value.replace("\"", "\"\"")}\""
         })
     }
+
+    private fun sanitizeFilePart(value: String): String = value
+        .trim()
+        .replace(Regex("[^A-Za-z0-9_-]+"), "_")
+        .trim('_')
+        .ifBlank { "export" }
 
     private fun generatePassword(length: Int = 6): String = buildString {
         repeat(length) { append(Random.nextInt(0, 10)) }
