@@ -846,9 +846,6 @@ class LocalAdminRepository(
         DriverRemoteSyncGateway.saveEndpoint(dao, settings.apiUrl)
     }
 
-    override suspend fun validateDriverRemoteSettings(settings: DriverRemoteSettingsData): String =
-        DriverRemoteSyncGateway.validateEndpoint(dao, settings.apiUrl)
-
     override fun observeEmailTemplate(): Flow<EmailTemplateData> = dao.observeSettings().map { settings ->
         val map = settings.associateBy({ it.key }, { it.valText })
         EmailTemplateData(

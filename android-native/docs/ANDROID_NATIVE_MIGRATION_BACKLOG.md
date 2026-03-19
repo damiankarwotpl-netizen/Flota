@@ -5,7 +5,7 @@
 Below is the concrete migration plan used to reach a 1:1 native replacement of the legacy Kivy apps in this repository.
 
 1. **Add real remote driver-account synchronization.**
-   Closed in this slice by keeping driver-side session continuity across restarts from the synced local account store and by adding an explicit admin-side endpoint validation path for the production driver contract.
+   The native admin now pushes remote create/reset/delete + car-assignment sync requests for driver accounts and exposes sync status per vehicle. Remaining work is driver-side remote login/parity hardening and final production contract validation.
 
 2. **Finish the SMTP pipeline end-to-end.**
    The native app now covers real SMTP send, test connection, attachments, special-send flow, pausable mass-mailing queue behavior, and operator-review gating when auto-send is disabled. Remaining work is production delivery edge cases and final rollout validation.
@@ -20,4 +20,4 @@ Below is the concrete migration plan used to reach a 1:1 native replacement of t
     Execute end-to-end parity checks versus legacy, fix regressions, prepare rollout/build signing, and retire the Python/Kivy path only after native replacement is operationally complete.
 
 ## Current count
-**2 concrete implementation steps remain** after closing the native car-management parity gap, local payroll/table preview-export parity, workbook import staging/parsing in admin, clothes workflow parity, landing the local driver-account handoff, native vehicle-report PDF export, admin-side settings/report persistence, the first clothes sizes/orders/items/history/issue/CSV/XLSX export slices, the driver mileage background/queue sync slice with admin-side freshness visibility, the native SMTP special-send + pausable mailing-queue + operator-review slice, the first remote driver-account sync/status slice, the remaining remote API/integration wiring slice, and now also the notifications/resilience/operational-hardening slice.
+**3 concrete implementation steps remain** after closing the native car-management parity gap, local payroll/table preview-export parity, workbook import staging/parsing in admin, clothes workflow parity, landing the local driver-account handoff, native vehicle-report PDF export, admin-side settings/report persistence, the first clothes sizes/orders/items/history/issue/CSV/XLSX export slices, the driver mileage background/queue sync slice with admin-side freshness visibility, the native SMTP special-send + pausable mailing-queue + operator-review slice, the first remote driver-account sync/status slice, the remaining remote API/integration wiring slice, and now also the notifications/resilience/operational-hardening slice.

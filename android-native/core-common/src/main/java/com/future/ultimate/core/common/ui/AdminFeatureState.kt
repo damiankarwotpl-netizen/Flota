@@ -180,6 +180,5 @@ data class SettingsUiState(
     val remoteSettings: DriverRemoteSettingsData = DriverRemoteSettingsData(),
     val isExportingDatabase: Boolean = false,
     val isSavingRemoteSettings: Boolean = false,
-    val isValidatingRemoteSettings: Boolean = false,
     val actionMessage: String? = null,
 )

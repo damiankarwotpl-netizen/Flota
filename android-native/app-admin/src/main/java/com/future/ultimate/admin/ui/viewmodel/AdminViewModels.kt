@@ -1473,23 +1473,6 @@ class SettingsViewModel(private val repository: AdminRepository) : ViewModel() {
             actionMessage = "Ustawienia zdalnej integracji zapisane",
         )
     }
-
-    fun validateDriverRemoteSettings() = viewModelScope.launch {
-        _uiState.value = _uiState.value.copy(isValidatingRemoteSettings = true, actionMessage = "Trwa walidacja endpointu...")
-        runCatching {
-            repository.validateDriverRemoteSettings(_uiState.value.remoteSettings)
-        }.onSuccess { message ->
-            _uiState.value = _uiState.value.copy(
-                isValidatingRemoteSettings = false,
-                actionMessage = message,
-            )
-        }.onFailure { error ->
-            _uiState.value = _uiState.value.copy(
-                isValidatingRemoteSettings = false,
-                actionMessage = error.message ?: "Walidacja endpointu nie powiodła się",
-            )
-        }
-    }
 }
 
 class AdminViewModelFactory(private val repository: AdminRepository) : ViewModelProvider.Factory {

@@ -254,7 +254,6 @@ interface AdminRepository {
     suspend fun validateSmtpConnection(settings: SmtpSettingsData)
     fun observeDriverRemoteSettings(): Flow<DriverRemoteSettingsData>
     suspend fun saveDriverRemoteSettings(settings: DriverRemoteSettingsData)
-    suspend fun validateDriverRemoteSettings(settings: DriverRemoteSettingsData): String
 
     fun observeEmailTemplate(): Flow<EmailTemplateData>
     suspend fun saveEmailTemplate(template: EmailTemplateData)
