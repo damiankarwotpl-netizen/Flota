@@ -128,6 +128,7 @@ COLOR_HEADER = (0.18, 0.30, 0.56, 1)
 class ModernButton(Button):
     def __init__(self, bg_color=COLOR_PRIMARY, **kwargs):
         super().__init__(**kwargs)
+        pal = AppTheme.palette()
         self.background_normal = ""
         self.background_color = (0,0,0,0)
         self.color = AppTheme.palette()["text"]
@@ -137,6 +138,8 @@ class ModernButton(Button):
         self._font_max = float(getattr(self, 'font_size', dp(16)))
         self._font_min = float(dp(10))
         with self.canvas.before:
+            self.shadow_color = Color(*pal["shadow"])
+            self.shadow_rect = RoundedRectangle(pos=(self.x, self.y - dp(2)), size=self.size, radius=self.radius)
             self.bg = Color(*self.base_color)
             self.rect = RoundedRectangle(pos=self.pos, size=self.size, radius=self.radius)
             Color(1, 1, 1, 0.16)
@@ -174,6 +177,8 @@ class ModernButton(Button):
             self.width = max(self.width, chosen_w + dp(20))
 
     def _update(self, *args):
+        self.shadow_rect.pos = (self.x, self.y - dp(2))
+        self.shadow_rect.size = self.size
         self.rect.pos, self.rect.size = self.pos, self.size
         self.border_line.rounded_rectangle = (self.x, self.y, self.width, self.height, dp(16))
         self.text_size = (None, None)
@@ -544,16 +549,20 @@ def merge_pdf_template_with_overlay(template_path, overlay_path, output_path):
 class Card(BoxLayout):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.padding = kwargs.get("padding", dp(12))
-        self.spacing = kwargs.get("spacing", dp(8))
+        self.padding = kwargs.get("padding", UI_SPACING["md"])
+        self.spacing = kwargs.get("spacing", UI_SPACING["sm"])
+        pal = AppTheme.palette()
         with self.canvas.before:
             Color(*AppTheme.palette()["card"])
             self._card_rect = RoundedRectangle(pos=self.pos, size=self.size, radius=[dp(16)])
         self.bind(pos=self._update_bg, size=self._update_bg)
 
     def _update_bg(self, *_):
+        self._card_shadow_rect.pos = (self.x, self.y - dp(2))
+        self._card_shadow_rect.size = self.size
         self._card_rect.pos = self.pos
         self._card_rect.size = self.size
+        self._card_border.rounded_rectangle = (self.x, self.y, self.width, self.height, UI_RADIUS["md"])
 
 
 class PrimaryButton(ModernButton):
@@ -586,6 +595,10 @@ class TopBar(BoxLayout):
         self.add_widget(Label(text=title, bold=True, halign="left", valign="middle", color=pal["text"]))
 
     def _upd(self, *_):
+        self._bg_left.pos = self.pos
+        self._bg_left.size = self.size
+        self._bg_right.pos = (self.x + self.width * 0.5, self.y)
+        self._bg_right.size = (self.width * 0.5, self.height)
         self._rect.pos = self.pos
         self._rect.size = self.size
 
@@ -674,7 +687,12 @@ class FloatingActionButton(PrimaryButton):
 class AppLayout(FloatLayout):
     def __init__(self, title="", **kwargs):
         super().__init__(**kwargs)
-        self.base = BoxLayout(orientation="vertical", padding=[dp(10), dp(10), dp(10), dp(10)], spacing=dp(8), size_hint=(1, 1))
+        pal = AppTheme.palette()
+        with self.canvas.before:
+            Color(*pal["background"])
+            self._layout_bg = Rectangle(pos=self.pos, size=self.size)
+        self.bind(pos=self._update_layout_bg, size=self._update_layout_bg)
+        self.base = BoxLayout(orientation="vertical", padding=[dp(10), dp(10), dp(10), dp(10)], spacing=UI_SPACING["sm"], size_hint=(1, 1))
         self.topbar = TopBar(title=title)
         self.nav_tabs = AppActionBar()
         self.content = BoxLayout(orientation="vertical")
@@ -695,6 +713,10 @@ class AppLayout(FloatLayout):
             self.remove_widget(self.fab)
         self.fab = FloatingActionButton(on_press=on_press, pos_hint={"right": 0.97, "y": 0.03})
         self.add_widget(self.fab)
+
+    def _update_layout_bg(self, *_):
+        self._layout_bg.pos = self.pos
+        self._layout_bg.size = self.size
 
 class ClothesSizesScreen(Screen):
     def on_enter(self):
