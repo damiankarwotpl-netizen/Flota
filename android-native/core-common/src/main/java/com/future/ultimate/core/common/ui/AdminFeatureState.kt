@@ -1,13 +1,24 @@
 package com.future.ultimate.core.common.ui
 
 import com.future.ultimate.core.common.model.CarDraft
+import com.future.ultimate.core.common.model.ClothesOrderDraft
+import com.future.ultimate.core.common.model.ClothesOrderItemDraft
+import com.future.ultimate.core.common.model.ClothesSizeDraft
 import com.future.ultimate.core.common.model.ContactDraft
 import com.future.ultimate.core.common.model.PlantDraft
 import com.future.ultimate.core.common.model.VehicleReportDraft
 import com.future.ultimate.core.common.model.WorkerDraft
 import com.future.ultimate.core.common.repository.CarListItem
+import com.future.ultimate.core.common.repository.ClothesOrderItemListItem
+import com.future.ultimate.core.common.repository.ClothesOrderListItem
+import com.future.ultimate.core.common.repository.ClothesSizeListItem
+import com.future.ultimate.core.common.repository.ClothesHistoryListItem
 import com.future.ultimate.core.common.repository.ContactListItem
+import com.future.ultimate.core.common.repository.DashboardStats
+import com.future.ultimate.core.common.repository.EmailTemplateData
 import com.future.ultimate.core.common.repository.PlantListItem
+import com.future.ultimate.core.common.repository.SessionReportListItem
+import com.future.ultimate.core.common.repository.SmtpSettingsData
 import com.future.ultimate.core.common.repository.WorkerListItem
 
 data class ContactsUiState(
@@ -55,4 +66,57 @@ data class PlantsUiState(
     val items: List<PlantListItem> = emptyList(),
     val editor: PlantDraft = PlantDraft(),
     val isSaving: Boolean = false,
+)
+
+data class ClothesSizesUiState(
+    val query: String = "",
+    val items: List<ClothesSizeListItem> = emptyList(),
+    val editor: ClothesSizeDraft = ClothesSizeDraft(),
+    val isSaving: Boolean = false,
+)
+
+data class ClothesOrdersUiState(
+    val items: List<ClothesOrderListItem> = emptyList(),
+    val selectedOrderId: Long? = null,
+    val selectedOrderItems: List<ClothesOrderItemListItem> = emptyList(),
+    val editor: ClothesOrderDraft = ClothesOrderDraft(),
+    val itemEditor: ClothesOrderItemDraft = ClothesOrderItemDraft(),
+    val actionMessage: String? = null,
+    val isSaving: Boolean = false,
+    val isSavingItem: Boolean = false,
+    val isExportingXlsx: Boolean = false,
+)
+
+data class ClothesReportsUiState(
+    val year: String = "",
+    val history: List<ClothesHistoryListItem> = emptyList(),
+    val yearlySummary: List<String> = emptyList(),
+    val exportMessage: String? = null,
+    val isExporting: Boolean = false,
+)
+
+data class SmtpUiState(
+    val settings: SmtpSettingsData = SmtpSettingsData(),
+    val message: String? = null,
+    val isSaving: Boolean = false,
+)
+
+data class TemplateUiState(
+    val template: EmailTemplateData = EmailTemplateData(),
+    val previewName: String = "Jan",
+    val previewDate: String = "",
+    val subjectPreview: String = "",
+    val bodyPreview: String = "",
+    val message: String? = null,
+    val isSaving: Boolean = false,
+)
+
+data class ReportsUiState(
+    val items: List<SessionReportListItem> = emptyList(),
+    val exportMessage: String? = null,
+    val isExporting: Boolean = false,
+)
+
+data class SettingsUiState(
+    val stats: DashboardStats = DashboardStats(),
 )

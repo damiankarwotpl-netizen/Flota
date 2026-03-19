@@ -11,6 +11,7 @@ data class DriverLoginUiState(
 
 data class DriverMileageUiState(
     val registration: String = "",
+    val driverName: String = "",
     val mileage: String = "",
     val status: String? = null,
     val isSaving: Boolean = false,
@@ -18,6 +19,7 @@ data class DriverMileageUiState(
 
 data class DriverVehicleReportUiState(
     val draft: VehicleReportDraft = VehicleReportDraft(),
+    val driverName: String = "",
     val isSaving: Boolean = false,
     val message: String? = null,
 )

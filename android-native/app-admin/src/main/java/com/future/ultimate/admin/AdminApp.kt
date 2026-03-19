@@ -11,7 +11,10 @@ class AdminApp : Application() {
     override fun onCreate() {
         super.onCreate()
         container = AdminAppContainer(
-            repository = LocalAdminRepository(DatabaseFactory.create(this).appDao()),
+            repository = LocalAdminRepository(
+                dao = DatabaseFactory.create(this).appDao(),
+                context = this,
+            ),
         )
     }
 }
