@@ -95,8 +95,8 @@ fun VehicleReportScreen() {
                         Text(label)
                     }
                 }
-                Button(onClick = viewModel::saveDraft, modifier = Modifier.fillMaxWidth()) {
-                    Text(if (uiState.isSaving) "Zapisywanie..." else "Zapisz szkic PDF")
+                Button(onClick = viewModel::exportPdf, modifier = Modifier.fillMaxWidth()) {
+                    Text(if (uiState.isSaving) "Zapisywanie..." else "Zapisz PDF")
                 }
                 uiState.exportMessage?.let { Text(it) }
             }

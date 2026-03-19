@@ -1,6 +1,9 @@
 package com.future.ultimate.core.common.repository
 
 import com.future.ultimate.core.common.model.CarDraft
+import com.future.ultimate.core.common.model.ClothesOrderDraft
+import com.future.ultimate.core.common.model.ClothesOrderItemDraft
+import com.future.ultimate.core.common.model.ClothesSizeDraft
 import com.future.ultimate.core.common.model.ContactDraft
 import com.future.ultimate.core.common.model.PlantDraft
 import com.future.ultimate.core.common.model.VehicleReportDraft
@@ -25,6 +28,9 @@ data class CarListItem(
     val mileage: Int,
     val serviceInterval: Int,
     val lastService: Int,
+    val driverLogin: String = "",
+    val driverPassword: String = "",
+    val changePasswordRequired: Boolean = false,
 ) {
     val remainingToService: Int
         get() = serviceInterval - (mileage - lastService)
@@ -49,6 +55,78 @@ data class PlantListItem(
     val notes: String,
 )
 
+data class ClothesSizeListItem(
+    val id: Long,
+    val name: String,
+    val surname: String,
+    val plant: String,
+    val shirt: String,
+    val hoodie: String,
+    val pants: String,
+    val jacket: String,
+    val shoes: String,
+)
+
+data class ClothesOrderListItem(
+    val id: Long,
+    val date: String,
+    val plant: String,
+    val status: String,
+    val orderDesc: String,
+)
+
+data class ClothesOrderItemListItem(
+    val id: Long,
+    val orderId: Long,
+    val workerId: Long,
+    val name: String,
+    val surname: String,
+    val item: String,
+    val size: String,
+    val qty: Int,
+    val issued: Boolean,
+)
+
+data class ClothesHistoryListItem(
+    val id: Long,
+    val workerId: Long,
+    val name: String,
+    val surname: String,
+    val item: String,
+    val size: String,
+    val date: String,
+)
+
+data class SmtpSettingsData(
+    val host: String = "",
+    val port: String = "587",
+    val user: String = "",
+    val password: String = "",
+)
+
+data class EmailTemplateData(
+    val subject: String = "",
+    val body: String = "",
+)
+
+data class SessionReportListItem(
+    val date: String,
+    val ok: Int,
+    val fail: Int,
+    val skip: Int,
+    val details: String,
+)
+
+data class DashboardStats(
+    val contactCount: Int = 0,
+    val workerCount: Int = 0,
+    val carCount: Int = 0,
+    val plantCount: Int = 0,
+    val clothesSizeCount: Int = 0,
+    val clothesOrderCount: Int = 0,
+    val clothesHistoryCount: Int = 0,
+)
+
 interface AdminRepository {
     fun observeContacts(): Flow<List<ContactListItem>>
     suspend fun saveContact(draft: ContactDraft)
@@ -69,5 +147,32 @@ interface AdminRepository {
     suspend fun savePlant(draft: PlantDraft)
     suspend fun deletePlant(id: Long)
 
+    fun observeClothesSizes(): Flow<List<ClothesSizeListItem>>
+    suspend fun saveClothesSize(draft: ClothesSizeDraft)
+    suspend fun deleteClothesSize(id: Long)
+
+    fun observeClothesOrders(): Flow<List<ClothesOrderListItem>>
+    suspend fun saveClothesOrder(draft: ClothesOrderDraft)
+    fun observeClothesOrderItems(orderId: Long): Flow<List<ClothesOrderItemListItem>>
+    suspend fun saveClothesOrderItem(orderId: Long, draft: ClothesOrderItemDraft)
+    suspend fun deleteClothesOrderItem(id: Long)
+    suspend fun markClothesOrderOrdered(orderId: Long)
+    suspend fun issueClothesOrderItem(id: Long)
+    suspend fun issueAllClothesOrderItems(orderId: Long)
+    suspend fun exportClothesOrderCsv(orderId: Long): String
+    fun observeClothesHistory(): Flow<List<ClothesHistoryListItem>>
+
+    fun observeSmtpSettings(): Flow<SmtpSettingsData>
+    suspend fun saveSmtpSettings(settings: SmtpSettingsData)
+
+    fun observeEmailTemplate(): Flow<EmailTemplateData>
+    suspend fun saveEmailTemplate(template: EmailTemplateData)
+
+    fun observeSessionReports(): Flow<List<SessionReportListItem>>
+    fun observeDashboardStats(): Flow<DashboardStats>
+
     suspend fun saveVehicleReportDraft(draft: VehicleReportDraft)
+    suspend fun exportVehicleReportPdf(draft: VehicleReportDraft): String
+    suspend fun exportClothesHistoryCsv(): String
+    suspend fun exportSessionReportsCsv(): String
 }

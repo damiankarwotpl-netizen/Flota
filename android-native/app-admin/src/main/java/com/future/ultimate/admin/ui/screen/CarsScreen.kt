@@ -11,8 +11,8 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.future.ultimate.admin.AdminApp
@@ -78,6 +78,16 @@ fun CarsScreen() {
                             Text("${car.name} • ${car.registration}")
                             Text("Kierowca: ${car.driver.ifBlank { "nieprzypisany" }}")
                             Text("Przebieg: ${car.mileage} km • do serwisu: ${car.remainingToService} km")
+                            if (car.driverLogin.isNotBlank()) {
+                                Text("Login kierowcy: ${car.driverLogin}")
+                                Text(
+                                    if (car.changePasswordRequired) {
+                                        "Hasło startowe: ${car.driverPassword}"
+                                    } else {
+                                        "Hasło zostało już zmienione przez kierowcę"
+                                    },
+                                )
+                            }
                             OutlinedTextField(
                                 value = uiState.driverDrafts[car.id].orEmpty(),
                                 onValueChange = { viewModel.updateDriverDraft(car.id, it) },

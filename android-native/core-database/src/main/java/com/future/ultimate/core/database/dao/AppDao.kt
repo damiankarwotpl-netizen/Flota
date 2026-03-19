@@ -8,7 +8,9 @@ import com.future.ultimate.core.database.entity.CarEntity
 import com.future.ultimate.core.database.entity.ClothesOrderEntity
 import com.future.ultimate.core.database.entity.ClothesOrderItemEntity
 import com.future.ultimate.core.database.entity.ClothesSizeEntity
+import com.future.ultimate.core.database.entity.ClothesHistoryEntity
 import com.future.ultimate.core.database.entity.ContactEntity
+import com.future.ultimate.core.database.entity.DriverAccountEntity
 import com.future.ultimate.core.database.entity.PlantEntity
 import com.future.ultimate.core.database.entity.ReportEntity
 import com.future.ultimate.core.database.entity.SettingEntity
@@ -35,17 +37,47 @@ interface AppDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsertCar(entity: CarEntity)
 
+    @Query("SELECT * FROM cars WHERE id = :id LIMIT 1")
+    suspend fun getCar(id: Long): CarEntity?
+
+    @Query("SELECT * FROM cars WHERE upper(registration) = upper(:registration) LIMIT 1")
+    suspend fun getCarByRegistration(registration: String): CarEntity?
+
     @Query("DELETE FROM cars WHERE id = :id")
     suspend fun deleteCar(id: Long)
 
     @Query("UPDATE cars SET mileage = :mileage WHERE id = :id")
     suspend fun updateMileage(id: Long, mileage: Int)
 
+    @Query("UPDATE cars SET mileage = :mileage WHERE upper(registration) = upper(:registration)")
+    suspend fun updateMileageByRegistration(registration: String, mileage: Int)
+
     @Query("UPDATE cars SET driver = :driver WHERE id = :id")
     suspend fun updateDriver(id: Long, driver: String)
 
     @Query("UPDATE cars SET lastService = mileage WHERE id = :id")
     suspend fun confirmService(id: Long)
+
+    @Query("SELECT * FROM driver_accounts WHERE upper(registration) = upper(:registration) LIMIT 1")
+    suspend fun getDriverAccountByRegistration(registration: String): DriverAccountEntity?
+
+    @Query("SELECT * FROM driver_accounts WHERE lower(login) = lower(:login) LIMIT 1")
+    suspend fun getDriverAccountByLogin(login: String): DriverAccountEntity?
+
+    @Query("SELECT * FROM driver_accounts WHERE lower(login) = lower(:login) AND password = :password LIMIT 1")
+    suspend fun getDriverAccount(login: String, password: String): DriverAccountEntity?
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertDriverAccount(entity: DriverAccountEntity)
+
+    @Query("SELECT * FROM driver_accounts")
+    fun observeDriverAccounts(): Flow<List<DriverAccountEntity>>
+
+    @Query("UPDATE driver_accounts SET password = :password, changePassword = :changePassword WHERE upper(registration) = upper(:registration)")
+    suspend fun updateDriverPassword(registration: String, password: String, changePassword: Int)
+
+    @Query("DELETE FROM driver_accounts WHERE upper(registration) = upper(:registration)")
+    suspend fun deleteDriverAccountByRegistration(registration: String)
 
     @Query("SELECT * FROM workers ORDER BY surname, name")
     fun observeWorkers(): Flow<List<WorkerEntity>>
@@ -95,11 +127,50 @@ interface AppDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsertClothesOrderItems(entities: List<ClothesOrderItemEntity>)
 
+    @Query("SELECT * FROM clothes_order_items WHERE orderId = :orderId ORDER BY surname, name, item")
+    fun observeClothesOrderItems(orderId: Long): Flow<List<ClothesOrderItemEntity>>
+
+    @Query("SELECT * FROM clothes_order_items WHERE orderId = :orderId ORDER BY surname, name, item")
+    suspend fun getClothesOrderItems(orderId: Long): List<ClothesOrderItemEntity>
+
+    @Query("SELECT * FROM clothes_order_items WHERE id = :id LIMIT 1")
+    suspend fun getClothesOrderItem(id: Long): ClothesOrderItemEntity?
+
+    @Query("SELECT * FROM clothes_order_items WHERE orderId = :orderId AND COALESCE(issued, 0) = 0")
+    suspend fun getUnissuedClothesOrderItems(orderId: Long): List<ClothesOrderItemEntity>
+
+    @Query("DELETE FROM clothes_order_items WHERE id = :id")
+    suspend fun deleteClothesOrderItem(id: Long)
+
+    @Query("UPDATE clothes_orders SET status = :status WHERE id = :orderId")
+    suspend fun updateClothesOrderStatus(orderId: Long, status: String)
+
+    @Query("SELECT * FROM clothes_orders WHERE id = :id LIMIT 1")
+    suspend fun getClothesOrder(id: Long): ClothesOrderEntity?
+
+    @Query("UPDATE clothes_order_items SET issued = :issued WHERE id = :id")
+    suspend fun updateClothesOrderItemIssued(id: Long, issued: Int)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertClothesHistory(entity: ClothesHistoryEntity)
+
+    @Query("SELECT COUNT(*) FROM clothes_order_items WHERE orderId = :orderId")
+    suspend fun countClothesOrderItems(orderId: Long): Int
+
+    @Query("SELECT COUNT(*) FROM clothes_order_items WHERE orderId = :orderId AND COALESCE(issued, 0) = 1")
+    suspend fun countIssuedClothesOrderItems(orderId: Long): Int
+
+    @Query("SELECT * FROM clothes_history ORDER BY date DESC, id DESC")
+    fun observeClothesHistory(): Flow<List<ClothesHistoryEntity>>
+
     @Query("SELECT * FROM reports ORDER BY id DESC")
     fun observeReports(): Flow<List<ReportEntity>>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertReport(entity: ReportEntity)
+
+    @Query("SELECT * FROM settings")
+    fun observeSettings(): Flow<List<SettingEntity>>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsertSetting(entity: SettingEntity)
