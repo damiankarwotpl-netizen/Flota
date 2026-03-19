@@ -58,6 +58,8 @@ class ContactsViewModel(private val repository: AdminRepository) : ViewModel() {
 class CarsViewModel(private val repository: AdminRepository) : ViewModel() {
     private val _uiState = MutableStateFlow(CarsUiState())
     val uiState: StateFlow<CarsUiState> = _uiState.asStateFlow()
+    private var workerDriverSuggestions: List<String> = emptyList()
+    private var contactDriverSuggestions: List<String> = emptyList()
 
     init {
         repository.observeCars().onEach { items ->
@@ -68,10 +70,25 @@ class CarsViewModel(private val repository: AdminRepository) : ViewModel() {
                 driverDrafts = items.associate { car -> car.id to (currentState.driverDrafts[car.id] ?: car.driver) },
             )
         }.launchIn(viewModelScope)
+        repository.observeWorkers().onEach { workers ->
+            workerDriverSuggestions = workers.map { "${it.name} ${it.surname}".trim() }.filter { it.isNotBlank() }
+            refreshDriverSuggestions()
+        }.launchIn(viewModelScope)
+        repository.observeContacts().onEach { contacts ->
+            contactDriverSuggestions = contacts.map { "${it.name} ${it.surname}".trim() }.filter { it.isNotBlank() }
+            refreshDriverSuggestions()
+        }.launchIn(viewModelScope)
+    }
+
+    private fun refreshDriverSuggestions() {
+        _uiState.value = _uiState.value.copy(
+            driverSuggestions = (workerDriverSuggestions + contactDriverSuggestions).distinct().sorted(),
+        )
     }
 
     fun updateQuery(value: String) { _uiState.value = _uiState.value.copy(query = value, actionMessage = null) }
     fun updateEditor(draft: CarDraft) { _uiState.value = _uiState.value.copy(editor = draft, actionMessage = null) }
+    fun applyEditorDriverSuggestion(driver: String) { _uiState.value = _uiState.value.copy(editor = _uiState.value.editor.copy(driver = driver), actionMessage = null) }
 
     fun updateMileageDraft(id: Long, value: String) {
         _uiState.value = _uiState.value.copy(mileageDrafts = _uiState.value.mileageDrafts + (id to value), actionMessage = null)
@@ -79,6 +96,10 @@ class CarsViewModel(private val repository: AdminRepository) : ViewModel() {
 
     fun updateDriverDraft(id: Long, value: String) {
         _uiState.value = _uiState.value.copy(driverDrafts = _uiState.value.driverDrafts + (id to value), actionMessage = null)
+    }
+
+    fun applyDriverDraftSuggestion(id: Long, driver: String) {
+        _uiState.value = _uiState.value.copy(driverDrafts = _uiState.value.driverDrafts + (id to driver), actionMessage = null)
     }
 
     fun save() = viewModelScope.launch {

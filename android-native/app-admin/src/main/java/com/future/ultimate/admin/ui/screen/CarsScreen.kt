@@ -52,6 +52,21 @@ fun CarsScreen() {
                     label = { Text("Kierowca") },
                     modifier = Modifier.fillMaxWidth(),
                 )
+                uiState.driverSuggestions
+                    .filter { suggestion ->
+                        uiState.editor.driver.isNotBlank() &&
+                            suggestion.lowercase().contains(uiState.editor.driver.lowercase()) &&
+                            !suggestion.equals(uiState.editor.driver, ignoreCase = true)
+                    }
+                    .take(5)
+                    .forEach { suggestion ->
+                        Button(
+                            onClick = { viewModel.applyEditorDriverSuggestion(suggestion) },
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            Text("Użyj kierowcy: $suggestion")
+                        }
+                    }
                 OutlinedTextField(
                     value = uiState.editor.serviceInterval,
                     onValueChange = { viewModel.updateEditor(uiState.editor.copy(serviceInterval = it)) },
@@ -95,6 +110,21 @@ fun CarsScreen() {
                                 label = { Text("Zmień kierowcę") },
                                 modifier = Modifier.fillMaxWidth(),
                             )
+                            uiState.driverSuggestions
+                                .filter { suggestion ->
+                                    uiState.driverDrafts[car.id].orEmpty().isNotBlank() &&
+                                        suggestion.lowercase().contains(uiState.driverDrafts[car.id].orEmpty().lowercase()) &&
+                                        !suggestion.equals(uiState.driverDrafts[car.id].orEmpty(), ignoreCase = true)
+                                }
+                                .take(3)
+                                .forEach { suggestion ->
+                                    Button(
+                                        onClick = { viewModel.applyDriverDraftSuggestion(car.id, suggestion) },
+                                        modifier = Modifier.fillMaxWidth(),
+                                    ) {
+                                        Text("Podpowiedź: $suggestion")
+                                    }
+                                }
                             Button(
                                 onClick = { viewModel.saveDriver(car.id) },
                                 modifier = Modifier.fillMaxWidth(),

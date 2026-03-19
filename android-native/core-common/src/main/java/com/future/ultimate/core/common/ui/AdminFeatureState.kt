@@ -35,6 +35,7 @@ data class CarsUiState(
     val query: String = "",
     val items: List<CarListItem> = emptyList(),
     val editor: CarDraft = CarDraft(),
+    val driverSuggestions: List<String> = emptyList(),
     val isSaving: Boolean = false,
     val mileageDrafts: Map<Long, String> = emptyMap(),
     val driverDrafts: Map<Long, String> = emptyMap(),
