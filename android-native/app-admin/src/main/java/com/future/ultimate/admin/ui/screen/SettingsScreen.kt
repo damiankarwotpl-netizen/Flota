@@ -3,6 +3,7 @@ package com.future.ultimate.admin.ui.screen
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material3.Button
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -29,6 +30,15 @@ fun SettingsScreen(navController: NavController) {
                 Text("Auta: ${uiState.stats.carCount}   Zakłady: ${uiState.stats.plantCount}")
                 Text("Rozmiary odzieży: ${uiState.stats.clothesSizeCount}   Zamówienia: ${uiState.stats.clothesOrderCount}")
                 Text("Historia wydań odzieży: ${uiState.stats.clothesHistoryCount}")
+                OutlinedTextField(
+                    value = uiState.remoteSettings.apiUrl,
+                    onValueChange = viewModel::updateDriverRemoteApiUrl,
+                    label = { Text("Endpoint zdalnego syncu kierowców") },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Button(onClick = viewModel::saveDriverRemoteSettings, modifier = Modifier.fillMaxWidth()) {
+                    Text(if (uiState.isSavingRemoteSettings) "Zapisywanie integracji..." else "Zapisz ustawienia integracji")
+                }
                 Button(onClick = { navController.navigate(AdminRoute.Reports.route) }, modifier = Modifier.fillMaxWidth()) { Text("Pokaż raporty sesji") }
                 Button(onClick = { navController.navigate(AdminRoute.Payroll.route) }, modifier = Modifier.fillMaxWidth()) { Text("Przejdź do modułu płac") }
                 Button(onClick = viewModel::exportDatabaseSnapshot, modifier = Modifier.fillMaxWidth()) {

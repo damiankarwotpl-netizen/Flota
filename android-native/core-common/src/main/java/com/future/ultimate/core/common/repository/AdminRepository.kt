@@ -123,6 +123,10 @@ data class SmtpSettingsData(
     val password: String = "",
 )
 
+data class DriverRemoteSettingsData(
+    val apiUrl: String = "",
+)
+
 data class EmailTemplateData(
     val subject: String = "",
     val body: String = "",
@@ -248,6 +252,8 @@ interface AdminRepository {
     fun observeSmtpSettings(): Flow<SmtpSettingsData>
     suspend fun saveSmtpSettings(settings: SmtpSettingsData)
     suspend fun validateSmtpConnection(settings: SmtpSettingsData)
+    fun observeDriverRemoteSettings(): Flow<DriverRemoteSettingsData>
+    suspend fun saveDriverRemoteSettings(settings: DriverRemoteSettingsData)
 
     fun observeEmailTemplate(): Flow<EmailTemplateData>
     suspend fun saveEmailTemplate(template: EmailTemplateData)

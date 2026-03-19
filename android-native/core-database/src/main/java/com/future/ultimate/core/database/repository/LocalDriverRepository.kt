@@ -7,6 +7,7 @@ import com.future.ultimate.core.common.repository.DriverMileageSyncState
 import com.future.ultimate.core.common.repository.DriverRepository
 import com.future.ultimate.core.common.repository.DriverSession
 import com.future.ultimate.core.database.dao.AppDao
+import com.future.ultimate.core.database.entity.DriverAccountEntity
 import com.future.ultimate.core.database.entity.SettingEntity
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -53,7 +54,20 @@ class LocalDriverRepository(
         val newPassword = password.trim()
         if (newPassword.isBlank()) throw IllegalArgumentException("Hasło nie może być puste")
 
-        dao.updateDriverPassword(current.registration, newPassword, 0)
+        val account = DriverAccountEntity(
+            registration = current.registration.trim().uppercase(),
+            login = current.login,
+            password = newPassword,
+            driverName = current.driverName,
+            changePassword = 0,
+        )
+        DriverRemoteSyncGateway.syncDriverUpsert(
+            dao = dao,
+            account = account,
+            action = "reset_driver",
+            successStatus = "Hasło kierowcy zsynchronizowane zdalnie",
+        )
+        dao.upsertDriverAccount(account)
         session.value = current.copy(password = newPassword, changePasswordRequired = false)
     }
 

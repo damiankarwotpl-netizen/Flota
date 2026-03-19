@@ -1444,6 +1444,9 @@ class SettingsViewModel(private val repository: AdminRepository) : ViewModel() {
         repository.observeDashboardStats().onEach { stats ->
             _uiState.value = _uiState.value.copy(stats = stats)
         }.launchIn(viewModelScope)
+        repository.observeDriverRemoteSettings().onEach { remoteSettings ->
+            _uiState.value = _uiState.value.copy(remoteSettings = remoteSettings)
+        }.launchIn(viewModelScope)
     }
 
     fun exportDatabaseSnapshot() = viewModelScope.launch {
@@ -1452,6 +1455,22 @@ class SettingsViewModel(private val repository: AdminRepository) : ViewModel() {
         _uiState.value = _uiState.value.copy(
             isExportingDatabase = false,
             actionMessage = if (path.isBlank()) "Nie udało się wyeksportować bazy" else "Snapshot bazy zapisany: $path",
+        )
+    }
+
+    fun updateDriverRemoteApiUrl(value: String) {
+        _uiState.value = _uiState.value.copy(
+            remoteSettings = _uiState.value.remoteSettings.copy(apiUrl = value),
+            actionMessage = null,
+        )
+    }
+
+    fun saveDriverRemoteSettings() = viewModelScope.launch {
+        _uiState.value = _uiState.value.copy(isSavingRemoteSettings = true, actionMessage = null)
+        repository.saveDriverRemoteSettings(_uiState.value.remoteSettings)
+        _uiState.value = _uiState.value.copy(
+            isSavingRemoteSettings = false,
+            actionMessage = "Ustawienia zdalnej integracji zapisane",
         )
     }
 }

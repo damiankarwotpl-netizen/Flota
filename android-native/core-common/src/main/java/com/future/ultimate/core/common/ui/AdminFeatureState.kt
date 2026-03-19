@@ -17,6 +17,7 @@ import com.future.ultimate.core.common.repository.ClothesSizeListItem
 import com.future.ultimate.core.common.repository.ClothesHistoryListItem
 import com.future.ultimate.core.common.repository.ContactListItem
 import com.future.ultimate.core.common.repository.DashboardStats
+import com.future.ultimate.core.common.repository.DriverRemoteSettingsData
 import com.future.ultimate.core.common.repository.EmailTemplateData
 import com.future.ultimate.core.common.repository.PlantListItem
 import com.future.ultimate.core.common.repository.PayrollWorkbookRow
@@ -176,6 +177,8 @@ data class ReportsUiState(
 
 data class SettingsUiState(
     val stats: DashboardStats = DashboardStats(),
+    val remoteSettings: DriverRemoteSettingsData = DriverRemoteSettingsData(),
     val isExportingDatabase: Boolean = false,
+    val isSavingRemoteSettings: Boolean = false,
     val actionMessage: String? = null,
 )

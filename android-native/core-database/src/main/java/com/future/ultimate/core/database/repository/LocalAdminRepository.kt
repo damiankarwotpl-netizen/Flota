@@ -25,6 +25,7 @@ import com.future.ultimate.core.common.repository.ClothesHistoryListItem
 import com.future.ultimate.core.common.repository.ContactListItem
 import com.future.ultimate.core.common.repository.DashboardStats
 import com.future.ultimate.core.common.repository.DriverAccountCredentials
+import com.future.ultimate.core.common.repository.DriverRemoteSettingsData
 import com.future.ultimate.core.common.repository.EmailTemplateData
 import com.future.ultimate.core.common.repository.MailApprovalRequest
 import com.future.ultimate.core.common.repository.MailDispatchProgress
@@ -47,8 +48,6 @@ import com.future.ultimate.core.database.entity.ReportEntity
 import com.future.ultimate.core.database.entity.SettingEntity
 import com.future.ultimate.core.database.entity.WorkerEntity
 import java.io.File
-import java.net.HttpURLConnection
-import java.net.URL
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
@@ -56,7 +55,6 @@ import java.util.Properties
 import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
 import kotlin.random.Random
-import org.json.JSONObject
 import javax.activation.DataHandler
 import javax.activation.FileDataSource
 import javax.mail.Message
@@ -79,11 +77,6 @@ class LocalAdminRepository(
     private val dao: AppDao,
     private val context: Context,
 ) : AdminRepository {
-    private companion object {
-        const val DefaultDriverRemoteApiUrl =
-            "https://script.google.com/macros/s/AKfycbxFQLZU-sg8Gg58J2dE-Bbt2jTyXrdcd1DOUM78vcqFLa789gpeOC9S4MyjGHpQ12_l/exec"
-    }
-
     override fun observeContacts(): Flow<List<ContactListItem>> = dao.observeContacts().map { items ->
         items.map {
             ContactListItem(
@@ -840,6 +833,17 @@ class LocalAdminRepository(
         }
     }
 
+    override fun observeDriverRemoteSettings(): Flow<DriverRemoteSettingsData> = dao.observeSettings().map { settings ->
+        val map = settings.associateBy({ it.key }, { it.valText })
+        DriverRemoteSettingsData(
+            apiUrl = map[DriverRemoteSyncGateway.EndpointSettingKey].orEmpty(),
+        )
+    }
+
+    override suspend fun saveDriverRemoteSettings(settings: DriverRemoteSettingsData) {
+        DriverRemoteSyncGateway.saveEndpoint(dao, settings.apiUrl)
+    }
+
     override fun observeEmailTemplate(): Flow<EmailTemplateData> = dao.observeSettings().map { settings ->
         val map = settings.associateBy({ it.key }, { it.valText })
         EmailTemplateData(
@@ -1426,96 +1430,14 @@ class LocalAdminRepository(
     }
 
     private suspend fun syncRemoteDriverUpsert(account: DriverAccountEntity, action: String) {
-        val payload = JSONObject().apply {
-            put("action", action)
-            put("login", account.login)
-            put("password", account.password)
-            put("name", account.driverName)
-            put("registration", account.registration)
-        }
-        postDriverRemotePayload(account.registration, payload, successStatus = "Zdalne konto kierowcy zsynchronizowane")
-        syncRemoteDriverAssignment(account)
+        DriverRemoteSyncGateway.syncDriverUpsert(dao, account, action)
     }
 
     private suspend fun syncRemoteDriverAssignment(account: DriverAccountEntity) {
-        val payload = JSONObject().apply {
-            put("action", "sync_driver_assignment")
-            put("login", account.login)
-            put("name", account.driverName)
-            put("registration", account.registration)
-        }
-        postDriverRemotePayload(account.registration, payload, successStatus = "Zdalne przypisanie kierowcy zsynchronizowane")
+        DriverRemoteSyncGateway.syncDriverAssignment(dao, account)
     }
 
     private suspend fun syncRemoteDriverDeletion(registration: String) {
-        val normalizedRegistration = registration.trim().uppercase()
-        if (normalizedRegistration.isBlank()) return
-        val payload = JSONObject().apply {
-            put("action", "delete_driver")
-            put("registration", normalizedRegistration)
-        }
-        postDriverRemotePayload(normalizedRegistration, payload, successStatus = "Zdalne konto kierowcy usunięte")
-    }
-
-    private suspend fun postDriverRemotePayload(
-        registration: String,
-        payload: JSONObject,
-        successStatus: String,
-    ) {
-        val normalizedRegistration = registration.trim().uppercase()
-        if (normalizedRegistration.isBlank()) return
-        val endpoint = loadDriverRemoteEndpoint()
-        if (endpoint.isBlank()) {
-            markDriverRemoteSync(normalizedRegistration, status = "Zdalny sync kierowców wyłączony", error = "")
-            return
-        }
-
-        runCatching {
-            val response = postJson(endpoint, payload)
-            require(response.first in 200..299) { "HTTP ${response.first}" }
-        }.onSuccess {
-            markDriverRemoteSync(normalizedRegistration, status = successStatus, error = "")
-        }.onFailure { error ->
-            markDriverRemoteSync(
-                normalizedRegistration,
-                status = "Błąd zdalnej synchronizacji kierowcy",
-                error = error.message.orEmpty().ifBlank { "Nieznany błąd zdalnego syncu" },
-            )
-        }
-    }
-
-    private suspend fun loadDriverRemoteEndpoint(): String =
-        dao.observeSettings().first().associateBy({ it.key }, { it.valText })["driver_remote_api_url"].orEmpty()
-            .ifBlank { DefaultDriverRemoteApiUrl }
-
-    private suspend fun markDriverRemoteSync(registration: String, status: String, error: String) {
-        val normalizedRegistration = registration.trim().uppercase()
-        val timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
-        dao.upsertSetting(SettingEntity(key = "driver_remote_sync_at_$normalizedRegistration", valText = timestamp))
-        dao.upsertSetting(SettingEntity(key = "driver_remote_sync_status_$normalizedRegistration", valText = status))
-        dao.upsertSetting(SettingEntity(key = "driver_remote_sync_error_$normalizedRegistration", valText = error))
-    }
-
-    private fun postJson(url: String, payload: JSONObject): Pair<Int, String> {
-        val connection = (URL(url).openConnection() as HttpURLConnection).apply {
-            requestMethod = "POST"
-            connectTimeout = 10000
-            readTimeout = 10000
-            doOutput = true
-            setRequestProperty("Content-Type", "application/json; charset=utf-8")
-        }
-        return try {
-            connection.outputStream.bufferedWriter(Charsets.UTF_8).use { writer ->
-                writer.write(payload.toString())
-            }
-            val responseCode = connection.responseCode
-            val responseBody = runCatching {
-                val source = if (responseCode in 200..299) connection.inputStream else connection.errorStream
-                source?.bufferedReader(Charsets.UTF_8)?.use { it.readText() }.orEmpty()
-            }.getOrDefault("")
-            responseCode to responseBody
-        } finally {
-            connection.disconnect()
-        }
+        DriverRemoteSyncGateway.syncDriverDeletion(dao, registration)
     }
 }
