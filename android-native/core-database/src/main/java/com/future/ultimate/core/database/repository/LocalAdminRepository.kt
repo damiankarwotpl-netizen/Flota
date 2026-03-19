@@ -760,6 +760,21 @@ class LocalAdminRepository(
         return normalized == "zamówione" || normalized == "częściowo wydane" || normalized == "wydane"
     }
 
+    private fun canIssueClothesOrder(status: String): Boolean {
+        val normalized = status.trim().lowercase()
+        return normalized == "zamówione" || normalized == "częściowo wydane"
+    }
+
+    private fun canMarkClothesOrderOrdered(status: String): Boolean {
+        val normalized = status.trim().lowercase()
+        return normalized != "częściowo wydane" && normalized != "wydane"
+    }
+
+    private fun isClothesOrderIssueWorkflowStatus(status: String): Boolean {
+        val normalized = status.trim().lowercase()
+        return normalized == "zamówione" || normalized == "częściowo wydane" || normalized == "wydane"
+    }
+
     override fun observeClothesHistory(): Flow<List<ClothesHistoryListItem>> = dao.observeClothesHistory().map { items ->
         items.map {
             ClothesHistoryListItem(

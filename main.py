@@ -36,7 +36,6 @@ from app_modules.data_screens import setup_table_screen, setup_clothes_screen
 from app_modules.list_views import refresh_contacts_list_view, refresh_reports_list_view, show_report_details_popup
 from app_modules.ui_helpers import show_message_popup, update_stats_labels, update_progress_labels, popup_columns_selector, show_logs_popup
 from app_modules.md_theme_bridge import apply_md_theme
-from app_modules.design_tokens import ui_tokens, UI_RADIUS, UI_SPACING
 
 from datetime import datetime
 from pathlib import Path
@@ -132,9 +131,9 @@ class ModernButton(Button):
         pal = AppTheme.palette()
         self.background_normal = ""
         self.background_color = (0,0,0,0)
-        self.color = pal["text"]
+        self.color = AppTheme.palette()["text"]
         self.bold = True
-        self.radius = [UI_RADIUS["md"]]
+        self.radius = [dp(16)]
         self.base_color = bg_color
         self._font_max = float(getattr(self, 'font_size', dp(16)))
         self._font_min = float(dp(10))
@@ -143,8 +142,8 @@ class ModernButton(Button):
             self.shadow_rect = RoundedRectangle(pos=(self.x, self.y - dp(2)), size=self.size, radius=self.radius)
             self.bg = Color(*self.base_color)
             self.rect = RoundedRectangle(pos=self.pos, size=self.size, radius=self.radius)
-            self.border_color = Color(*pal["border"])
-            self.border_line = Line(rounded_rectangle=(self.x, self.y, self.width, self.height, UI_RADIUS["md"]), width=1.1)
+            Color(1, 1, 1, 0.16)
+            self.border_line = Line(rounded_rectangle=(self.x, self.y, self.width, self.height, dp(16)), width=1.2)
         state_handler = getattr(self, '_update_state', None)
         if not callable(state_handler):
             state_handler = self._fallback_update_state
@@ -181,7 +180,7 @@ class ModernButton(Button):
         self.shadow_rect.pos = (self.x, self.y - dp(2))
         self.shadow_rect.size = self.size
         self.rect.pos, self.rect.size = self.pos, self.size
-        self.border_line.rounded_rectangle = (self.x, self.y, self.width, self.height, UI_RADIUS["md"])
+        self.border_line.rounded_rectangle = (self.x, self.y, self.width, self.height, dp(16))
         self.text_size = (None, None)
         self._fit_single_line_text()
 
@@ -215,15 +214,15 @@ class ModernInput(TextInput):
         self.padding = [dp(12), dp(12)]
         with self.canvas.before:
             Color(*pal["secondary"])
-            self.input_rect = RoundedRectangle(pos=self.pos, size=self.size, radius=[UI_RADIUS["sm"]])
-            Color(*pal["border"])
-            self.input_border = Line(rounded_rectangle=(self.x, self.y, self.width, self.height, UI_RADIUS["sm"]), width=1.1)
+            self.input_rect = RoundedRectangle(pos=self.pos, size=self.size, radius=[dp(12)])
+            Color(1, 1, 1, 0.11)
+            self.input_border = Line(rounded_rectangle=(self.x, self.y, self.width, self.height, dp(12)), width=1.1)
         self.bind(pos=self._update_input, size=self._update_input)
 
     def _update_input(self, *args):
         self.input_rect.pos = self.pos
         self.input_rect.size = self.size
-        self.input_border.rounded_rectangle = (self.x, self.y, self.width, self.height, UI_RADIUS["sm"])
+        self.input_border.rounded_rectangle = (self.x, self.y, self.width, self.height, dp(12))
 
 class ColorSafeLabel(Label):
     def __init__(self, bg_color=(1,1,1,1), text_color=(1,1,1,1), **kwargs):
@@ -238,29 +237,23 @@ class ColorSafeLabel(Label):
         self.text_size = (self.width - dp(10), None)
 
 DARK_THEME = {
-    "background": (0.05, 0.07, 0.11, 1),
-    "card": (0.10, 0.13, 0.20, 1),
-    "primary": (0.24, 0.46, 0.90, 1),
-    "secondary": (0.18, 0.22, 0.32, 1),
+    "background": (0.06, 0.08, 0.12, 1),
+    "card": (0.11, 0.14, 0.20, 1),
+    "primary": (0.28, 0.52, 0.96, 1),
+    "secondary": (0.17, 0.21, 0.29, 1),
     "danger": (0.85, 0.25, 0.32, 1),
-    "success": (0.22, 0.72, 0.36, 1),
     "text": (0.94, 0.96, 0.99, 1),
-    "muted": (0.67, 0.72, 0.82, 1),
-    "border": (1, 1, 1, 0.12),
-    "shadow": (0, 0, 0, 0.24),
+    "muted": (0.68, 0.73, 0.82, 1),
 }
 
 LIGHT_THEME = {
-    "background": (0.95, 0.96, 0.99, 1),
+    "background": (0.95, 0.97, 1.0, 1),
     "card": (1, 1, 1, 1),
-    "primary": (0.23, 0.43, 0.86, 1),
+    "primary": (0.24, 0.47, 0.95, 1),
     "secondary": (0.90, 0.93, 0.98, 1),
-    "success": (0.22, 0.72, 0.36, 1),
     "danger": (0.83, 0.24, 0.28, 1),
-    "text": (0.13, 0.17, 0.24, 1),
+    "text": (0.12, 0.16, 0.23, 1),
     "muted": (0.42, 0.48, 0.58, 1),
-    "border": (0.27, 0.39, 0.62, 0.16),
-    "shadow": (0.18, 0.27, 0.45, 0.12),
 }
 
 
@@ -560,12 +553,8 @@ class Card(BoxLayout):
         self.spacing = kwargs.get("spacing", UI_SPACING["sm"])
         pal = AppTheme.palette()
         with self.canvas.before:
-            self._card_shadow_color = Color(*pal["shadow"])
-            self._card_shadow_rect = RoundedRectangle(pos=(self.x, self.y - dp(2)), size=self.size, radius=[UI_RADIUS["md"]])
-            Color(*pal["card"])
-            self._card_rect = RoundedRectangle(pos=self.pos, size=self.size, radius=[UI_RADIUS["md"]])
-            Color(*pal["border"])
-            self._card_border = Line(rounded_rectangle=(self.x, self.y, self.width, self.height, UI_RADIUS["md"]), width=1.0)
+            Color(*AppTheme.palette()["card"])
+            self._card_rect = RoundedRectangle(pos=self.pos, size=self.size, radius=[dp(16)])
         self.bind(pos=self._update_bg, size=self._update_bg)
 
     def _update_bg(self, *_):
@@ -597,20 +586,13 @@ class DangerButton(ModernButton):
 
 class TopBar(BoxLayout):
     def __init__(self, title="", **kwargs):
-        super().__init__(orientation="horizontal", size_hint_y=None, height=dp(62), padding=[dp(12), dp(10)], spacing=dp(8), **kwargs)
+        super().__init__(orientation="horizontal", size_hint_y=None, height=dp(56), padding=[dp(10), dp(8)], spacing=dp(8), **kwargs)
         pal = AppTheme.palette()
         with self.canvas.before:
             Color(*pal["primary"])
-            self._bg_left = RoundedRectangle(pos=self.pos, size=self.size, radius=[0, 0, UI_RADIUS["md"], UI_RADIUS["md"]])
-            blend = ui_tokens(AppTheme.current).get("primary_alt", pal["primary"])
-            Color(*blend)
-            self._bg_right = RoundedRectangle(pos=(self.x + self.width * 0.5, self.y), size=(self.width * 0.5, self.height), radius=[0, 0, UI_RADIUS["md"], UI_RADIUS["md"]])
-            Color(*pal["primary"])
-            self._rect = RoundedRectangle(pos=self.pos, size=self.size, radius=[0, 0, UI_RADIUS["md"], UI_RADIUS["md"]])
+            self._rect = RoundedRectangle(pos=self.pos, size=self.size, radius=[0, 0, dp(14), dp(14)])
         self.bind(pos=self._upd, size=self._upd)
-        self.title_label = Label(text=title, bold=True, halign="left", valign="middle", color=pal["text"])
-        self.title_label.bind(size=lambda inst, _: setattr(inst, "text_size", (inst.width - dp(8), None)))
-        self.add_widget(self.title_label)
+        self.add_widget(Label(text=title, bold=True, halign="left", valign="middle", color=pal["text"]))
 
     def _upd(self, *_):
         self._bg_left.pos = self.pos
@@ -1827,7 +1809,7 @@ class FutureApp(MDAppBase):
             self._screen_initialized.add(name)
 
     def setup_ui_all(self):
-        setup_home_screen(self, AppLayout, Card, SecondaryButton, PrimaryButton, DangerButton)
+        setup_home_screen(self, AppLayout, SecondaryButton, PrimaryButton, DangerButton)
 
     def setup_vehicle_report_ui(self):
         setup_vehicle_report_screen(self, AppLayout, SecondaryButton, PrimaryButton, ModernInput)
@@ -1929,7 +1911,7 @@ class FutureApp(MDAppBase):
         return file_path
 
     def setup_table_ui(self):
-        setup_table_screen(self, AppLayout, Card, SecondaryButton, PrimaryButton, ModernInput)
+        setup_table_screen(self, AppLayout, SecondaryButton, PrimaryButton, ModernInput)
 
     def refresh_table(self):
         self.table_content_layout.clear_widgets()
@@ -1962,7 +1944,6 @@ class FutureApp(MDAppBase):
         setup_clothes_screen(
             self,
             AppLayout,
-            Card,
             AppActionBar,
             SecondaryButton,
             PrimaryButton,
@@ -3112,7 +3093,7 @@ class FutureApp(MDAppBase):
         setup_template_screen(self, AppLayout, AppActionBar, SecondaryButton, PrimaryButton, ModernInput)
 
     def setup_contacts_ui(self):
-        setup_contacts_screen(self, AppLayout, Card, SecondaryButton, PrimaryButton, ModernInput)
+        setup_contacts_screen(self, AppLayout, SecondaryButton, PrimaryButton, ModernInput)
 
     def refresh_contacts_list(self, *args):
         refresh_contacts_list_view(self, ButtonContainer, ModernButton, COLOR_CARD)
@@ -3135,7 +3116,7 @@ class FutureApp(MDAppBase):
         popup_columns_selector(self, ModernButton, CheckBox)
 
     def setup_report_ui(self):
-        setup_report_screen(self, AppLayout, Card, SecondaryButton)
+        setup_report_screen(self, AppLayout, SecondaryButton)
 
     def refresh_reports(self, *a):
         refresh_reports_list_view(self, Card, Label, PrimaryButton, COLOR_PRIMARY)
@@ -3685,7 +3666,7 @@ class FutureApp(MDAppBase):
         setup_plants_screen(self, AppLayout, SecondaryButton, PrimaryButton, ModernInput)
 
     def setup_settings_ui(self):
-        setup_settings_screen(self, AppLayout, SecondaryButton, PrimaryButton, Card)
+        setup_settings_screen(self, AppLayout, SecondaryButton, PrimaryButton)
 
     def setup_paski_ui(self):
         setup_paski_screen(self, AppLayout, Card, AppActionBar, SecondaryButton, PrimaryButton, DangerButton)
