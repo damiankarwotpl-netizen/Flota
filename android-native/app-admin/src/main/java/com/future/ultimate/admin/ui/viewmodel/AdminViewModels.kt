@@ -14,6 +14,7 @@ import com.future.ultimate.core.common.model.WorkerDraft
 import com.future.ultimate.core.common.patch.PatchLoader
 import com.future.ultimate.core.common.repository.AdminRepository
 import com.future.ultimate.core.common.repository.ClothesOrderItemListItem
+import com.future.ultimate.core.common.repository.ClothesOrderImportRow
 import com.future.ultimate.core.common.repository.ClothesOrderListItem
 import com.future.ultimate.core.common.repository.ClothesSizeListItem
 import com.future.ultimate.core.common.repository.EmailTemplateData
@@ -576,6 +577,7 @@ class ClothesOrdersViewModel(private val repository: AdminRepository) : ViewMode
 
     fun updateEditor(draft: ClothesOrderDraft) { _uiState.value = _uiState.value.copy(editor = draft, actionMessage = null) }
     fun updateItemEditor(draft: ClothesOrderItemDraft) { _uiState.value = _uiState.value.copy(itemEditor = draft, actionMessage = null) }
+    fun updateImportText(value: String) { _uiState.value = _uiState.value.copy(importText = value, actionMessage = null) }
     fun updateWorkerQuery(value: String) { _uiState.value = _uiState.value.copy(workerQuery = value, actionMessage = null) }
     fun updateStarterQuantities(
         shirtQty: String = _uiState.value.shirtQty,
@@ -692,6 +694,8 @@ class ClothesOrdersViewModel(private val repository: AdminRepository) : ViewMode
             selectedOrderItems = emptyList(),
             selectedOrderSummary = emptyList(),
             showOnlyPendingItems = false,
+            importText = "",
+            importPreview = emptyList(),
             itemEditor = ClothesOrderItemDraft(),
         )
         orderItemsJob?.cancel()
@@ -787,6 +791,33 @@ class ClothesOrdersViewModel(private val repository: AdminRepository) : ViewMode
 
     fun clearItemEditor() {
         _uiState.value = _uiState.value.copy(itemEditor = ClothesOrderItemDraft(), actionMessage = null)
+    }
+
+    fun stageImportRows() {
+        val rows = parseImportRows(_uiState.value.importText)
+        _uiState.value = _uiState.value.copy(
+            importPreview = rows,
+            actionMessage = if (rows.isEmpty()) "Nie udało się sparsować żadnych pozycji importu" else "Przygotowano ${rows.size} pozycji do importu",
+        )
+    }
+
+    fun clearImport() {
+        _uiState.value = _uiState.value.copy(importText = "", importPreview = emptyList(), actionMessage = null)
+    }
+
+    fun applyImportedRows() = viewModelScope.launch {
+        val orderId = _uiState.value.selectedOrderId ?: return@launch
+        val rows = _uiState.value.importPreview.ifEmpty { parseImportRows(_uiState.value.importText) }
+        if (rows.isEmpty()) {
+            _uiState.value = _uiState.value.copy(actionMessage = "Brak pozycji do importu")
+            return@launch
+        }
+        val importedCount = repository.importClothesOrderItems(orderId, rows)
+        _uiState.value = _uiState.value.copy(
+            importText = "",
+            importPreview = emptyList(),
+            actionMessage = "Zaimportowano $importedCount pozycji do zamówienia",
+        )
     }
 
     fun togglePendingItemsFilter() {
@@ -909,6 +940,30 @@ class ClothesOrdersViewModel(private val repository: AdminRepository) : ViewMode
                     "${key.first} • rozmiar: ${key.second} • suma: ${groupedItems.sumOf { it.qty }}"
                 }
         }
+
+    private fun parseImportRows(rawInput: String): List<ClothesOrderImportRow> =
+        rawInput.lineSequence()
+            .map { it.trim() }
+            .filter { it.isNotBlank() }
+            .mapNotNull { line ->
+                val parts = line.split('\t', ';', ',').map { it.trim() }
+                if (parts.size < 3) {
+                    null
+                } else {
+                    ClothesOrderImportRow(
+                        name = parts.getOrElse(0) { "" },
+                        surname = parts.getOrElse(1) { "" },
+                        item = parts.getOrElse(2) { "" },
+                        size = parts.getOrElse(3) { "" },
+                        qty = parts.getOrElse(4) { "1" },
+                    )
+                }
+            }
+            .filterNot { row ->
+                val firstCell = row.name.lowercase()
+                firstCell.contains("imi") || firstCell.contains("name")
+            }
+            .toList()
 
     private fun canIssueClothesOrder(status: String): Boolean {
         val normalized = status.trim().lowercase()

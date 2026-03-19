@@ -10,6 +10,7 @@ import com.future.ultimate.core.common.model.VehicleReportDraft
 import com.future.ultimate.core.common.model.WorkerDraft
 import com.future.ultimate.core.common.repository.CarListItem
 import com.future.ultimate.core.common.repository.ClothesOrderItemListItem
+import com.future.ultimate.core.common.repository.ClothesOrderImportRow
 import com.future.ultimate.core.common.repository.ClothesOrderListItem
 import com.future.ultimate.core.common.repository.ClothesOrderWorkerListItem
 import com.future.ultimate.core.common.repository.ClothesSizeListItem
@@ -120,6 +121,8 @@ data class ClothesOrdersUiState(
     val selectedOrderItems: List<ClothesOrderItemListItem> = emptyList(),
     val selectedOrderSummary: List<String> = emptyList(),
     val showOnlyPendingItems: Boolean = false,
+    val importText: String = "",
+    val importPreview: List<ClothesOrderImportRow> = emptyList(),
     val editor: ClothesOrderDraft = ClothesOrderDraft(),
     val itemEditor: ClothesOrderItemDraft = ClothesOrderItemDraft(),
     val actionMessage: String? = null,

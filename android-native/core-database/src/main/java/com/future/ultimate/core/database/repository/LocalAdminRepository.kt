@@ -17,6 +17,7 @@ import com.future.ultimate.core.common.repository.AdminRepository
 import com.future.ultimate.core.common.repository.CarListItem
 import com.future.ultimate.core.common.repository.ClothesOrderXlsxExport
 import com.future.ultimate.core.common.repository.ClothesOrderItemListItem
+import com.future.ultimate.core.common.repository.ClothesOrderImportRow
 import com.future.ultimate.core.common.repository.ClothesOrderListItem
 import com.future.ultimate.core.common.repository.ClothesOrderWorkerListItem
 import com.future.ultimate.core.common.repository.ClothesSizeListItem
@@ -397,6 +398,22 @@ class LocalAdminRepository(
             ),
         )
         syncClothesOrderIssueStatus(orderId)
+    }
+
+    override suspend fun importClothesOrderItems(orderId: Long, rows: List<ClothesOrderImportRow>): Int {
+        rows.forEach { row ->
+            saveClothesOrderItem(
+                orderId = orderId,
+                draft = ClothesOrderItemDraft(
+                    name = row.name,
+                    surname = row.surname,
+                    item = row.item,
+                    size = row.size,
+                    qty = row.qty,
+                ),
+            )
+        }
+        return rows.size
     }
 
     override suspend fun createClothesOrderStarter(

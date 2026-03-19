@@ -147,6 +147,14 @@ data class PayrollWorkbookRow(
     val amount: String,
 )
 
+data class ClothesOrderImportRow(
+    val name: String,
+    val surname: String,
+    val item: String,
+    val size: String,
+    val qty: String,
+)
+
 data class DriverAccountCredentials(
     val login: String = "",
     val password: String = "",
@@ -188,6 +196,7 @@ interface AdminRepository {
     fun observeClothesOrderWorkers(): Flow<List<ClothesOrderWorkerListItem>>
     fun observeClothesOrderItems(orderId: Long): Flow<List<ClothesOrderItemListItem>>
     suspend fun saveClothesOrderItem(orderId: Long, draft: ClothesOrderItemDraft)
+    suspend fun importClothesOrderItems(orderId: Long, rows: List<ClothesOrderImportRow>): Int
     suspend fun createClothesOrderStarter(
         draft: ClothesOrderDraft,
         workerIds: Set<Long>,

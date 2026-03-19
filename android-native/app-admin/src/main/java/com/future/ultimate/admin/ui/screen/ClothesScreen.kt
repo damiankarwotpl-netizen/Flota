@@ -291,6 +291,28 @@ fun ClothesScreen() {
                                         Text(if (ordersUiState.showOnlyPendingItems) "Pokaż wszystkie pozycje" else "Pokaż tylko niewydane")
                                     }
                                     OutlinedTextField(
+                                        ordersUiState.importText,
+                                        ordersViewModel::updateImportText,
+                                        label = { Text("Wklej import CSV/TSV pozycji") },
+                                        modifier = Modifier.fillMaxWidth(),
+                                        minLines = 4,
+                                    )
+                                    Button(onClick = ordersViewModel::stageImportRows, modifier = Modifier.fillMaxWidth()) {
+                                        Text("Parsuj pozycje importu")
+                                    }
+                                    Button(onClick = ordersViewModel::applyImportedRows, modifier = Modifier.fillMaxWidth()) {
+                                        Text("Importuj pozycje do zamówienia")
+                                    }
+                                    if (ordersUiState.importPreview.isNotEmpty()) {
+                                        Text("Podgląd importu: ${ordersUiState.importPreview.size} pozycji")
+                                        ordersUiState.importPreview.take(5).forEach { row ->
+                                            Text("${row.name} ${row.surname} • ${row.item} • ${row.size.ifBlank { "-" }} • qty ${row.qty}")
+                                        }
+                                        Button(onClick = ordersViewModel::clearImport, modifier = Modifier.fillMaxWidth()) {
+                                            Text("Wyczyść import")
+                                        }
+                                    }
+                                    OutlinedTextField(
                                         ordersUiState.itemEditor.name,
                                         { ordersViewModel.updateItemEditor(ordersUiState.itemEditor.copy(name = it)) },
                                         label = { Text("Imię pracownika") },
