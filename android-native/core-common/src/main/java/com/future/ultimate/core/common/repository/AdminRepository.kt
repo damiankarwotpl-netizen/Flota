@@ -130,6 +130,10 @@ data class DriverRemoteSettingsData(
     val apiUrl: String = "",
 )
 
+data class DriverRemoteSettingsData(
+    val apiUrl: String = "",
+)
+
 data class EmailTemplateData(
     val subject: String = "",
     val body: String = "",
