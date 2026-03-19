@@ -85,6 +85,9 @@ fun EmailScreen(navController: NavController) {
                 Button(onClick = viewModel::togglePauseMailing, modifier = Modifier.fillMaxWidth()) {
                     Text(if (uiState.isMailingPaused) "Wznów kolejkę" else "Wstrzymaj kolejkę")
                 }
+                Button(onClick = viewModel::cancelMailing, modifier = Modifier.fillMaxWidth()) {
+                    Text(if (uiState.isCancellingMailing) "Anulowanie..." else "Anuluj aktywną wysyłkę")
+                }
                 Button(onClick = viewModel::clearAttachments, modifier = Modifier.fillMaxWidth()) { Text("Wyczyść załączniki") }
                 Button(onClick = { navController.navigate(AdminRoute.Reports.route) }, modifier = Modifier.fillMaxWidth()) { Text("Raporty sesji") }
             }

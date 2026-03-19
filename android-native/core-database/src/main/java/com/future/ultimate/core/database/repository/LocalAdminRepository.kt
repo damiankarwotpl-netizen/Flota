@@ -72,6 +72,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.Dispatchers
 
@@ -813,6 +814,9 @@ class LocalAdminRepository(
             port = map["smtp_port"].orEmpty().ifBlank { "587" },
             user = map["smtp_user"].orEmpty(),
             password = map["smtp_password"].orEmpty(),
+            security = map["smtp_security"].orEmpty().ifBlank { "STARTTLS" },
+            senderName = map["smtp_sender_name"].orEmpty(),
+            throttleMs = map["smtp_throttle_ms"].orEmpty().ifBlank { "0" },
         )
     }
 
@@ -821,6 +825,9 @@ class LocalAdminRepository(
         dao.upsertSetting(SettingEntity(key = "smtp_port", valText = settings.port.trim()))
         dao.upsertSetting(SettingEntity(key = "smtp_user", valText = settings.user.trim()))
         dao.upsertSetting(SettingEntity(key = "smtp_password", valText = settings.password))
+        dao.upsertSetting(SettingEntity(key = "smtp_security", valText = settings.security.trim().uppercase()))
+        dao.upsertSetting(SettingEntity(key = "smtp_sender_name", valText = settings.senderName.trim()))
+        dao.upsertSetting(SettingEntity(key = "smtp_throttle_ms", valText = settings.throttleMs.trim()))
     }
 
     override suspend fun validateSmtpConnection(settings: SmtpSettingsData) {
@@ -845,6 +852,9 @@ class LocalAdminRepository(
     override suspend fun saveDriverRemoteSettings(settings: DriverRemoteSettingsData) {
         DriverRemoteSyncGateway.saveEndpoint(dao, settings.apiUrl)
     }
+
+    override suspend fun validateDriverRemoteSettings(settings: DriverRemoteSettingsData): String =
+        DriverRemoteSyncGateway.validateEndpoint(dao, settings.apiUrl)
 
     override fun observeEmailTemplate(): Flow<EmailTemplateData> = dao.observeSettings().map { settings ->
         val map = settings.associateBy({ it.key }, { it.valText })
@@ -873,7 +883,7 @@ class LocalAdminRepository(
                     appendLine()
                     append("To jest testowa wiadomość podglądowa wysłana z natywnego modułu Android.")
                 },
-                attachments = sanitizeAttachments(attachmentPaths),
+                attachments = resolveAttachments(attachmentPaths),
             )
             settings.user
         }
@@ -1195,6 +1205,9 @@ class LocalAdminRepository(
             port = settings["smtp_port"].orEmpty().ifBlank { "587" },
             user = settings["smtp_user"].orEmpty(),
             password = settings["smtp_password"].orEmpty(),
+            security = settings["smtp_security"].orEmpty().ifBlank { "STARTTLS" },
+            senderName = settings["smtp_sender_name"].orEmpty(),
+            throttleMs = settings["smtp_throttle_ms"].orEmpty().ifBlank { "0" },
         )
     }
 
@@ -1208,11 +1221,22 @@ class LocalAdminRepository(
 
     private fun SmtpSettingsData.normalized(): SmtpSettingsData {
         val normalizedPort = port.trim().ifBlank { "587" }
+        val normalizedSecurity = security.trim().uppercase().ifBlank { "STARTTLS" }
+        val normalizedThrottle = throttleMs.trim().ifBlank { "0" }
         require(host.trim().isNotBlank()) { "Brak hosta SMTP" }
         require(user.trim().isNotBlank()) { "Brak loginu SMTP" }
         require(password.isNotBlank()) { "Brak hasła SMTP" }
         require(normalizedPort.toIntOrNull() != null) { "Port SMTP musi być liczbą" }
-        return copy(host = host.trim(), port = normalizedPort, user = user.trim())
+        require(normalizedSecurity in setOf("STARTTLS", "SSL/TLS", "PLAINTEXT")) { "Nieprawidłowy tryb bezpieczeństwa SMTP" }
+        require((normalizedThrottle.toLongOrNull() ?: -1L) >= 0L) { "Opóźnienie między emailami musi być liczbą >= 0" }
+        return copy(
+            host = host.trim(),
+            port = normalizedPort,
+            user = user.trim(),
+            security = normalizedSecurity,
+            senderName = senderName.trim(),
+            throttleMs = normalizedThrottle,
+        )
     }
 
     private fun EmailTemplateData.validated(): EmailTemplateData {
@@ -1221,13 +1245,17 @@ class LocalAdminRepository(
         return copy(subject = subject.trim(), body = body.trim())
     }
 
-    private fun sanitizeAttachments(attachmentPaths: List<String>): List<File> =
-        attachmentPaths
+    private fun resolveAttachments(attachmentPaths: List<String>): List<File> {
+        val resolved = attachmentPaths
             .map { it.trim() }
             .filter { it.isNotBlank() }
             .distinct()
-            .map(::File)
-            .filter { it.exists() && it.isFile }
+        val missing = resolved.map(::File).filterNot { it.exists() && it.isFile }
+        require(missing.isEmpty()) {
+            "Brakujące załączniki: ${missing.joinToString { it.name }}"
+        }
+        return resolved.map(::File)
+    }
 
     private fun renderTemplate(template: String, name: String, date: LocalDate): String =
         template
@@ -1239,10 +1267,18 @@ class LocalAdminRepository(
             put("mail.smtp.host", settings.host)
             put("mail.smtp.port", settings.port)
             put("mail.smtp.auth", "true")
-            put("mail.smtp.starttls.enable", "true")
             put("mail.smtp.connectiontimeout", "25000")
             put("mail.smtp.timeout", "25000")
             put("mail.smtp.writetimeout", "25000")
+        }
+        when (settings.security) {
+            "STARTTLS" -> props.put("mail.smtp.starttls.enable", "true")
+            "SSL/TLS" -> {
+                props.put("mail.smtp.ssl.enable", "true")
+                props.put("mail.smtp.socketFactory.port", settings.port)
+                props.put("mail.smtp.socketFactory.class", "javax.net.ssl.SSLSocketFactory")
+            }
+            "PLAINTEXT" -> Unit
         }
         return Session.getInstance(
             props,
@@ -1261,7 +1297,13 @@ class LocalAdminRepository(
         attachments: List<File>,
     ) {
         val message = MimeMessage(buildMailSession(settings)).apply {
-            setFrom(InternetAddress(settings.user))
+            setFrom(
+                InternetAddress(
+                    settings.user,
+                    settings.senderName.ifBlank { settings.user },
+                    Charsets.UTF_8.name(),
+                ),
+            )
             setRecipients(Message.RecipientType.TO, InternetAddress.parse(recipient))
             setSubject(subject, Charsets.UTF_8.name())
             setContent(buildMultipartBody(body, attachments))
@@ -1348,8 +1390,9 @@ class LocalAdminRepository(
     ): MailDispatchResult {
         val settings = loadSavedSmtpSettings().normalized()
         val template = loadSavedEmailTemplate().validated()
-        val attachments = sanitizeAttachments(attachmentPaths)
+        val attachments = resolveAttachments(attachmentPaths)
         val today = LocalDate.now()
+        val throttleMs = settings.throttleMs.toLong()
         val resolvedSubject = subjectOverride?.trim().orEmpty().ifBlank { template.subject }
         val resolvedBody = bodyOverride?.trim().orEmpty().ifBlank { template.body }
         require(resolvedSubject.isNotBlank()) { "Brak tematu email" }
@@ -1431,6 +1474,10 @@ class LocalAdminRepository(
                     currentRecipient = recipientLabel,
                 ),
             )
+
+            if (throttleMs > 0 && index < recipients.lastIndex) {
+                delay(throttleMs)
+            }
         }
 
         val result = MailDispatchResult(

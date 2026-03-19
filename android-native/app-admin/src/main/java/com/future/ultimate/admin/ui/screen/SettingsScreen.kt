@@ -39,6 +39,9 @@ fun SettingsScreen(navController: NavController) {
                 Button(onClick = viewModel::saveDriverRemoteSettings, modifier = Modifier.fillMaxWidth()) {
                     Text(if (uiState.isSavingRemoteSettings) "Zapisywanie integracji..." else "Zapisz ustawienia integracji")
                 }
+                Button(onClick = viewModel::validateDriverRemoteSettings, modifier = Modifier.fillMaxWidth()) {
+                    Text(if (uiState.isValidatingRemoteSettings) "Sprawdzanie endpointu..." else "Sprawdź endpoint kierowców")
+                }
                 Button(onClick = { navController.navigate(AdminRoute.Reports.route) }, modifier = Modifier.fillMaxWidth()) { Text("Pokaż raporty sesji") }
                 Button(onClick = { navController.navigate(AdminRoute.Payroll.route) }, modifier = Modifier.fillMaxWidth()) { Text("Przejdź do modułu płac") }
                 Button(onClick = viewModel::exportDatabaseSnapshot, modifier = Modifier.fillMaxWidth()) {

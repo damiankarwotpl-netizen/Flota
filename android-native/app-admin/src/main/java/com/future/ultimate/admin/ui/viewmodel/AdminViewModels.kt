@@ -38,6 +38,7 @@ import com.future.ultimate.core.common.ui.TemplateUiState
 import com.future.ultimate.core.common.ui.VehicleReportUiState
 import com.future.ultimate.core.common.ui.WorkersUiState
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -431,6 +432,7 @@ class PayrollViewModel(private val repository: AdminRepository) : ViewModel() {
             _uiState.value = _uiState.value.copy(
                 isMailingRunning = true,
                 isMailingPaused = false,
+                isCancellingMailing = false,
                 actionMessage = null,
                 progressLabel = "Trwa realna wysyłka do ${_uiState.value.totalRecipients} kontaktów...",
             )
@@ -446,6 +448,7 @@ class PayrollViewModel(private val repository: AdminRepository) : ViewModel() {
                 _uiState.value = _uiState.value.copy(
                     isMailingRunning = false,
                     isMailingPaused = false,
+                    isCancellingMailing = false,
                     isAwaitingMailApproval = false,
                     pendingApprovalRecipientName = "",
                     pendingApprovalRecipientEmail = "",
@@ -460,11 +463,16 @@ class PayrollViewModel(private val repository: AdminRepository) : ViewModel() {
                 _uiState.value = _uiState.value.copy(
                     isMailingRunning = false,
                     isMailingPaused = false,
+                    isCancellingMailing = false,
                     isAwaitingMailApproval = false,
                     pendingApprovalRecipientName = "",
                     pendingApprovalRecipientEmail = "",
-                    progressLabel = "Masowa wysyłka przerwana",
-                    actionMessage = error.message ?: "Nie udało się uruchomić masowej wysyłki",
+                    progressLabel = if (error is CancellationException) "Masowa wysyłka anulowana" else "Masowa wysyłka przerwana",
+                    actionMessage = if (error is CancellationException) {
+                        "Operator anulował masową wysyłkę"
+                    } else {
+                        error.message ?: "Nie udało się uruchomić masowej wysyłki"
+                    },
                 )
             }
             mailingJob = null
@@ -488,9 +496,32 @@ class PayrollViewModel(private val repository: AdminRepository) : ViewModel() {
         _uiState.value = _uiState.value.copy(
             isMailingRunning = true,
             isMailingPaused = mailingPaused,
+            isCancellingMailing = false,
             progressLabel = if (mailingPaused) "Wysyłka wstrzymana" else "Wysyłka wznowiona — oczekiwanie na kolejny element",
             actionMessage = if (mailingPaused) "Kolejka została wstrzymana" else "Kolejka została wznowiona",
         )
+    }
+
+    fun cancelMailing() {
+        val activeJob = mailingJob
+        if (activeJob?.isActive != true) {
+            _uiState.value = _uiState.value.copy(
+                isCancellingMailing = false,
+                actionMessage = "Brak aktywnej wysyłki do anulowania",
+            )
+            return
+        }
+        mailingPaused = false
+        pendingApprovalDecision?.cancel()
+        _uiState.value = _uiState.value.copy(
+            isCancellingMailing = true,
+            isAwaitingMailApproval = false,
+            pendingApprovalRecipientName = "",
+            pendingApprovalRecipientEmail = "",
+            actionMessage = "Trwa anulowanie aktywnej wysyłki...",
+            progressLabel = "Anulowanie kolejki",
+        )
+        activeJob.cancel(CancellationException("Wysyłka anulowana przez operatora"))
     }
 
     fun updateRecipientQuery(value: String) {
@@ -560,6 +591,7 @@ class PayrollViewModel(private val repository: AdminRepository) : ViewModel() {
             _uiState.value = _uiState.value.copy(
                 isMailingRunning = true,
                 isMailingPaused = false,
+                isCancellingMailing = false,
                 actionMessage = null,
                 progressLabel = "Specjalna wysyłka do ${recipients.size} odbiorców...",
             )
@@ -576,6 +608,7 @@ class PayrollViewModel(private val repository: AdminRepository) : ViewModel() {
                 _uiState.value = _uiState.value.copy(
                     isMailingRunning = false,
                     isMailingPaused = false,
+                    isCancellingMailing = false,
                     isAwaitingMailApproval = false,
                     pendingApprovalRecipientName = "",
                     pendingApprovalRecipientEmail = "",
@@ -590,11 +623,16 @@ class PayrollViewModel(private val repository: AdminRepository) : ViewModel() {
                 _uiState.value = _uiState.value.copy(
                     isMailingRunning = false,
                     isMailingPaused = false,
+                    isCancellingMailing = false,
                     isAwaitingMailApproval = false,
                     pendingApprovalRecipientName = "",
                     pendingApprovalRecipientEmail = "",
-                    progressLabel = "Specjalna wysyłka przerwana",
-                    actionMessage = error.message ?: "Nie udało się uruchomić wysyłki specjalnej",
+                    progressLabel = if (error is CancellationException) "Specjalna wysyłka anulowana" else "Specjalna wysyłka przerwana",
+                    actionMessage = if (error is CancellationException) {
+                        "Operator anulował wysyłkę specjalną"
+                    } else {
+                        error.message ?: "Nie udało się uruchomić wysyłki specjalnej"
+                    },
                 )
             }
             mailingJob = null
@@ -1472,6 +1510,23 @@ class SettingsViewModel(private val repository: AdminRepository) : ViewModel() {
             isSavingRemoteSettings = false,
             actionMessage = "Ustawienia zdalnej integracji zapisane",
         )
+    }
+
+    fun validateDriverRemoteSettings() = viewModelScope.launch {
+        _uiState.value = _uiState.value.copy(isValidatingRemoteSettings = true, actionMessage = "Trwa walidacja endpointu...")
+        runCatching {
+            repository.validateDriverRemoteSettings(_uiState.value.remoteSettings)
+        }.onSuccess { message ->
+            _uiState.value = _uiState.value.copy(
+                isValidatingRemoteSettings = false,
+                actionMessage = message,
+            )
+        }.onFailure { error ->
+            _uiState.value = _uiState.value.copy(
+                isValidatingRemoteSettings = false,
+                actionMessage = error.message ?: "Walidacja endpointu nie powiodła się",
+            )
+        }
     }
 }
 

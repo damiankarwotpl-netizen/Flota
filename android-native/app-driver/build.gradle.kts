@@ -1,8 +1,14 @@
+import org.gradle.api.Project
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.compose")
 }
+
+fun Project.optionalConfig(name: String): String? =
+    (findProperty(name) as String?)?.takeIf { it.isNotBlank() }
+        ?: System.getenv(name)?.takeIf { it.isNotBlank() }
 
 android {
     namespace = "com.future.ultimate.driver"
@@ -14,6 +20,30 @@ android {
         targetSdk = 35
         versionCode = 1
         versionName = "1.0.0"
+    }
+
+    signingConfigs {
+        create("release") {
+            val storePath = project.optionalConfig("FLOTA_RELEASE_STORE_FILE")
+            if (storePath != null) {
+                storeFile = file(storePath)
+                storePassword = project.optionalConfig("FLOTA_RELEASE_STORE_PASSWORD")
+                keyAlias = project.optionalConfig("FLOTA_RELEASE_KEY_ALIAS")
+                keyPassword = project.optionalConfig("FLOTA_RELEASE_KEY_PASSWORD")
+                enableV1Signing = true
+                enableV2Signing = true
+            }
+        }
+    }
+
+    buildTypes {
+        getByName("release") {
+            isMinifyEnabled = false
+            val releaseSigning = signingConfigs.getByName("release")
+            if (releaseSigning.storeFile != null) {
+                signingConfig = releaseSigning
+            }
+        }
     }
 
     buildFeatures {

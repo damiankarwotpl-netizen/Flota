@@ -79,6 +79,7 @@ data class PayrollUiState(
     val progressLabel: String = "Gotowy",
     val isMailingRunning: Boolean = false,
     val isMailingPaused: Boolean = false,
+    val isCancellingMailing: Boolean = false,
     val isAwaitingMailApproval: Boolean = false,
     val pendingApprovalRecipientName: String = "",
     val pendingApprovalRecipientEmail: String = "",
@@ -180,5 +181,6 @@ data class SettingsUiState(
     val remoteSettings: DriverRemoteSettingsData = DriverRemoteSettingsData(),
     val isExportingDatabase: Boolean = false,
     val isSavingRemoteSettings: Boolean = false,
+    val isValidatingRemoteSettings: Boolean = false,
     val actionMessage: String? = null,
 )

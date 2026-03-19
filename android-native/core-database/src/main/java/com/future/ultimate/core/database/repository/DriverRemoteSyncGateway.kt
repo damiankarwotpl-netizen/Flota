@@ -86,6 +86,18 @@ internal object DriverRemoteSyncGateway {
         dao.upsertSetting(SettingEntity(key = EndpointSettingKey, valText = endpoint.trim()))
     }
 
+    suspend fun validateEndpoint(dao: AppDao, endpointOverride: String = ""): String {
+        val endpoint = endpointOverride.trim().ifBlank { loadEndpoint(dao) }
+        require(endpoint.isNotBlank()) { "Brak endpointu zdalnej synchronizacji kierowców" }
+        val (statusCode, responseBody) = postPayloadToUrl(
+            endpoint = endpoint,
+            payload = JSONObject().apply { put("action", "get_logs") },
+        )
+        require(statusCode in 200..299) { "HTTP $statusCode" }
+        validateProbeResponse(responseBody)
+        return "Zdalny endpoint kierowców odpowiada prawidłowo"
+    }
+
     private suspend fun postDriverPayload(
         dao: AppDao,
         registration: String,
@@ -117,9 +129,13 @@ internal object DriverRemoteSyncGateway {
         }
     }
 
-    private suspend fun postPayload(dao: AppDao, payload: JSONObject): Pair<Int, String> = withContext(Dispatchers.IO) {
+    private suspend fun postPayload(dao: AppDao, payload: JSONObject): Pair<Int, String> {
         val endpoint = loadEndpoint(dao)
         require(endpoint.isNotBlank()) { "Brak endpointu zdalnej synchronizacji kierowcy" }
+        return postPayloadToUrl(endpoint = endpoint, payload = payload)
+    }
+
+    private suspend fun postPayloadToUrl(endpoint: String, payload: JSONObject): Pair<Int, String> = withContext(Dispatchers.IO) {
         val connection = (URL(endpoint).openConnection() as HttpURLConnection).apply {
             requestMethod = "POST"
             connectTimeout = 10000
@@ -165,6 +181,21 @@ internal object DriverRemoteSyncGateway {
                 .takeIf { it.isNotBlank() }
                 ?: json.optString("error").takeIf { it.isNotBlank() }
                 ?: fallbackMessage
+        }
+    }
+
+    private fun validateProbeResponse(body: String) {
+        if (body.isBlank()) return
+        val trimmed = body.trim()
+        if (trimmed.startsWith("[")) return
+        val json = runCatching { JSONObject(trimmed) }.getOrNull()
+            ?: throw IllegalArgumentException("Endpoint zwrócił nieoczekiwaną odpowiedź")
+        val status = json.optString("status").trim().lowercase()
+        require(status !in setOf("error", "fail", "failed")) {
+            json.optString("message")
+                .takeIf { it.isNotBlank() }
+                ?: json.optString("error").takeIf { it.isNotBlank() }
+                ?: "Endpoint zgłosił błąd walidacji"
         }
     }
 

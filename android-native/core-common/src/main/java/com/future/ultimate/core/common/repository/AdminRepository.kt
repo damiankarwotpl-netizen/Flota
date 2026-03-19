@@ -121,6 +121,13 @@ data class SmtpSettingsData(
     val port: String = "587",
     val user: String = "",
     val password: String = "",
+    val security: String = "STARTTLS",
+    val senderName: String = "",
+    val throttleMs: String = "0",
+)
+
+data class DriverRemoteSettingsData(
+    val apiUrl: String = "",
 )
 
 data class DriverRemoteSettingsData(
@@ -254,6 +261,7 @@ interface AdminRepository {
     suspend fun validateSmtpConnection(settings: SmtpSettingsData)
     fun observeDriverRemoteSettings(): Flow<DriverRemoteSettingsData>
     suspend fun saveDriverRemoteSettings(settings: DriverRemoteSettingsData)
+    suspend fun validateDriverRemoteSettings(settings: DriverRemoteSettingsData): String
 
     fun observeEmailTemplate(): Flow<EmailTemplateData>
     suspend fun saveEmailTemplate(template: EmailTemplateData)
