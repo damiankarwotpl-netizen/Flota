@@ -41,7 +41,22 @@ sdk.dir=/absolute/path/to/Android/Sdk
 cd android-native
 ```
 
-## 5. Build debug APKs first
+## 5. Fast path: use the helper script
+
+If you want the repository to prepare the local build context for you, run:
+
+```bash
+./scripts/first_build.sh debug
+```
+
+The script will:
+- pick JDK 21 or 17 if available
+- write `local.properties` when `ANDROID_HOME` or `ANDROID_SDK_ROOT` is set
+- run the debug or release Gradle tasks for both Android apps
+
+Use `./scripts/first_build.sh release` for release artifacts.
+
+## 6. Build debug APKs first
 
 For the first verification build, create both debug APKs:
 
@@ -53,7 +68,7 @@ Expected debug artifacts:
 - `app-admin/build/outputs/apk/debug/`
 - `app-driver/build/outputs/apk/debug/`
 
-## 6. Optional: build signed release artifacts
+## 7. Optional: build signed release artifacts
 
 If you want the first release-ready build, set signing variables first:
 
@@ -70,20 +85,20 @@ Then build release artifacts:
 gradle :app-admin:assembleRelease :app-driver:assembleRelease
 ```
 
-## 7. What to verify after the first build
+## 8. What to verify after the first build
 
 1. Both app modules finish without dependency/plugin resolution errors.
 2. Debug APK files are present in both output directories.
 3. If release signing variables were provided, release artifacts are produced without signing errors.
 4. Install the debug build on a test device before starting the QA/UAT checklist.
 
-## 8. Recommended next step
+## 9. Recommended next step
 
 After the first successful build, continue with:
 1. `docs/ANDROID_NATIVE_QA_UAT_RELEASE.md`
 2. `docs/ANDROID_NATIVE_UAT_SIGNOFF_TEMPLATE.md`
 
-## 9. Common failure modes
+## 10. Common failure modes
 
 ### Android plugin cannot be resolved
 Make sure the machine has internet access and Gradle can reach Google/Maven Central/Plugin Portal.
