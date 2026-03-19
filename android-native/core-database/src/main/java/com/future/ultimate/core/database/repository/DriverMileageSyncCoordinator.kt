@@ -26,7 +26,7 @@ internal object DriverMileageSyncCoordinator {
     }
 
     suspend fun flushPending(dao: AppDao, registration: String? = null): DriverMileageSyncState {
-        val settings = dao.observeSettings().firstSnapshot()
+        val settings = dao.firstSnapshot()
         val targetRegistration = registration?.trim()?.uppercase().orEmpty()
         val pendingEntries = settings
             .filterKeys { key -> key.startsWith(PendingPrefix) }
@@ -76,7 +76,7 @@ internal object DriverMileageSyncCoordinator {
             }
         }
 
-        return buildState(settings = dao.observeSettings().firstSnapshot(), registration = registration)
+        return buildState(settings = dao.firstSnapshot(), registration = registration)
     }
 
     fun buildState(settings: Map<String, String>, registration: String?): DriverMileageSyncState {
