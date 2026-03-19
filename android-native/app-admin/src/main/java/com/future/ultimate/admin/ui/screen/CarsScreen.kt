@@ -92,7 +92,18 @@ fun CarsScreen() {
                     modifier = Modifier.fillMaxWidth(),
                 )
                 Button(onClick = viewModel::save, modifier = Modifier.fillMaxWidth()) {
-                    Text(if (uiState.isSaving) "Zapisywanie..." else "+ DODAJ SAMOCHÓD")
+                    Text(
+                        if (uiState.isSaving) {
+                            "Zapisywanie..."
+                        } else if (uiState.editor.id == null) {
+                            "+ DODAJ SAMOCHÓD"
+                        } else {
+                            "ZAPISZ ZMIANY SAMOCHODU"
+                        },
+                    )
+                }
+                if (uiState.editor.id != null) {
+                    Button(onClick = viewModel::clearEditor, modifier = Modifier.fillMaxWidth()) { Text("Anuluj edycję samochodu") }
                 }
                 uiState.actionMessage?.let { Text(it) }
             }
@@ -120,6 +131,9 @@ fun CarsScreen() {
                             Text("Kierowca: ${car.driver.ifBlank { "nieprzypisany" }}")
                             Text("Przebieg: ${car.mileage} km • do serwisu: ${car.remainingToService} km")
                             Text("Status serwisu: $serviceStatus")
+                            Button(onClick = { viewModel.editCar(car) }, modifier = Modifier.fillMaxWidth()) {
+                                Text("Edytuj samochód")
+                            }
                             if (car.driverLogin.isNotBlank()) {
                                 Text("Login kierowcy: ${car.driverLogin}")
                                 Text(

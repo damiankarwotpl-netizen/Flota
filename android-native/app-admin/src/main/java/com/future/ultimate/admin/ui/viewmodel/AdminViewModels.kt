@@ -98,6 +98,21 @@ class CarsViewModel(private val repository: AdminRepository) : ViewModel() {
         _uiState.value = _uiState.value.copy(serviceFilter = nextFilter, actionMessage = null)
     }
     fun updateEditor(draft: CarDraft) { _uiState.value = _uiState.value.copy(editor = draft, actionMessage = null) }
+    fun editCar(car: CarListItem) {
+        _uiState.value = _uiState.value.copy(
+            editor = CarDraft(
+                id = car.id,
+                name = car.name,
+                registration = car.registration,
+                driver = car.driver,
+                serviceInterval = car.serviceInterval.toString(),
+            ),
+            actionMessage = null,
+        )
+    }
+    fun clearEditor() {
+        _uiState.value = _uiState.value.copy(editor = CarDraft(), actionMessage = null)
+    }
     fun applyEditorDriverSuggestion(driver: String) { _uiState.value = _uiState.value.copy(editor = _uiState.value.editor.copy(driver = driver), actionMessage = null) }
 
     fun updateMileageDraft(id: Long, value: String) {
@@ -113,14 +128,37 @@ class CarsViewModel(private val repository: AdminRepository) : ViewModel() {
     }
 
     fun save() = viewModelScope.launch {
+        val draft = _uiState.value.editor
+        if (draft.name.isBlank()) {
+            _uiState.value = _uiState.value.copy(actionMessage = "Nazwa samochodu jest wymagana")
+            return@launch
+        }
+        if (draft.registration.isBlank()) {
+            _uiState.value = _uiState.value.copy(actionMessage = "Rejestracja samochodu jest wymagana")
+            return@launch
+        }
+        if (draft.serviceInterval.toIntOrNull()?.let { it > 0 } != true) {
+            _uiState.value = _uiState.value.copy(actionMessage = "Interwał serwisowy musi być dodatnią liczbą")
+            return@launch
+        }
+        val isEditing = draft.id != null
         _uiState.value = _uiState.value.copy(isSaving = true, actionMessage = null)
-        repository.saveCar(_uiState.value.editor)
-        _uiState.value = _uiState.value.copy(isSaving = false, editor = CarDraft(), actionMessage = "Samochód zapisany")
+        repository.saveCar(draft)
+        _uiState.value = _uiState.value.copy(
+            isSaving = false,
+            editor = CarDraft(),
+            actionMessage = if (isEditing) "Samochód zaktualizowany" else "Samochód zapisany",
+        )
     }
 
     fun saveMileage(id: Long) = viewModelScope.launch {
+        val mileageText = _uiState.value.mileageDrafts[id]
+        val mileage = mileageText?.toIntOrNull()
+        if (mileage == null || mileage < 0) {
+            _uiState.value = _uiState.value.copy(actionMessage = "Przebieg musi być liczbą dodatnią lub zerem")
+            return@launch
+        }
         _uiState.value = _uiState.value.copy(actionInFlightId = id, actionMessage = null)
-        val mileage = _uiState.value.mileageDrafts[id]?.toIntOrNull() ?: 0
         repository.updateCarMileage(id, mileage)
         _uiState.value = _uiState.value.copy(actionInFlightId = null, actionMessage = "Przebieg zapisany")
     }
