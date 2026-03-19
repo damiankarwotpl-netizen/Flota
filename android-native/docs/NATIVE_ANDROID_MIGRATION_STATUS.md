@@ -6,18 +6,22 @@ This repository now contains a native Android migration foundation in `android-n
 - shared Room schema module
 - shared feature contracts and navigation skeletons
 - local driver-account handoff between admin car management and the driver app login/mileage/report flows
-- native driver mileage queue + periodic background sync worker, with retry metadata and admin-side sync freshness visibility
+- native admin-side remote driver-account sync requests (create/reset/delete/assignment) with per-vehicle status visibility
+- shared native driver remote gateway covering admin account sync, driver-side password reset parity, and admin-configurable remote endpoint settings
+- driver session restore on app restart plus native admin-side endpoint validation for the production driver contract
+- native driver mileage queue + periodic background sync worker, now posting real remote mileage updates with retry metadata and admin-side sync freshness visibility
+- native driver notification channel for background mileage sync results and pending retry states
+- hardened background sync scheduling/notifications plus timestamped database snapshot export safeguards and no-cleartext manifest defaults in both apps
 - real PDF export of the vehicle report in both Android apps
-- local SMTP/template persistence plus native session-report/dashboard screens in admin, including CSV export for session reports and clothes counters in settings
+- native SMTP send/test flow with saved templates, session-report/dashboard screens in admin, CSV export for session reports, special-send selection, pause/resume mass-mailing queue controls, and manual operator approval when auto-send is off
+- SMTP hardening for rollout parity: configurable security mode, sender identity, throttling, strict attachment validation, and operator cancellation of active queues
 - the first clothes-module slices: native size management plus order headers/items/history, starter-order generation from workers/saved sizes, basic issue actions, and CSV/XLSX/PDF order + issue exports backed by Room
+- a repository-backed QA/UAT/release cutover playbook plus environment/property-driven release signing for both Android apps
 
 ## Important
-This is **not yet a finished 1:1 replacement** of the Python/Kivy application. It is the structural migration baseline required to continue safely.
+The implementation backlog for the native Android migration is now **fully closed in-repo**.
+Operational rollout still requires executing the documented QA/UAT/release process from `docs/ANDROID_NATIVE_QA_UAT_RELEASE.md` on real environments, with human sign-off.
 
 ## Next implementation blocks
-The migration is now tracked as a **5-step execution plan** in `docs/ANDROID_NATIVE_MIGRATION_BACKLOG.md`, covering:
-1. real remote driver-account sync
-2. SMTP pipeline and mailing actions
-3. remaining remote API wiring
-4. notifications and operational hardening
-5. QA, UAT, and release cutover
+There are currently **0 top-level implementation blocks remaining** in `docs/ANDROID_NATIVE_MIGRATION_BACKLOG.md`.
+The next work, if needed, is operational execution: run the documented QA/UAT/cutover checklist and address any issues found during rollout.

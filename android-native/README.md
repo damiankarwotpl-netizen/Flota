@@ -9,8 +9,9 @@ This directory contains the native Android migration baseline for the legacy Kiv
 - `core-database` – Room entities, DAO, database definition, and local repository bootstrap matching the current SQLite schema
 
 ## Current state
-This is a structural migration baseline, not yet a finished 1:1 production replacement.
-The intent is to establish the Android-native architecture and source layout required to port the remaining features safely.
+The in-repo implementation backlog for the Android-native migration is closed.
+Operational rollout is driven by the QA/UAT/release playbook in `docs/ANDROID_NATIVE_QA_UAT_RELEASE.md`.
 
 ## Remaining work
-See `docs/ANDROID_NATIVE_MIGRATION_BACKLOG.md` for the current step-by-step backlog.
+There are no remaining top-level implementation steps in `docs/ANDROID_NATIVE_MIGRATION_BACKLOG.md`.
+Any follow-up work should come from issues discovered during execution of the rollout checklist.
