@@ -110,7 +110,7 @@ jobs:
           if-no-files-found: warn
 
       - name: Persist latest problem report in repository
-        if: ${{ failure() && github.event_name != 'pull_request' && (github.event_name != 'workflow_dispatch' || github.event.inputs.persist_problem_report == 'true') }}
+        if: ${{ failure() && (github.event_name != 'workflow_dispatch' || github.event.inputs.persist_problem_report == 'true') }}
         working-directory: .
         run: |
           set -euo pipefail
@@ -145,4 +145,4 @@ jobs:
             exit 0
           fi
           git commit -m "ci(native): update latest problems report (run ${{ github.run_id }})"
-          git push
+          git push || echo "Push skipped (likely read-only token/fork PR). Artifacts still contain diagnostics."
