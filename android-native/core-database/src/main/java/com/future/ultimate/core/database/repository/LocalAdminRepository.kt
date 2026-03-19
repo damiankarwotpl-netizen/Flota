@@ -184,14 +184,15 @@ class LocalAdminRepository(
     override suspend fun saveCar(draft: CarDraft) {
         val serviceInterval = draft.serviceInterval.toIntOrNull()?.coerceAtLeast(1) ?: 15000
         val registration = draft.registration.trim().uppercase()
-        val existingCar = if (draft.id != null) {
-            dao.getCar(draft.id)
+        val draftId = draft.id
+        val existingCar = if (draftId != null) {
+            dao.getCar(draftId)
         } else {
             dao.getCarByRegistration(registration)
         }
         dao.upsertCar(
             CarEntity(
-                id = existingCar?.id ?: draft.id ?: 0,
+                id = existingCar?.id ?: draftId ?: 0,
                 name = draft.name.trim(),
                 registration = registration,
                 driver = draft.driver.trim(),
@@ -761,21 +762,6 @@ class LocalAdminRepository(
         if (nextStatus != order.status) {
             dao.updateClothesOrderStatus(orderId, nextStatus)
         }
-    }
-
-    private fun canIssueClothesOrder(status: String): Boolean {
-        val normalized = status.trim().lowercase()
-        return normalized == "zamówione" || normalized == "częściowo wydane"
-    }
-
-    private fun canMarkClothesOrderOrdered(status: String): Boolean {
-        val normalized = status.trim().lowercase()
-        return normalized != "częściowo wydane" && normalized != "wydane"
-    }
-
-    private fun isClothesOrderIssueWorkflowStatus(status: String): Boolean {
-        val normalized = status.trim().lowercase()
-        return normalized == "zamówione" || normalized == "częściowo wydane" || normalized == "wydane"
     }
 
     private fun canIssueClothesOrder(status: String): Boolean {
