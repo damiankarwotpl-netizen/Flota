@@ -18,6 +18,7 @@ import com.future.ultimate.core.common.repository.ClothesOrderImportRow
 import com.future.ultimate.core.common.repository.ClothesOrderListItem
 import com.future.ultimate.core.common.repository.ClothesSizeListItem
 import com.future.ultimate.core.common.repository.EmailTemplateData
+import com.future.ultimate.core.common.repository.ContactListItem
 import com.future.ultimate.core.common.repository.PayrollWorkbookRow
 import com.future.ultimate.core.common.repository.SmtpSettingsData
 import com.future.ultimate.core.common.ui.CarsUiState
@@ -36,6 +37,7 @@ import com.future.ultimate.core.common.ui.TemplateUiState
 import com.future.ultimate.core.common.ui.VehicleReportUiState
 import com.future.ultimate.core.common.ui.WorkersUiState
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -227,12 +229,29 @@ class VehicleReportViewModel(private val repository: AdminRepository) : ViewMode
 class PayrollViewModel(private val repository: AdminRepository) : ViewModel() {
     private val _uiState = MutableStateFlow(PayrollUiState(operatorLabel = PatchLoader.fallbackUserLabel()))
     val uiState: StateFlow<PayrollUiState> = _uiState.asStateFlow()
-    private var contactsCache: List<com.future.ultimate.core.common.repository.ContactListItem> = emptyList()
+    private var contactsCache: List<ContactListItem> = emptyList()
+    private var templateCache: EmailTemplateData = EmailTemplateData()
+    private var mailingJob: Job? = null
+    @Volatile
+    private var mailingPaused: Boolean = false
 
     init {
         repository.observeContacts().onEach { items ->
             contactsCache = items
-            _uiState.value = _uiState.value.copy(totalRecipients = items.size)
+            val knownKeys = items.map(::selectionKey).toSet()
+            _uiState.value = _uiState.value.copy(
+                contacts = items,
+                totalRecipients = items.size,
+                selectedRecipientKeys = _uiState.value.selectedRecipientKeys.intersect(knownKeys),
+            )
+        }.launchIn(viewModelScope)
+        repository.observeEmailTemplate().onEach { template ->
+            templateCache = template
+            val state = _uiState.value
+            _uiState.value = state.copy(
+                specialSubject = state.specialSubject.ifBlank { template.subject },
+                specialBody = state.specialBody.ifBlank { template.body },
+            )
         }.launchIn(viewModelScope)
     }
 
@@ -334,12 +353,17 @@ class PayrollViewModel(private val repository: AdminRepository) : ViewModel() {
     }
 
     fun clearAttachments() {
+        if (mailingJob?.isActive == true) {
+            _uiState.value = _uiState.value.copy(actionMessage = "Nie można czyścić załączników podczas aktywnej wysyłki")
+            return
+        }
         _uiState.value = _uiState.value.copy(
             attachmentPaths = emptyList(),
             attachmentCount = 0,
             actionMessage = "Załączniki wyczyszczone",
             progressLabel = "Gotowy",
             isMailingRunning = false,
+            isMailingPaused = false,
         )
     }
 
@@ -373,6 +397,10 @@ class PayrollViewModel(private val repository: AdminRepository) : ViewModel() {
     }
 
     fun startMassMailing() {
+        if (mailingJob?.isActive == true) {
+            _uiState.value = _uiState.value.copy(actionMessage = "Wysyłka już trwa")
+            return
+        }
         val hasRecipients = _uiState.value.totalRecipients > 0
         val hasAttachments = _uiState.value.attachmentPaths.isNotEmpty()
         if (!hasRecipients || !hasAttachments) {
@@ -389,9 +417,11 @@ class PayrollViewModel(private val repository: AdminRepository) : ViewModel() {
             )
             return
         }
-        viewModelScope.launch {
+        mailingPaused = false
+        mailingJob = viewModelScope.launch {
             _uiState.value = _uiState.value.copy(
                 isMailingRunning = true,
+                isMailingPaused = false,
                 actionMessage = null,
                 progressLabel = "Trwa realna wysyłka do ${_uiState.value.totalRecipients} kontaktów...",
             )
@@ -399,10 +429,13 @@ class PayrollViewModel(private val repository: AdminRepository) : ViewModel() {
                 repository.sendMassMailing(
                     attachmentPaths = _uiState.value.attachmentPaths,
                     autoMode = _uiState.value.autoSend,
+                    onProgress = ::handleMailProgress,
+                    awaitResume = ::awaitMailResume,
                 )
             }.onSuccess { result ->
                 _uiState.value = _uiState.value.copy(
                     isMailingRunning = false,
+                    isMailingPaused = false,
                     progressLabel = "Sesja zakończona: OK ${result.ok} / Błędy ${result.fail} / Skip ${result.skip}",
                     actionMessage = if (result.details.isBlank()) {
                         "Brak szczegółów sesji"
@@ -413,20 +446,137 @@ class PayrollViewModel(private val repository: AdminRepository) : ViewModel() {
             }.onFailure { error ->
                 _uiState.value = _uiState.value.copy(
                     isMailingRunning = false,
+                    isMailingPaused = false,
                     progressLabel = "Masowa wysyłka przerwana",
                     actionMessage = error.message ?: "Nie udało się uruchomić masowej wysyłki",
                 )
             }
+            mailingJob = null
+            mailingPaused = false
         }
     }
 
     fun togglePauseMailing() {
-        val running = _uiState.value.isMailingRunning
+        val running = mailingJob?.isActive == true
+        if (!running) {
+            _uiState.value = _uiState.value.copy(
+                isMailingRunning = false,
+                isMailingPaused = false,
+                progressLabel = "Brak aktywnej wysyłki",
+                actionMessage = "Najpierw uruchom wysyłkę",
+            )
+            return
+        }
+        mailingPaused = !mailingPaused
         _uiState.value = _uiState.value.copy(
-            isMailingRunning = !running && _uiState.value.attachmentPaths.isNotEmpty() && _uiState.value.totalRecipients > 0,
-            progressLabel = if (running) "Wysyłka wstrzymana" else "Wysyłka wznowiona",
-            actionMessage = if (running) "Kolejka została wstrzymana" else "Kolejka została wznowiona",
+            isMailingRunning = true,
+            isMailingPaused = mailingPaused,
+            progressLabel = if (mailingPaused) "Wysyłka wstrzymana" else "Wysyłka wznowiona — oczekiwanie na kolejny element",
+            actionMessage = if (mailingPaused) "Kolejka została wstrzymana" else "Kolejka została wznowiona",
         )
+    }
+
+    fun updateRecipientQuery(value: String) {
+        _uiState.value = _uiState.value.copy(recipientQuery = value, actionMessage = null)
+    }
+
+    fun toggleSpecialRecipient(item: ContactListItem) {
+        val key = selectionKey(item)
+        val updated = _uiState.value.selectedRecipientKeys.let { current ->
+            if (key in current) current - key else current + key
+        }
+        _uiState.value = _uiState.value.copy(selectedRecipientKeys = updated, actionMessage = null)
+    }
+
+    fun selectVisibleRecipients() {
+        val visibleKeys = filteredRecipients().map(::selectionKey)
+        if (visibleKeys.isEmpty()) {
+            _uiState.value = _uiState.value.copy(actionMessage = "Brak widocznych odbiorców do zaznaczenia")
+            return
+        }
+        _uiState.value = _uiState.value.copy(
+            selectedRecipientKeys = _uiState.value.selectedRecipientKeys + visibleKeys,
+            actionMessage = "Zaznaczono ${visibleKeys.size} odbiorców",
+        )
+    }
+
+    fun clearSpecialRecipients() {
+        _uiState.value = _uiState.value.copy(selectedRecipientKeys = emptySet(), actionMessage = "Wyczyszczono listę odbiorców")
+    }
+
+    fun updateSpecialSubject(value: String) {
+        _uiState.value = _uiState.value.copy(specialSubject = value, actionMessage = null)
+    }
+
+    fun updateSpecialBody(value: String) {
+        _uiState.value = _uiState.value.copy(specialBody = value, actionMessage = null)
+    }
+
+    fun loadTemplateIntoSpecial() {
+        _uiState.value = _uiState.value.copy(
+            specialSubject = templateCache.subject,
+            specialBody = templateCache.body,
+            actionMessage = "Załadowano zapisany szablon do wysyłki specjalnej",
+        )
+    }
+
+    fun sendSpecial() {
+        if (mailingJob?.isActive == true) {
+            _uiState.value = _uiState.value.copy(actionMessage = "Poczekaj na zakończenie bieżącej wysyłki")
+            return
+        }
+        val recipients = contactsCache.filter { selectionKey(it) in _uiState.value.selectedRecipientKeys }
+        if (recipients.isEmpty()) {
+            _uiState.value = _uiState.value.copy(actionMessage = "Zaznacz co najmniej jednego odbiorcę")
+            return
+        }
+        if (_uiState.value.specialSubject.isBlank()) {
+            _uiState.value = _uiState.value.copy(actionMessage = "Uzupełnij temat wiadomości specjalnej")
+            return
+        }
+        if (_uiState.value.specialBody.isBlank()) {
+            _uiState.value = _uiState.value.copy(actionMessage = "Uzupełnij treść wiadomości specjalnej")
+            return
+        }
+        mailingPaused = false
+        mailingJob = viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(
+                isMailingRunning = true,
+                isMailingPaused = false,
+                actionMessage = null,
+                progressLabel = "Specjalna wysyłka do ${recipients.size} odbiorców...",
+            )
+            runCatching {
+                repository.sendSpecialMailing(
+                    recipients = recipients,
+                    attachmentPaths = _uiState.value.attachmentPaths,
+                    subject = _uiState.value.specialSubject,
+                    body = _uiState.value.specialBody,
+                    onProgress = ::handleMailProgress,
+                    awaitResume = ::awaitMailResume,
+                )
+            }.onSuccess { result ->
+                _uiState.value = _uiState.value.copy(
+                    isMailingRunning = false,
+                    isMailingPaused = false,
+                    progressLabel = "Specjalna sesja zakończona: OK ${result.ok} / Błędy ${result.fail} / Skip ${result.skip}",
+                    actionMessage = if (result.details.isBlank()) {
+                        "Brak szczegółów sesji"
+                    } else {
+                        result.details.lineSequence().take(4).joinToString("\n")
+                    },
+                )
+            }.onFailure { error ->
+                _uiState.value = _uiState.value.copy(
+                    isMailingRunning = false,
+                    isMailingPaused = false,
+                    progressLabel = "Specjalna wysyłka przerwana",
+                    actionMessage = error.message ?: "Nie udało się uruchomić wysyłki specjalnej",
+                )
+            }
+            mailingJob = null
+            mailingPaused = false
+        }
     }
 
     private fun addAttachment(path: String, label: String) {
@@ -438,6 +588,37 @@ class PayrollViewModel(private val repository: AdminRepository) : ViewModel() {
             progressLabel = "Załączniki gotowe: ${updated.size}",
         )
     }
+
+    private suspend fun handleMailProgress(progress: com.future.ultimate.core.common.repository.MailDispatchProgress) {
+        val prefix = if (_uiState.value.isMailingPaused) "Wstrzymano po" else "Przetworzono"
+        _uiState.value = _uiState.value.copy(
+            progressLabel = "$prefix ${progress.processed}/${progress.total} • OK ${progress.ok} / Błędy ${progress.fail} / Skip ${progress.skip}",
+            actionMessage = if (progress.currentRecipient.isBlank()) null else "Ostatni odbiorca: ${progress.currentRecipient}",
+        )
+    }
+
+    private suspend fun awaitMailResume() {
+        while (mailingPaused) {
+            delay(200)
+        }
+    }
+
+    private fun filteredRecipients(): List<ContactListItem> {
+        val query = _uiState.value.recipientQuery.trim().lowercase()
+        return contactsCache.filter { item ->
+            if (query.isBlank()) {
+                true
+            } else {
+                listOf(item.name, item.surname, item.email, item.workplace, item.phone)
+                    .joinToString(" ")
+                    .lowercase()
+                    .contains(query)
+            }
+        }
+    }
+
+    private fun selectionKey(item: ContactListItem): String =
+        "${item.name.trim().lowercase()}|${item.surname.trim().lowercase()}|${item.email.trim().lowercase()}"
 
     private fun formatMoney(value: Double): String = String.format(java.util.Locale.US, "%.2f", value)
 

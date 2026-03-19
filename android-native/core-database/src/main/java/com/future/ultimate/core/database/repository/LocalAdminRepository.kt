@@ -26,6 +26,7 @@ import com.future.ultimate.core.common.repository.ContactListItem
 import com.future.ultimate.core.common.repository.DashboardStats
 import com.future.ultimate.core.common.repository.DriverAccountCredentials
 import com.future.ultimate.core.common.repository.EmailTemplateData
+import com.future.ultimate.core.common.repository.MailDispatchProgress
 import com.future.ultimate.core.common.repository.MailDispatchResult
 import com.future.ultimate.core.common.repository.PlantListItem
 import com.future.ultimate.core.common.repository.PayrollWorkbookRow
@@ -851,63 +852,53 @@ class LocalAdminRepository(
         }
     }
 
-    override suspend fun sendMassMailing(attachmentPaths: List<String>, autoMode: Boolean): MailDispatchResult {
-        return withContext(Dispatchers.IO) {
-            val settings = loadSavedSmtpSettings().normalized()
-            val template = loadSavedEmailTemplate().validated()
-            val attachments = sanitizeAttachments(attachmentPaths)
-            val contacts = dao.observeContacts().first()
-            val today = LocalDate.now()
-            var ok = 0
-            var fail = 0
-            var skip = 0
-            val details = mutableListOf<String>()
-
-            contacts.forEach { contact ->
-                val email = contact.email.trim()
-                val fullName = listOf(contact.name, contact.surname).joinToString(" ").trim()
-                if (email.isBlank()) {
-                    skip += 1
-                    details += "SKIP: ${fullName.ifBlank { "Bez nazwy" }} — brak email"
-                    return@forEach
-                }
-
-                runCatching {
-                    sendMail(
-                        settings = settings,
-                        recipient = email,
-                        subject = renderTemplate(template.subject, contact.name.ifBlank { fullName }, today),
-                        body = renderTemplate(template.body, contact.name.ifBlank { fullName }, today),
-                        attachments = attachments,
+    override suspend fun sendMassMailing(
+        attachmentPaths: List<String>,
+        autoMode: Boolean,
+        onProgress: suspend (MailDispatchProgress) -> Unit,
+        awaitResume: suspend () -> Unit,
+    ): MailDispatchResult =
+        withContext(Dispatchers.IO) {
+            dispatchMailBatch(
+                recipients = dao.observeContacts().first().map {
+                    ContactListItem(
+                        name = it.name,
+                        surname = it.surname,
+                        email = it.email,
+                        phone = it.phone,
+                        workplace = it.workplace,
+                        apartment = it.apartment,
+                        notes = it.notes,
                     )
-                }.onSuccess {
-                    ok += 1
-                    details += "OK: ${fullName.ifBlank { email }} <$email>"
-                }.onFailure { error ->
-                    fail += 1
-                    details += "FAIL: ${fullName.ifBlank { email }} <$email> — ${error.message.orEmpty().ifBlank { "nieznany błąd" }}"
-                }
-            }
-
-            val result = MailDispatchResult(
-                ok = ok,
-                fail = fail,
-                skip = skip,
-                details = details.joinToString("\n"),
+                },
+                attachmentPaths = attachmentPaths,
+                autoMode = autoMode,
+                subjectOverride = null,
+                bodyOverride = null,
+                onProgress = onProgress,
+                awaitResume = awaitResume,
             )
-            dao.insertReport(
-                ReportEntity(
-                    date = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")),
-                    ok = ok,
-                    fail = fail,
-                    skip = skip,
-                    auto = if (autoMode) 1 else 0,
-                    details = result.details,
-                ),
-            )
-            result
         }
-    }
+
+    override suspend fun sendSpecialMailing(
+        recipients: List<ContactListItem>,
+        attachmentPaths: List<String>,
+        subject: String,
+        body: String,
+        onProgress: suspend (MailDispatchProgress) -> Unit,
+        awaitResume: suspend () -> Unit,
+    ): MailDispatchResult =
+        withContext(Dispatchers.IO) {
+            dispatchMailBatch(
+                recipients = recipients,
+                attachmentPaths = attachmentPaths,
+                autoMode = false,
+                subjectOverride = subject,
+                bodyOverride = body,
+                onProgress = onProgress,
+                awaitResume = awaitResume,
+            )
+        }
 
     override fun observeSessionReports(): Flow<List<SessionReportListItem>> = dao.observeReports().map { items ->
         items.map {
@@ -1272,6 +1263,98 @@ class LocalAdminRepository(
         appendLine(columns.joinToString(",") { value ->
             "\"${value.replace("\"", "\"\"")}\""
         })
+    }
+
+    private suspend fun dispatchMailBatch(
+        recipients: List<ContactListItem>,
+        attachmentPaths: List<String>,
+        autoMode: Boolean,
+        subjectOverride: String?,
+        bodyOverride: String?,
+        onProgress: suspend (MailDispatchProgress) -> Unit,
+        awaitResume: suspend () -> Unit,
+    ): MailDispatchResult {
+        val settings = loadSavedSmtpSettings().normalized()
+        val template = loadSavedEmailTemplate().validated()
+        val attachments = sanitizeAttachments(attachmentPaths)
+        val today = LocalDate.now()
+        val resolvedSubject = subjectOverride?.trim().orEmpty().ifBlank { template.subject }
+        val resolvedBody = bodyOverride?.trim().orEmpty().ifBlank { template.body }
+        require(resolvedSubject.isNotBlank()) { "Brak tematu email" }
+        require(resolvedBody.isNotBlank()) { "Brak treści email" }
+
+        var ok = 0
+        var fail = 0
+        var skip = 0
+        val details = mutableListOf<String>()
+
+        recipients.forEachIndexed { index, contact ->
+            awaitResume()
+
+            val email = contact.email.trim()
+            val fullName = listOf(contact.name, contact.surname).joinToString(" ").trim()
+            val recipientLabel = fullName.ifBlank { email.ifBlank { "Bez nazwy" } }
+            if (email.isBlank()) {
+                skip += 1
+                details += "SKIP: $recipientLabel — brak email"
+                onProgress(
+                    MailDispatchProgress(
+                        processed = index + 1,
+                        total = recipients.size,
+                        ok = ok,
+                        fail = fail,
+                        skip = skip,
+                        currentRecipient = recipientLabel,
+                    ),
+                )
+                return@forEachIndexed
+            }
+
+            runCatching {
+                sendMail(
+                    settings = settings,
+                    recipient = email,
+                    subject = renderTemplate(resolvedSubject, contact.name.ifBlank { fullName }, today),
+                    body = renderTemplate(resolvedBody, contact.name.ifBlank { fullName }, today),
+                    attachments = attachments,
+                )
+            }.onSuccess {
+                ok += 1
+                details += "OK: ${fullName.ifBlank { email }} <$email>"
+            }.onFailure { error ->
+                fail += 1
+                details += "FAIL: ${fullName.ifBlank { email }} <$email> — ${error.message.orEmpty().ifBlank { "nieznany błąd" }}"
+            }
+
+            onProgress(
+                MailDispatchProgress(
+                    processed = index + 1,
+                    total = recipients.size,
+                    ok = ok,
+                    fail = fail,
+                    skip = skip,
+                    currentRecipient = recipientLabel,
+                ),
+            )
+        }
+
+        val result = MailDispatchResult(
+            ok = ok,
+            fail = fail,
+            skip = skip,
+            details = details.joinToString("\n"),
+        )
+        dao.insertReport(
+            ReportEntity(
+                date = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")),
+                ok = ok,
+                fail = fail,
+                skip = skip,
+                auto = if (autoMode) 1 else 0,
+                details = result.details,
+            ),
+        )
+        return result
     }
 
     private fun sanitizeFilePart(value: String): String = value

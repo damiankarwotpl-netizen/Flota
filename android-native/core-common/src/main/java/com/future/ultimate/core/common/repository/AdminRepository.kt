@@ -140,6 +140,15 @@ data class MailDispatchResult(
     val details: String,
 )
 
+data class MailDispatchProgress(
+    val processed: Int = 0,
+    val total: Int = 0,
+    val ok: Int = 0,
+    val fail: Int = 0,
+    val skip: Int = 0,
+    val currentRecipient: String = "",
+)
+
 data class DashboardStats(
     val contactCount: Int = 0,
     val workerCount: Int = 0,
@@ -234,7 +243,20 @@ interface AdminRepository {
     fun observeEmailTemplate(): Flow<EmailTemplateData>
     suspend fun saveEmailTemplate(template: EmailTemplateData)
     suspend fun sendSinglePreviewMail(attachmentPaths: List<String>): String
-    suspend fun sendMassMailing(attachmentPaths: List<String>, autoMode: Boolean): MailDispatchResult
+    suspend fun sendMassMailing(
+        attachmentPaths: List<String>,
+        autoMode: Boolean,
+        onProgress: suspend (MailDispatchProgress) -> Unit = {},
+        awaitResume: suspend () -> Unit = {},
+    ): MailDispatchResult
+    suspend fun sendSpecialMailing(
+        recipients: List<ContactListItem>,
+        attachmentPaths: List<String>,
+        subject: String,
+        body: String,
+        onProgress: suspend (MailDispatchProgress) -> Unit = {},
+        awaitResume: suspend () -> Unit = {},
+    ): MailDispatchResult
 
     fun observeSessionReports(): Flow<List<SessionReportListItem>>
     fun observeDashboardStats(): Flow<DashboardStats>

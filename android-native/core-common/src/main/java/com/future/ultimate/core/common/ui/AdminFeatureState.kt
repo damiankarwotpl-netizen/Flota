@@ -62,6 +62,9 @@ data class PayrollUiState(
     val autoSend: Boolean = false,
     val attachmentCount: Int = 0,
     val totalRecipients: Int = 0,
+    val contacts: List<ContactListItem> = emptyList(),
+    val recipientQuery: String = "",
+    val selectedRecipientKeys: Set<String> = emptySet(),
     val operatorLabel: String = "",
     val grossAmount: String = "0",
     val bonusAmount: String = "0",
@@ -74,7 +77,10 @@ data class PayrollUiState(
     val stagedWorkbookRows: List<PayrollWorkbookRow> = emptyList(),
     val progressLabel: String = "Gotowy",
     val isMailingRunning: Boolean = false,
+    val isMailingPaused: Boolean = false,
     val attachmentPaths: List<String> = emptyList(),
+    val specialSubject: String = "",
+    val specialBody: String = "",
     val actionMessage: String? = null,
 )
 
