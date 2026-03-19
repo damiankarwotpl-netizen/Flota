@@ -81,6 +81,7 @@ object ClothesOrderPdfExporter {
         val pageWidth = 595
         val pageHeight = 842
         val margin = 36f
+        val contentWidth = pageWidth - (margin * 2)
         val titlePaint = paint(size = 18f, bold = true)
         val subtitlePaint = paint(size = 10f, color = Color.DKGRAY)
         val textPaint = paint(size = 10f)
@@ -107,13 +108,21 @@ object ClothesOrderPdfExporter {
             description = description,
             title = title,
             margin = margin,
+            contentWidth = contentWidth,
         )
 
         canvas.drawText(sectionTitle, margin, y, sectionPaint)
         y += 18f
 
         items.forEachIndexed { index, item ->
-            if (y > pageHeight - 90f) {
+            val worker = "${item.name} ${item.surname}".trim().ifBlank { "Pracownik #${item.workerId}" }
+            val workerLines = wrapText("${index + 1}. $worker", textPaint, contentWidth - 24f)
+            val itemLines = wrapText("Pozycja: ${safe(item.item)}", textPaint, contentWidth - 24f)
+            val detailsLine = "Rozmiar: ${safe(item.size)} • Ilość: ${item.qty} • Status: ${if (item.issued) "wydane" else "niewydane"}"
+            val detailsLines = wrapText(detailsLine, textPaint, contentWidth - 24f)
+            val rowHeight = 20f + ((workerLines.size + itemLines.size + detailsLines.size) * 14f)
+
+            if (y + rowHeight > pageHeight - 50f) {
                 document.finishPage(page)
                 pageNumber += 1
                 page = document.startPage(PdfDocument.PageInfo.Builder(pageWidth, pageHeight, pageNumber).create())
@@ -131,19 +140,17 @@ object ClothesOrderPdfExporter {
                     description = description,
                     title = title,
                     margin = margin,
+                    contentWidth = contentWidth,
                 )
                 canvas.drawText("$sectionTitle (cd.)", margin, y, sectionPaint)
                 y += 18f
             }
 
-            val worker = "${item.name} ${item.surname}".trim().ifBlank { "Pracownik #${item.workerId}" }
-            canvas.drawRect(margin, y - 12f, pageWidth - margin, y + 42f, linePaint)
-            canvas.drawText("${index + 1}. $worker", margin + 12f, y + 4f, textPaint)
-            canvas.drawText("Pozycja: ${safe(item.item)}", margin + 12f, y + 20f, textPaint)
-            canvas.drawText("Rozmiar: ${safe(item.size)}", margin + 220f, y + 20f, textPaint)
-            canvas.drawText("Ilość: ${item.qty}", margin + 360f, y + 20f, textPaint)
-            canvas.drawText("Status: ${if (item.issued) "wydane" else "niewydane"}", margin + 440f, y + 20f, textPaint)
-            y += 58f
+            canvas.drawRect(margin, y - 12f, pageWidth - margin, y + rowHeight - 4f, linePaint)
+            y = drawLines(canvas, workerLines, margin + 12f, y + 4f, textPaint)
+            y = drawLines(canvas, itemLines, margin + 12f, y + 2f, textPaint)
+            y = drawLines(canvas, detailsLines, margin + 12f, y + 2f, textPaint)
+            y += 10f
         }
 
         document.finishPage(page)
@@ -165,19 +172,28 @@ object ClothesOrderPdfExporter {
         description: String,
         title: String,
         margin: Float,
+        contentWidth: Float,
     ): Float {
         var y = 42f
         canvas.drawText(title, margin, y, titlePaint)
         y += 18f
         canvas.drawText("Eksport Android-native 1:1", margin, y, subtitlePaint)
         y += 24f
-        canvas.drawRect(margin, y, 559f, y + 62f, linePaint)
-        canvas.drawText("ID: $orderId", margin + 12f, y + 18f, textPaint)
-        canvas.drawText("Data: ${safe(date)}", margin + 120f, y + 18f, textPaint)
-        canvas.drawText("Zakład: ${safe(plant)}", margin + 280f, y + 18f, textPaint)
-        canvas.drawText("Status: ${safe(status)}", margin + 12f, y + 38f, textPaint)
-        canvas.drawText("Opis: ${safe(description)}", margin + 120f, y + 38f, textPaint)
-        return y + 86f
+        val boxTop = y
+        val metaLines = listOf(
+            "ID: $orderId • Data: ${safe(date)}",
+            "Zakład: ${safe(plant)} • Status: ${safe(status)}",
+        )
+        val descriptionLines = wrapText("Opis: ${safe(description)}", textPaint, contentWidth - 24f)
+        val boxHeight = 18f + ((metaLines.size + descriptionLines.size) * 14f) + 12f
+        canvas.drawRect(margin, boxTop, margin + contentWidth, boxTop + boxHeight, linePaint)
+        var textY = boxTop + 18f
+        metaLines.forEach { line ->
+            canvas.drawText(line, margin + 12f, textY, textPaint)
+            textY += 14f
+        }
+        textY = drawLines(canvas, descriptionLines, margin + 12f, textY, textPaint)
+        return boxTop + boxHeight + 24f
     }
 
     private fun paint(size: Float, bold: Boolean = false, color: Int = Color.BLACK): Paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
@@ -192,4 +208,43 @@ object ClothesOrderPdfExporter {
     }
 
     private fun safe(value: String): String = value.trim().ifBlank { "-" }
+
+    private fun drawLines(
+        canvas: android.graphics.Canvas,
+        lines: List<String>,
+        x: Float,
+        startY: Float,
+        paint: Paint,
+        lineHeight: Float = 14f,
+    ): Float {
+        var y = startY
+        lines.forEach { line ->
+            canvas.drawText(line, x, y, paint)
+            y += lineHeight
+        }
+        return y
+    }
+
+    private fun wrapText(value: String, paint: Paint, maxWidth: Float): List<String> {
+        val normalized = safe(value)
+        if (paint.measureText(normalized) <= maxWidth) return listOf(normalized)
+
+        val lines = mutableListOf<String>()
+        var currentLine = ""
+        normalized.split(Regex("\\s+")).forEach { word ->
+            val candidate = if (currentLine.isBlank()) word else "$currentLine $word"
+            if (paint.measureText(candidate) <= maxWidth) {
+                currentLine = candidate
+            } else {
+                if (currentLine.isNotBlank()) {
+                    lines += currentLine
+                }
+                currentLine = word
+            }
+        }
+        if (currentLine.isNotBlank()) {
+            lines += currentLine
+        }
+        return if (lines.isEmpty()) listOf(normalized) else lines
+    }
 }
