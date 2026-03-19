@@ -127,6 +127,16 @@ data class DashboardStats(
     val clothesHistoryCount: Int = 0,
 )
 
+data class DriverAccountCredentials(
+    val login: String = "",
+    val password: String = "",
+)
+
+data class ClothesOrderXlsxExport(
+    val supplierPath: String = "",
+    val issuePath: String = "",
+)
+
 interface AdminRepository {
     fun observeContacts(): Flow<List<ContactListItem>>
     suspend fun saveContact(draft: ContactDraft)
@@ -136,6 +146,7 @@ interface AdminRepository {
     suspend fun saveCar(draft: CarDraft)
     suspend fun updateCarMileage(id: Long, mileage: Int)
     suspend fun updateCarDriver(id: Long, driver: String)
+    suspend fun resetCarDriverCredentials(id: Long): DriverAccountCredentials
     suspend fun confirmCarService(id: Long)
     suspend fun deleteCar(id: Long)
 
@@ -153,6 +164,7 @@ interface AdminRepository {
 
     fun observeClothesOrders(): Flow<List<ClothesOrderListItem>>
     suspend fun saveClothesOrder(draft: ClothesOrderDraft)
+    suspend fun deleteClothesOrder(orderId: Long)
     fun observeClothesOrderItems(orderId: Long): Flow<List<ClothesOrderItemListItem>>
     suspend fun saveClothesOrderItem(orderId: Long, draft: ClothesOrderItemDraft)
     suspend fun deleteClothesOrderItem(id: Long)
@@ -160,6 +172,7 @@ interface AdminRepository {
     suspend fun issueClothesOrderItem(id: Long)
     suspend fun issueAllClothesOrderItems(orderId: Long)
     suspend fun exportClothesOrderCsv(orderId: Long): String
+    suspend fun exportClothesOrderXlsx(orderId: Long): ClothesOrderXlsxExport
     fun observeClothesHistory(): Flow<List<ClothesHistoryListItem>>
 
     fun observeSmtpSettings(): Flow<SmtpSettingsData>
@@ -173,6 +186,9 @@ interface AdminRepository {
 
     suspend fun saveVehicleReportDraft(draft: VehicleReportDraft)
     suspend fun exportVehicleReportPdf(draft: VehicleReportDraft): String
+    suspend fun exportDatabaseSnapshot(): String
+    suspend fun exportContactsCsv(): String
+    suspend fun exportContactRowXlsx(name: String, surname: String): String
     suspend fun exportClothesHistoryCsv(): String
     suspend fun exportSessionReportsCsv(): String
 }

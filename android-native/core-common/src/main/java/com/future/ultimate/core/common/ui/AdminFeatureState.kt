@@ -38,6 +38,7 @@ data class CarsUiState(
     val mileageDrafts: Map<Long, String> = emptyMap(),
     val driverDrafts: Map<Long, String> = emptyMap(),
     val actionInFlightId: Long? = null,
+    val actionMessage: String? = null,
 )
 
 data class VehicleReportUiState(
@@ -52,6 +53,15 @@ data class PayrollUiState(
     val totalRecipients: Int = 0,
     val progressLabel: String = "Gotowy",
     val isMailingRunning: Boolean = false,
+    val attachmentPaths: List<String> = emptyList(),
+    val actionMessage: String? = null,
+)
+
+data class TableUiState(
+    val query: String = "",
+    val items: List<ContactListItem> = emptyList(),
+    val exportMessage: String? = null,
+    val isExporting: Boolean = false,
 )
 
 data class WorkersUiState(
@@ -84,6 +94,7 @@ data class ClothesOrdersUiState(
     val actionMessage: String? = null,
     val isSaving: Boolean = false,
     val isSavingItem: Boolean = false,
+    val isExportingXlsx: Boolean = false,
 )
 
 data class ClothesReportsUiState(
@@ -118,4 +129,6 @@ data class ReportsUiState(
 
 data class SettingsUiState(
     val stats: DashboardStats = DashboardStats(),
+    val isExportingDatabase: Boolean = false,
+    val actionMessage: String? = null,
 )

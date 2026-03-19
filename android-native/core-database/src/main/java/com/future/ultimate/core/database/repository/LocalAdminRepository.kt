@@ -9,15 +9,18 @@ import com.future.ultimate.core.common.model.ContactDraft
 import com.future.ultimate.core.common.model.PlantDraft
 import com.future.ultimate.core.common.model.VehicleReportDraft
 import com.future.ultimate.core.common.model.WorkerDraft
+import com.future.ultimate.core.common.export.SimpleXlsxWorkbookWriter
 import com.future.ultimate.core.common.pdf.VehicleReportPdfExporter
 import com.future.ultimate.core.common.repository.AdminRepository
 import com.future.ultimate.core.common.repository.CarListItem
+import com.future.ultimate.core.common.repository.ClothesOrderXlsxExport
 import com.future.ultimate.core.common.repository.ClothesOrderItemListItem
 import com.future.ultimate.core.common.repository.ClothesOrderListItem
 import com.future.ultimate.core.common.repository.ClothesSizeListItem
 import com.future.ultimate.core.common.repository.ClothesHistoryListItem
 import com.future.ultimate.core.common.repository.ContactListItem
 import com.future.ultimate.core.common.repository.DashboardStats
+import com.future.ultimate.core.common.repository.DriverAccountCredentials
 import com.future.ultimate.core.common.repository.EmailTemplateData
 import com.future.ultimate.core.common.repository.PlantListItem
 import com.future.ultimate.core.common.repository.SessionReportListItem
@@ -27,6 +30,7 @@ import com.future.ultimate.core.database.dao.AppDao
 import com.future.ultimate.core.database.entity.CarEntity
 import com.future.ultimate.core.database.entity.ClothesHistoryEntity
 import com.future.ultimate.core.database.entity.ClothesOrderEntity
+import com.future.ultimate.core.database.entity.ClothesOrderItemEntity
 import com.future.ultimate.core.database.entity.ClothesSizeEntity
 import com.future.ultimate.core.database.entity.ContactEntity
 import com.future.ultimate.core.database.entity.DriverAccountEntity
@@ -35,6 +39,8 @@ import com.future.ultimate.core.database.entity.SettingEntity
 import com.future.ultimate.core.database.entity.WorkerEntity
 import java.io.File
 import java.time.LocalDate
+import java.util.zip.ZipEntry
+import java.util.zip.ZipOutputStream
 import kotlin.random.Random
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
@@ -150,6 +156,20 @@ class LocalAdminRepository(
         dao.updateDriver(id, normalizedDriver)
         val car = dao.getCar(id) ?: return
         syncDriverAccount(normalizedDriver, car.registration)
+    }
+
+    override suspend fun resetCarDriverCredentials(id: Long): DriverAccountCredentials {
+        val car = dao.getCar(id) ?: return DriverAccountCredentials()
+        val normalizedDriver = car.driver.trim()
+        if (normalizedDriver.isBlank()) {
+            dao.deleteDriverAccountByRegistration(car.registration)
+            return DriverAccountCredentials()
+        }
+        val account = syncDriverAccount(normalizedDriver, car.registration, forceReset = true)
+        return DriverAccountCredentials(
+            login = account?.login.orEmpty(),
+            password = account?.password.orEmpty(),
+        )
     }
 
     override suspend fun confirmCarService(id: Long) = dao.confirmService(id)
@@ -280,12 +300,18 @@ class LocalAdminRepository(
     override suspend fun saveClothesOrder(draft: ClothesOrderDraft) {
         dao.upsertClothesOrder(
             ClothesOrderEntity(
+                id = draft.id ?: 0,
                 date = draft.date.ifBlank { LocalDate.now().toString() },
                 plant = draft.plant.trim(),
                 status = draft.status.trim().ifBlank { "Nowe" },
                 orderDesc = draft.orderDesc.trim(),
             ),
         )
+    }
+
+    override suspend fun deleteClothesOrder(orderId: Long) {
+        dao.deleteClothesOrderItemsByOrderId(orderId)
+        dao.deleteClothesOrder(orderId)
     }
 
     override fun observeClothesOrderItems(orderId: Long): Flow<List<ClothesOrderItemListItem>> =
@@ -309,6 +335,7 @@ class LocalAdminRepository(
         val cleanName = draft.name.trim()
         val cleanSurname = draft.surname.trim()
         val cleanItem = draft.item.trim()
+        val existingItem = draft.id?.let { dao.getClothesOrderItem(it) }
         val worker = dao.getWorkerByName(cleanName, cleanSurname)
         val sizeEntity = dao.getClothesSizeByName(cleanName, cleanSurname)
         val resolvedSize = draft.size.trim().ifBlank {
@@ -318,19 +345,21 @@ class LocalAdminRepository(
                 "spodnie", "pants" -> sizeEntity?.pants.orEmpty()
                 "kurtka", "jacket" -> sizeEntity?.jacket.orEmpty()
                 "buty", "shoes" -> sizeEntity?.shoes.orEmpty()
-                else -> ""
+                else -> existingItem?.size.orEmpty()
             }
         }
         dao.upsertClothesOrderItems(
             listOf(
                 ClothesOrderItemEntity(
+                    id = draft.id ?: 0,
                     orderId = orderId,
-                    workerId = worker?.id ?: 0,
+                    workerId = worker?.id ?: existingItem?.workerId ?: 0,
                     name = cleanName,
                     surname = cleanSurname,
                     item = cleanItem,
                     size = resolvedSize,
                     qty = draft.qty.toIntOrNull()?.coerceAtLeast(1) ?: 1,
+                    issued = existingItem?.issued ?: 0,
                 ),
             ),
         )
@@ -408,6 +437,77 @@ class LocalAdminRepository(
             }
         }
         return outputFile.absolutePath
+    }
+
+    override suspend fun exportClothesOrderXlsx(orderId: Long): ClothesOrderXlsxExport {
+        if (dao.getClothesOrder(orderId) == null) return ClothesOrderXlsxExport()
+        val items = dao.getClothesOrderItems(orderId)
+        if (items.isEmpty()) return ClothesOrderXlsxExport()
+
+        val outputDir = context.getExternalFilesDir(null) ?: context.filesDir
+        val supplierFile = File(outputDir, "zamowienie_hurtownia_${orderId}.xlsx")
+        val issueFile = File(outputDir, "raport_wydania_${orderId}.xlsx")
+
+        val supplierRows = buildList {
+            add(
+                listOf(
+                    SimpleXlsxWorkbookWriter.Cell.text("Pozycja"),
+                    SimpleXlsxWorkbookWriter.Cell.text("Rozmiar"),
+                    SimpleXlsxWorkbookWriter.Cell.text("Ilość"),
+                ),
+            )
+            items
+                .groupBy { it.item to it.size.ifBlank { "-" } }
+                .toSortedMap(compareBy({ it.first.lowercase() }, { it.second.lowercase() }))
+                .forEach { (key, groupedItems) ->
+                    add(
+                        listOf(
+                            SimpleXlsxWorkbookWriter.Cell.text(key.first),
+                            SimpleXlsxWorkbookWriter.Cell.text(key.second),
+                            SimpleXlsxWorkbookWriter.Cell.number(groupedItems.sumOf { it.qty }),
+                        ),
+                    )
+                }
+        }
+
+        val issueRows = buildList {
+            add(
+                listOf(
+                    SimpleXlsxWorkbookWriter.Cell.text("Pracownik"),
+                    SimpleXlsxWorkbookWriter.Cell.text("Pozycja"),
+                    SimpleXlsxWorkbookWriter.Cell.text("Rozmiar"),
+                    SimpleXlsxWorkbookWriter.Cell.text("Ilość"),
+                ),
+            )
+            items
+                .sortedWith(compareBy({ it.surname.lowercase() }, { it.name.lowercase() }, { it.item.lowercase() }))
+                .forEach { item ->
+                    add(
+                        listOf(
+                            SimpleXlsxWorkbookWriter.Cell.text("${item.name} ${item.surname}".trim()),
+                            SimpleXlsxWorkbookWriter.Cell.text(item.item),
+                            SimpleXlsxWorkbookWriter.Cell.text(item.size.ifBlank { "-" }),
+                            SimpleXlsxWorkbookWriter.Cell.number(item.qty),
+                        ),
+                    )
+                }
+        }
+
+        SimpleXlsxWorkbookWriter.writeSingleSheet(
+            file = supplierFile,
+            sheetName = "Hurtownia",
+            rows = supplierRows,
+        )
+        SimpleXlsxWorkbookWriter.writeSingleSheet(
+            file = issueFile,
+            sheetName = "Wydanie",
+            rows = issueRows,
+        )
+
+        return ClothesOrderXlsxExport(
+            supplierPath = supplierFile.absolutePath,
+            issuePath = issueFile.absolutePath,
+        )
     }
 
     private suspend fun refreshClothesOrderIssueStatus(orderId: Long) {
@@ -508,6 +608,80 @@ class LocalAdminRepository(
     override suspend fun exportVehicleReportPdf(draft: VehicleReportDraft): String =
         VehicleReportPdfExporter.export(context, draft, ownerTag = "admin")
 
+    override suspend fun exportDatabaseSnapshot(): String {
+        val outputDir = context.getExternalFilesDir(null) ?: context.filesDir
+        val outputFile = File(outputDir, "future_v20_snapshot.zip")
+        val databaseFiles = listOf(
+            context.getDatabasePath("future_v20.db"),
+            context.getDatabasePath("future_v20.db-wal"),
+            context.getDatabasePath("future_v20.db-shm"),
+        ).filter { it.exists() }
+
+        ZipOutputStream(outputFile.outputStream().buffered()).use { zip ->
+            databaseFiles.forEach { file ->
+                zip.putNextEntry(ZipEntry(file.name))
+                file.inputStream().use { input -> input.copyTo(zip) }
+                zip.closeEntry()
+            }
+        }
+        return outputFile.absolutePath
+    }
+
+    override suspend fun exportContactsCsv(): String {
+        val outputDir = context.getExternalFilesDir(null) ?: context.filesDir
+        val outputFile = File(outputDir, "contacts_table.csv")
+        val rows = dao.observeContacts().first().sortedWith(compareBy<ContactEntity> { it.surname }.thenBy { it.name })
+        outputFile.bufferedWriter(Charsets.UTF_8).use { writer ->
+            writer.appendLine("name,surname,email,phone,workplace,apartment,notes")
+            rows.forEach { row ->
+                writer.appendCsvLine(
+                    row.name,
+                    row.surname,
+                    row.email,
+                    row.phone,
+                    row.workplace,
+                    row.apartment,
+                    row.notes,
+                )
+            }
+        }
+        return outputFile.absolutePath
+    }
+
+    override suspend fun exportContactRowXlsx(name: String, surname: String): String {
+        val contact = dao.getContact(name.trim().lowercase(), surname.trim().lowercase())
+            ?: return ""
+        val outputDir = context.getExternalFilesDir(null) ?: context.filesDir
+        val safeName = sanitizeFilePart(contact.name.ifBlank { "kontakt" })
+        val safeSurname = sanitizeFilePart(contact.surname.ifBlank { "rekord" })
+        val outputFile = File(outputDir, "kontakt_${safeName}_${safeSurname}.xlsx")
+        SimpleXlsxWorkbookWriter.writeSingleSheet(
+            file = outputFile,
+            sheetName = "Kontakty",
+            rows = listOf(
+                listOf(
+                    SimpleXlsxWorkbookWriter.Cell.text("Imię"),
+                    SimpleXlsxWorkbookWriter.Cell.text("Nazwisko"),
+                    SimpleXlsxWorkbookWriter.Cell.text("Email"),
+                    SimpleXlsxWorkbookWriter.Cell.text("Telefon"),
+                    SimpleXlsxWorkbookWriter.Cell.text("Miejsce pracy"),
+                    SimpleXlsxWorkbookWriter.Cell.text("Mieszkanie"),
+                    SimpleXlsxWorkbookWriter.Cell.text("Notatki"),
+                ),
+                listOf(
+                    SimpleXlsxWorkbookWriter.Cell.text(contact.name),
+                    SimpleXlsxWorkbookWriter.Cell.text(contact.surname),
+                    SimpleXlsxWorkbookWriter.Cell.text(contact.email),
+                    SimpleXlsxWorkbookWriter.Cell.text(contact.phone),
+                    SimpleXlsxWorkbookWriter.Cell.text(contact.workplace),
+                    SimpleXlsxWorkbookWriter.Cell.text(contact.apartment),
+                    SimpleXlsxWorkbookWriter.Cell.text(contact.notes),
+                ),
+            ),
+        )
+        return outputFile.absolutePath
+    }
+
     override suspend fun exportClothesHistoryCsv(): String {
         val outputDir = context.getExternalFilesDir(null) ?: context.filesDir
         val outputFile = File(outputDir, "clothes_history.csv")
@@ -553,20 +727,30 @@ class LocalAdminRepository(
         return outputFile.absolutePath
     }
 
-    private suspend fun syncDriverAccount(driverName: String, registration: String) {
+    private suspend fun syncDriverAccount(
+        driverName: String,
+        registration: String,
+        forceReset: Boolean = false,
+    ): DriverAccountEntity? {
         val normalizedDriver = driverName.trim()
         val normalizedRegistration = registration.trim().uppercase()
-        if (normalizedDriver.isBlank() || normalizedRegistration.isBlank()) return
+        if (normalizedRegistration.isBlank()) return null
+        if (normalizedDriver.isBlank()) {
+            dao.deleteDriverAccountByRegistration(normalizedRegistration)
+            return null
+        }
 
-        dao.upsertDriverAccount(
-            DriverAccountEntity(
-                registration = normalizedRegistration,
-                login = generateLogin(normalizedDriver),
-                password = generatePassword(),
-                driverName = normalizedDriver,
-                changePassword = 1,
-            ),
+        val existing = dao.getDriverAccountByRegistration(normalizedRegistration)
+        val shouldRotateCredentials = forceReset || existing == null || !existing.driverName.equals(normalizedDriver, ignoreCase = true)
+        val account = DriverAccountEntity(
+            registration = normalizedRegistration,
+            login = generateLogin(normalizedDriver),
+            password = if (shouldRotateCredentials) generatePassword() else existing.password,
+            driverName = normalizedDriver,
+            changePassword = if (shouldRotateCredentials) 1 else existing.changePassword,
         )
+        dao.upsertDriverAccount(account)
+        return account
     }
 
     private fun generateLogin(name: String): String {
@@ -583,6 +767,12 @@ class LocalAdminRepository(
             "\"${value.replace("\"", "\"\"")}\""
         })
     }
+
+    private fun sanitizeFilePart(value: String): String = value
+        .trim()
+        .replace(Regex("[^A-Za-z0-9_-]+"), "_")
+        .trim('_')
+        .ifBlank { "export" }
 
     private fun generatePassword(length: Int = 6): String = buildString {
         repeat(length) { append(Random.nextInt(0, 10)) }

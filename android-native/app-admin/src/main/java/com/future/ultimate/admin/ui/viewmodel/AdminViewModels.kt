@@ -12,6 +12,9 @@ import com.future.ultimate.core.common.model.PlantDraft
 import com.future.ultimate.core.common.model.VehicleReportDraft
 import com.future.ultimate.core.common.model.WorkerDraft
 import com.future.ultimate.core.common.repository.AdminRepository
+import com.future.ultimate.core.common.repository.ClothesOrderItemListItem
+import com.future.ultimate.core.common.repository.ClothesOrderListItem
+import com.future.ultimate.core.common.repository.ClothesSizeListItem
 import com.future.ultimate.core.common.repository.EmailTemplateData
 import com.future.ultimate.core.common.repository.SmtpSettingsData
 import com.future.ultimate.core.common.ui.CarsUiState
@@ -24,6 +27,7 @@ import com.future.ultimate.core.common.ui.PlantsUiState
 import com.future.ultimate.core.common.ui.ReportsUiState
 import com.future.ultimate.core.common.ui.SettingsUiState
 import com.future.ultimate.core.common.ui.SmtpUiState
+import com.future.ultimate.core.common.ui.TableUiState
 import com.future.ultimate.core.common.ui.TemplateUiState
 import com.future.ultimate.core.common.ui.VehicleReportUiState
 import com.future.ultimate.core.common.ui.WorkersUiState
@@ -66,46 +70,63 @@ class CarsViewModel(private val repository: AdminRepository) : ViewModel() {
         }.launchIn(viewModelScope)
     }
 
-    fun updateQuery(value: String) { _uiState.value = _uiState.value.copy(query = value) }
-    fun updateEditor(draft: CarDraft) { _uiState.value = _uiState.value.copy(editor = draft) }
+    fun updateQuery(value: String) { _uiState.value = _uiState.value.copy(query = value, actionMessage = null) }
+    fun updateEditor(draft: CarDraft) { _uiState.value = _uiState.value.copy(editor = draft, actionMessage = null) }
 
     fun updateMileageDraft(id: Long, value: String) {
-        _uiState.value = _uiState.value.copy(mileageDrafts = _uiState.value.mileageDrafts + (id to value))
+        _uiState.value = _uiState.value.copy(mileageDrafts = _uiState.value.mileageDrafts + (id to value), actionMessage = null)
     }
 
     fun updateDriverDraft(id: Long, value: String) {
-        _uiState.value = _uiState.value.copy(driverDrafts = _uiState.value.driverDrafts + (id to value))
+        _uiState.value = _uiState.value.copy(driverDrafts = _uiState.value.driverDrafts + (id to value), actionMessage = null)
     }
 
     fun save() = viewModelScope.launch {
-        _uiState.value = _uiState.value.copy(isSaving = true)
+        _uiState.value = _uiState.value.copy(isSaving = true, actionMessage = null)
         repository.saveCar(_uiState.value.editor)
-        _uiState.value = _uiState.value.copy(isSaving = false, editor = CarDraft())
+        _uiState.value = _uiState.value.copy(isSaving = false, editor = CarDraft(), actionMessage = "Samochód zapisany")
     }
 
     fun saveMileage(id: Long) = viewModelScope.launch {
-        _uiState.value = _uiState.value.copy(actionInFlightId = id)
+        _uiState.value = _uiState.value.copy(actionInFlightId = id, actionMessage = null)
         val mileage = _uiState.value.mileageDrafts[id]?.toIntOrNull() ?: 0
         repository.updateCarMileage(id, mileage)
-        _uiState.value = _uiState.value.copy(actionInFlightId = null)
+        _uiState.value = _uiState.value.copy(actionInFlightId = null, actionMessage = "Przebieg zapisany")
     }
 
     fun saveDriver(id: Long) = viewModelScope.launch {
-        _uiState.value = _uiState.value.copy(actionInFlightId = id)
-        repository.updateCarDriver(id, _uiState.value.driverDrafts[id].orEmpty())
-        _uiState.value = _uiState.value.copy(actionInFlightId = null)
+        _uiState.value = _uiState.value.copy(actionInFlightId = id, actionMessage = null)
+        val driver = _uiState.value.driverDrafts[id].orEmpty()
+        repository.updateCarDriver(id, driver)
+        _uiState.value = _uiState.value.copy(
+            actionInFlightId = null,
+            actionMessage = if (driver.isBlank()) "Kierowca usunięty, konto kierowcy wyczyszczone" else "Kierowca zapisany",
+        )
     }
 
     fun confirmService(id: Long) = viewModelScope.launch {
-        _uiState.value = _uiState.value.copy(actionInFlightId = id)
+        _uiState.value = _uiState.value.copy(actionInFlightId = id, actionMessage = null)
         repository.confirmCarService(id)
-        _uiState.value = _uiState.value.copy(actionInFlightId = null)
+        _uiState.value = _uiState.value.copy(actionInFlightId = null, actionMessage = "Serwis potwierdzony")
     }
 
     fun deleteCar(id: Long) = viewModelScope.launch {
-        _uiState.value = _uiState.value.copy(actionInFlightId = id)
+        _uiState.value = _uiState.value.copy(actionInFlightId = id, actionMessage = null)
         repository.deleteCar(id)
-        _uiState.value = _uiState.value.copy(actionInFlightId = null)
+        _uiState.value = _uiState.value.copy(actionInFlightId = null, actionMessage = "Samochód usunięty")
+    }
+
+    fun resetDriverCredentials(id: Long) = viewModelScope.launch {
+        _uiState.value = _uiState.value.copy(actionInFlightId = id, actionMessage = null)
+        val credentials = repository.resetCarDriverCredentials(id)
+        _uiState.value = _uiState.value.copy(
+            actionInFlightId = null,
+            actionMessage = if (credentials.login.isBlank()) {
+                "Brak kierowcy — konto kierowcy usunięte"
+            } else {
+                "Nowe dane kierowcy: ${credentials.login} / ${credentials.password}"
+            },
+        )
     }
 }
 
@@ -129,10 +150,118 @@ class VehicleReportViewModel(private val repository: AdminRepository) : ViewMode
     }
 }
 
-class PayrollViewModel : ViewModel() {
+class PayrollViewModel(private val repository: AdminRepository) : ViewModel() {
     private val _uiState = MutableStateFlow(PayrollUiState())
     val uiState: StateFlow<PayrollUiState> = _uiState.asStateFlow()
-    fun toggleAutoSend() { _uiState.value = _uiState.value.copy(autoSend = !_uiState.value.autoSend) }
+
+    init {
+        repository.observeContacts().onEach { items ->
+            _uiState.value = _uiState.value.copy(totalRecipients = items.size)
+        }.launchIn(viewModelScope)
+    }
+
+    fun toggleAutoSend() {
+        _uiState.value = _uiState.value.copy(autoSend = !_uiState.value.autoSend, actionMessage = null)
+    }
+
+    fun attachContactsCsv() = viewModelScope.launch {
+        val path = repository.exportContactsCsv()
+        addAttachment(path, "Dołączono CSV kontaktów")
+    }
+
+    fun attachSessionReportsCsv() = viewModelScope.launch {
+        val path = repository.exportSessionReportsCsv()
+        addAttachment(path, "Dołączono CSV raportów")
+    }
+
+    fun clearAttachments() {
+        _uiState.value = _uiState.value.copy(
+            attachmentPaths = emptyList(),
+            attachmentCount = 0,
+            actionMessage = "Załączniki wyczyszczone",
+            progressLabel = "Gotowy",
+            isMailingRunning = false,
+        )
+    }
+
+    fun sendSingle() {
+        val latest = _uiState.value.attachmentPaths.lastOrNull()
+        _uiState.value = _uiState.value.copy(
+            actionMessage = if (latest == null) {
+                "Najpierw dołącz lokalny eksport jako załącznik"
+            } else {
+                "Pakiet gotowy do pojedynczej wysyłki SMTP: ${latest.substringAfterLast('/')}"
+            },
+            progressLabel = if (latest == null) "Brak załączników" else "Pakiet pojedynczej wysyłki przygotowany",
+        )
+    }
+
+    fun startMassMailing() {
+        val hasRecipients = _uiState.value.totalRecipients > 0
+        val hasAttachments = _uiState.value.attachmentPaths.isNotEmpty()
+        _uiState.value = _uiState.value.copy(
+            isMailingRunning = hasRecipients && hasAttachments,
+            progressLabel = when {
+                !hasRecipients -> "Brak odbiorców w kontaktach"
+                !hasAttachments -> "Brak załączników do masowej wysyłki"
+                else -> "Kolejka przygotowana dla ${_uiState.value.totalRecipients} odbiorców"
+            },
+            actionMessage = when {
+                !hasRecipients -> "Dodaj kontakty przed uruchomieniem wysyłki"
+                !hasAttachments -> "Dołącz co najmniej jeden lokalny eksport"
+                else -> "Przygotowano lokalny pakiet pod przyszły SMTP pipeline"
+            },
+        )
+    }
+
+    fun togglePauseMailing() {
+        val running = _uiState.value.isMailingRunning
+        _uiState.value = _uiState.value.copy(
+            isMailingRunning = !running && _uiState.value.attachmentPaths.isNotEmpty() && _uiState.value.totalRecipients > 0,
+            progressLabel = if (running) "Wysyłka wstrzymana" else "Wysyłka wznowiona",
+            actionMessage = if (running) "Kolejka została wstrzymana" else "Kolejka została wznowiona",
+        )
+    }
+
+    private fun addAttachment(path: String, label: String) {
+        val updated = (_uiState.value.attachmentPaths + path).distinct()
+        _uiState.value = _uiState.value.copy(
+            attachmentPaths = updated,
+            attachmentCount = updated.size,
+            actionMessage = "$label: ${path.substringAfterLast('/')}",
+            progressLabel = "Załączniki gotowe: ${updated.size}",
+        )
+    }
+}
+
+class TableViewModel(private val repository: AdminRepository) : ViewModel() {
+    private val _uiState = MutableStateFlow(TableUiState())
+    val uiState: StateFlow<TableUiState> = _uiState.asStateFlow()
+
+    init {
+        repository.observeContacts().onEach { items ->
+            _uiState.value = _uiState.value.copy(items = items)
+        }.launchIn(viewModelScope)
+    }
+
+    fun updateQuery(value: String) {
+        _uiState.value = _uiState.value.copy(query = value, exportMessage = null)
+    }
+
+    fun exportCsv() = viewModelScope.launch {
+        _uiState.value = _uiState.value.copy(isExporting = true, exportMessage = null)
+        val path = repository.exportContactsCsv()
+        _uiState.value = _uiState.value.copy(isExporting = false, exportMessage = "CSV kontaktów zapisany: $path")
+    }
+
+    fun exportRow(item: com.future.ultimate.core.common.repository.ContactListItem) = viewModelScope.launch {
+        _uiState.value = _uiState.value.copy(isExporting = true, exportMessage = null)
+        val path = repository.exportContactRowXlsx(item.name, item.surname)
+        _uiState.value = _uiState.value.copy(
+            isExporting = false,
+            exportMessage = if (path.isBlank()) "Nie znaleziono rekordu do eksportu" else "XLSX kontaktu zapisany: $path",
+        )
+    }
 }
 
 class WorkersViewModel(private val repository: AdminRepository) : ViewModel() {
@@ -178,8 +307,31 @@ class ClothesSizesViewModel(private val repository: AdminRepository) : ViewModel
         _uiState.value = _uiState.value.copy(isSaving = false, editor = ClothesSizeDraft())
     }
 
+    fun edit(item: ClothesSizeListItem) {
+        _uiState.value = _uiState.value.copy(
+            editor = ClothesSizeDraft(
+                id = item.id,
+                name = item.name,
+                surname = item.surname,
+                plant = item.plant,
+                shirt = item.shirt,
+                hoodie = item.hoodie,
+                pants = item.pants,
+                jacket = item.jacket,
+                shoes = item.shoes,
+            ),
+        )
+    }
+
+    fun clearEditor() {
+        _uiState.value = _uiState.value.copy(editor = ClothesSizeDraft())
+    }
+
     fun delete(id: Long) = viewModelScope.launch {
         repository.deleteClothesSize(id)
+        if (_uiState.value.editor.id == id) {
+            _uiState.value = _uiState.value.copy(editor = ClothesSizeDraft())
+        }
     }
 }
 
@@ -195,9 +347,14 @@ class ClothesOrdersViewModel(private val repository: AdminRepository) : ViewMode
     fun updateItemEditor(draft: ClothesOrderItemDraft) { _uiState.value = _uiState.value.copy(itemEditor = draft, actionMessage = null) }
 
     fun save() = viewModelScope.launch {
+        val isEditing = _uiState.value.editor.id != null
         _uiState.value = _uiState.value.copy(isSaving = true)
         repository.saveClothesOrder(_uiState.value.editor)
-        _uiState.value = _uiState.value.copy(isSaving = false, editor = ClothesOrderDraft(), actionMessage = "Zamówienie zapisane")
+        _uiState.value = _uiState.value.copy(
+            isSaving = false,
+            editor = ClothesOrderDraft(),
+            actionMessage = if (isEditing) "Zamówienie zaktualizowane" else "Zamówienie zapisane",
+        )
     }
 
     fun toggleOrderSelection(orderId: Long) {
@@ -226,14 +383,68 @@ class ClothesOrdersViewModel(private val repository: AdminRepository) : ViewMode
         val selectedOrderId = _uiState.value.selectedOrderId ?: return@launch
         val draft = _uiState.value.itemEditor
         if (draft.name.isBlank() || draft.surname.isBlank() || draft.item.isBlank()) return@launch
+        val isEditing = draft.id != null
         _uiState.value = _uiState.value.copy(isSavingItem = true, actionMessage = null)
         repository.saveClothesOrderItem(selectedOrderId, draft)
-        _uiState.value = _uiState.value.copy(isSavingItem = false, itemEditor = ClothesOrderItemDraft(), actionMessage = "Pozycja dodana")
+        _uiState.value = _uiState.value.copy(
+            isSavingItem = false,
+            itemEditor = ClothesOrderItemDraft(),
+            actionMessage = if (isEditing) "Pozycja zaktualizowana" else "Pozycja dodana",
+        )
     }
 
     fun deleteItem(id: Long) = viewModelScope.launch {
         repository.deleteClothesOrderItem(id)
-        _uiState.value = _uiState.value.copy(actionMessage = "Pozycja usunięta")
+        _uiState.value = _uiState.value.copy(
+            itemEditor = if (_uiState.value.itemEditor.id == id) ClothesOrderItemDraft() else _uiState.value.itemEditor,
+            actionMessage = "Pozycja usunięta",
+        )
+    }
+
+    fun editOrder(item: ClothesOrderListItem) {
+        _uiState.value = _uiState.value.copy(
+            editor = ClothesOrderDraft(
+                id = item.id,
+                date = item.date,
+                plant = item.plant,
+                status = item.status,
+                orderDesc = item.orderDesc,
+            ),
+            actionMessage = null,
+        )
+    }
+
+    fun clearOrderEditor() {
+        _uiState.value = _uiState.value.copy(editor = ClothesOrderDraft(), actionMessage = null)
+    }
+
+    fun editItem(item: ClothesOrderItemListItem) {
+        _uiState.value = _uiState.value.copy(
+            itemEditor = ClothesOrderItemDraft(
+                id = item.id,
+                name = item.name,
+                surname = item.surname,
+                item = item.item,
+                size = item.size,
+                qty = item.qty.toString(),
+            ),
+            actionMessage = null,
+        )
+    }
+
+    fun clearItemEditor() {
+        _uiState.value = _uiState.value.copy(itemEditor = ClothesOrderItemDraft(), actionMessage = null)
+    }
+
+    fun deleteOrder(orderId: Long) = viewModelScope.launch {
+        repository.deleteClothesOrder(orderId)
+        _uiState.value = _uiState.value.copy(
+            selectedOrderId = if (_uiState.value.selectedOrderId == orderId) null else _uiState.value.selectedOrderId,
+            selectedOrderItems = if (_uiState.value.selectedOrderId == orderId) emptyList() else _uiState.value.selectedOrderItems,
+            editor = if (_uiState.value.editor.id == orderId) ClothesOrderDraft() else _uiState.value.editor,
+            itemEditor = ClothesOrderItemDraft(),
+            actionMessage = "Zamówienie usunięte",
+        )
     }
 
     fun markOrdered(orderId: Long) = viewModelScope.launch {
@@ -254,6 +465,21 @@ class ClothesOrdersViewModel(private val repository: AdminRepository) : ViewMode
     fun exportOrderCsv(orderId: Long) = viewModelScope.launch {
         val path = repository.exportClothesOrderCsv(orderId)
         _uiState.value = _uiState.value.copy(actionMessage = if (path.isBlank()) "Nie znaleziono zamówienia" else "CSV zamówienia: $path")
+    }
+
+    fun exportOrderXlsx(orderId: Long) = viewModelScope.launch {
+        _uiState.value = _uiState.value.copy(isExportingXlsx = true, actionMessage = null)
+        val export = repository.exportClothesOrderXlsx(orderId)
+        _uiState.value = _uiState.value.copy(
+            isExportingXlsx = false,
+            actionMessage = if (export.supplierPath.isBlank() || export.issuePath.isBlank()) {
+                "Nie znaleziono pozycji do eksportu XLSX"
+            } else {
+                """XLSX zapisane:
+1) Hurtownia: ${export.supplierPath}
+2) Wydanie: ${export.issuePath}"""
+            },
+        )
     }
 }
 
@@ -412,6 +638,15 @@ class SettingsViewModel(private val repository: AdminRepository) : ViewModel() {
             _uiState.value = _uiState.value.copy(stats = stats)
         }.launchIn(viewModelScope)
     }
+
+    fun exportDatabaseSnapshot() = viewModelScope.launch {
+        _uiState.value = _uiState.value.copy(isExportingDatabase = true, actionMessage = null)
+        val path = repository.exportDatabaseSnapshot()
+        _uiState.value = _uiState.value.copy(
+            isExportingDatabase = false,
+            actionMessage = if (path.isBlank()) "Nie udało się wyeksportować bazy" else "Snapshot bazy zapisany: $path",
+        )
+    }
 }
 
 class AdminViewModelFactory(private val repository: AdminRepository) : ViewModelProvider.Factory {
@@ -419,7 +654,8 @@ class AdminViewModelFactory(private val repository: AdminRepository) : ViewModel
         modelClass.isAssignableFrom(ContactsViewModel::class.java) -> ContactsViewModel(repository) as T
         modelClass.isAssignableFrom(CarsViewModel::class.java) -> CarsViewModel(repository) as T
         modelClass.isAssignableFrom(VehicleReportViewModel::class.java) -> VehicleReportViewModel(repository) as T
-        modelClass.isAssignableFrom(PayrollViewModel::class.java) -> PayrollViewModel() as T
+        modelClass.isAssignableFrom(PayrollViewModel::class.java) -> PayrollViewModel(repository) as T
+        modelClass.isAssignableFrom(TableViewModel::class.java) -> TableViewModel(repository) as T
         modelClass.isAssignableFrom(WorkersViewModel::class.java) -> WorkersViewModel(repository) as T
         modelClass.isAssignableFrom(PlantsViewModel::class.java) -> PlantsViewModel(repository) as T
         modelClass.isAssignableFrom(ClothesSizesViewModel::class.java) -> ClothesSizesViewModel(repository) as T

@@ -44,6 +44,10 @@ fun EmailScreen(navController: NavController) {
                 }
                 Text("Baza: ${uiState.totalRecipients} | Załączniki: ${uiState.attachmentCount}")
                 Text(uiState.progressLabel)
+                uiState.actionMessage?.let { Text(it) }
+                uiState.attachmentPaths.forEach { path ->
+                    Text("• ${path.substringAfterLast('/')}")
+                }
                 Text(if (uiState.isMailingRunning) "Wysyłka w toku" else "Wysyłka zatrzymana / nieuruchomiona")
                 Text(if (smtpConfigured) "SMTP: skonfigurowane" else "SMTP: brak pełnej konfiguracji")
                 Text(if (templateConfigured) "Szablon: gotowy" else "Szablon: uzupełnij temat i treść")
@@ -54,9 +58,11 @@ fun EmailScreen(navController: NavController) {
                 )
                 Button(onClick = { navController.navigate(AdminRoute.Smtp.route) }, modifier = Modifier.fillMaxWidth()) { Text("SMTP") }
                 Button(onClick = { navController.navigate(AdminRoute.Template.route) }, modifier = Modifier.fillMaxWidth()) { Text("Edytuj szablon") }
-                Button(onClick = {}, modifier = Modifier.fillMaxWidth()) { Text("Dodaj załącznik") }
-                Button(onClick = {}, modifier = Modifier.fillMaxWidth()) { Text("Wyślij jeden plik") }
-                Button(onClick = {}, modifier = Modifier.fillMaxWidth()) { Text("Start masowa wysyłka") }
+                Button(onClick = viewModel::attachSessionReportsCsv, modifier = Modifier.fillMaxWidth()) { Text("Dodaj CSV raportów") }
+                Button(onClick = viewModel::attachContactsCsv, modifier = Modifier.fillMaxWidth()) { Text("Dodaj CSV kontaktów") }
+                Button(onClick = viewModel::sendSingle, modifier = Modifier.fillMaxWidth()) { Text("Przygotuj jedną wysyłkę") }
+                Button(onClick = viewModel::startMassMailing, modifier = Modifier.fillMaxWidth()) { Text("Przygotuj masową wysyłkę") }
+                Button(onClick = viewModel::clearAttachments, modifier = Modifier.fillMaxWidth()) { Text("Wyczyść załączniki") }
                 Button(onClick = { navController.navigate(AdminRoute.Reports.route) }, modifier = Modifier.fillMaxWidth()) { Text("Raporty sesji") }
             }
         }

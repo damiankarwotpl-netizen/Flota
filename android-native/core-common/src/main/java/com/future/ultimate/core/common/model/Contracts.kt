@@ -50,6 +50,7 @@ data class ClothesSizeDraft(
 )
 
 data class ClothesOrderDraft(
+    val id: Long? = null,
     val date: String = "",
     val plant: String = "",
     val status: String = "Nowe",
@@ -57,6 +58,7 @@ data class ClothesOrderDraft(
 )
 
 data class ClothesOrderItemDraft(
+    val id: Long? = null,
     val name: String = "",
     val surname: String = "",
     val item: String = "",
