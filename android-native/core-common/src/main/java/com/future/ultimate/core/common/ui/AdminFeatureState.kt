@@ -10,6 +10,7 @@ import com.future.ultimate.core.common.model.VehicleReportDraft
 import com.future.ultimate.core.common.model.WorkerDraft
 import com.future.ultimate.core.common.repository.CarListItem
 import com.future.ultimate.core.common.repository.ClothesOrderItemListItem
+import com.future.ultimate.core.common.repository.ClothesOrderImportRow
 import com.future.ultimate.core.common.repository.ClothesOrderListItem
 import com.future.ultimate.core.common.repository.ClothesOrderWorkerListItem
 import com.future.ultimate.core.common.repository.ClothesSizeListItem
@@ -18,6 +19,7 @@ import com.future.ultimate.core.common.repository.ContactListItem
 import com.future.ultimate.core.common.repository.DashboardStats
 import com.future.ultimate.core.common.repository.EmailTemplateData
 import com.future.ultimate.core.common.repository.PlantListItem
+import com.future.ultimate.core.common.repository.PayrollWorkbookRow
 import com.future.ultimate.core.common.repository.SessionReportListItem
 import com.future.ultimate.core.common.repository.SmtpSettingsData
 import com.future.ultimate.core.common.repository.WorkerListItem
@@ -60,6 +62,16 @@ data class PayrollUiState(
     val autoSend: Boolean = false,
     val attachmentCount: Int = 0,
     val totalRecipients: Int = 0,
+    val operatorLabel: String = "",
+    val grossAmount: String = "0",
+    val bonusAmount: String = "0",
+    val deductionsAmount: String = "0",
+    val taxPercent: String = "12",
+    val employerCostAmount: String = "0",
+    val netAmount: String = "0",
+    val calculationSummary: String = "Wprowadź kwoty i uruchom kalkulację.",
+    val workbookImportText: String = "",
+    val stagedWorkbookRows: List<PayrollWorkbookRow> = emptyList(),
     val progressLabel: String = "Gotowy",
     val isMailingRunning: Boolean = false,
     val attachmentPaths: List<String> = emptyList(),
@@ -69,6 +81,7 @@ data class PayrollUiState(
 data class TableUiState(
     val query: String = "",
     val items: List<ContactListItem> = emptyList(),
+    val selectedContactKeys: Set<String> = emptySet(),
     val exportMessage: String? = null,
     val isExporting: Boolean = false,
 )
@@ -108,6 +121,8 @@ data class ClothesOrdersUiState(
     val selectedOrderItems: List<ClothesOrderItemListItem> = emptyList(),
     val selectedOrderSummary: List<String> = emptyList(),
     val showOnlyPendingItems: Boolean = false,
+    val importText: String = "",
+    val importPreview: List<ClothesOrderImportRow> = emptyList(),
     val editor: ClothesOrderDraft = ClothesOrderDraft(),
     val itemEditor: ClothesOrderItemDraft = ClothesOrderItemDraft(),
     val actionMessage: String? = null,

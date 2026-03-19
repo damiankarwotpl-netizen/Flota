@@ -3,6 +3,7 @@ package com.future.ultimate.driver
 import android.app.Application
 import com.future.ultimate.core.database.DatabaseFactory
 import com.future.ultimate.core.database.repository.LocalDriverRepository
+import com.future.ultimate.driver.sync.DriverMileageSyncWorker
 
 class DriverApp : Application() {
     lateinit var container: DriverAppContainer
@@ -11,5 +12,6 @@ class DriverApp : Application() {
     override fun onCreate() {
         super.onCreate()
         container = DriverAppContainer(LocalDriverRepository(DatabaseFactory.create(this).appDao(), this))
+        DriverMileageSyncWorker.schedule(this)
     }
 }

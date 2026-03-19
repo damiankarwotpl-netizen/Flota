@@ -41,12 +41,25 @@ fun TableScreen() {
                 Button(onClick = viewModel::exportCsv, modifier = Modifier.fillMaxWidth()) {
                     Text(if (uiState.isExporting) "Eksportowanie..." else "Eksport CSV kontaktów")
                 }
+                Button(onClick = { viewModel.selectVisible(filteredItems) }, modifier = Modifier.fillMaxWidth()) {
+                    Text("Zaznacz rekordy z bieżącego filtra")
+                }
+                Button(onClick = viewModel::exportPackage, modifier = Modifier.fillMaxWidth()) {
+                    Text(if (uiState.isExporting) "Eksportowanie..." else "Eksport paczki płac")
+                }
+                if (uiState.selectedContactKeys.isNotEmpty()) {
+                    Button(onClick = viewModel::clearSelection, modifier = Modifier.fillMaxWidth()) {
+                        Text("Wyczyść wybór (${uiState.selectedContactKeys.size})")
+                    }
+                }
+                Text("Wybrane do paczki: ${uiState.selectedContactKeys.size}")
                 Text("Kolumny: imię, nazwisko, email, telefon, miejsce pracy, mieszkanie, notatki")
                 uiState.exportMessage?.let { Text(it) }
             }
         }
         filteredItems.forEach { itemData ->
             item {
+                val isSelected = "${itemData.name.trim().lowercase()}|${itemData.surname.trim().lowercase()}" in uiState.selectedContactKeys
                 Card(modifier = Modifier.fillMaxWidth()) {
                     Column(
                         modifier = Modifier.fillMaxWidth().padding(16.dp),
@@ -59,6 +72,9 @@ fun TableScreen() {
                         Text("Mieszkanie: ${itemData.apartment.ifBlank { "-" }}")
                         if (itemData.notes.isNotBlank()) {
                             Text("Notatki: ${itemData.notes}")
+                        }
+                        Button(onClick = { viewModel.toggleSelection(itemData) }, modifier = Modifier.fillMaxWidth()) {
+                            Text(if (isSelected) "Usuń z paczki płac" else "Dodaj do paczki płac")
                         }
                         Button(onClick = { viewModel.exportRow(itemData) }, modifier = Modifier.fillMaxWidth()) {
                             Text(if (uiState.isExporting) "Eksportowanie..." else "Zapisz XLSX rekordu")

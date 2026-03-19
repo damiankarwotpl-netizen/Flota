@@ -11,12 +11,24 @@ data class DriverSession(
     val changePasswordRequired: Boolean = false,
 )
 
+data class DriverMileageSyncState(
+    val registration: String = "",
+    val pendingCount: Int = 0,
+    val queuedMileage: Int? = null,
+    val lastAttemptAt: String = "",
+    val lastSyncedAt: String = "",
+    val status: String = "Brak danych",
+    val error: String = "",
+)
+
 interface DriverRepository {
     fun observeSession(): Flow<DriverSession?>
+    fun observeMileageSyncState(): Flow<DriverMileageSyncState>
     suspend fun login(login: String, password: String): DriverSession
     suspend fun logout()
     suspend fun changePassword(login: String, password: String)
     suspend fun saveMileage(login: String, registration: String, mileage: Int)
+    suspend fun flushPendingMileageSync(): DriverMileageSyncState
     suspend fun saveVehicleReportDraft(draft: VehicleReportDraft)
     suspend fun exportVehicleReportPdf(draft: VehicleReportDraft): String
 }

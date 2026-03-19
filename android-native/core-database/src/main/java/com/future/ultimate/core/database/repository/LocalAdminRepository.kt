@@ -12,10 +12,12 @@ import com.future.ultimate.core.common.model.WorkerDraft
 import com.future.ultimate.core.common.export.SimpleXlsxWorkbookWriter
 import com.future.ultimate.core.common.pdf.ClothesOrderPdfExporter
 import com.future.ultimate.core.common.pdf.VehicleReportPdfExporter
+import com.future.ultimate.core.common.patch.PatchLoader
 import com.future.ultimate.core.common.repository.AdminRepository
 import com.future.ultimate.core.common.repository.CarListItem
 import com.future.ultimate.core.common.repository.ClothesOrderXlsxExport
 import com.future.ultimate.core.common.repository.ClothesOrderItemListItem
+import com.future.ultimate.core.common.repository.ClothesOrderImportRow
 import com.future.ultimate.core.common.repository.ClothesOrderListItem
 import com.future.ultimate.core.common.repository.ClothesOrderWorkerListItem
 import com.future.ultimate.core.common.repository.ClothesSizeListItem
@@ -24,7 +26,9 @@ import com.future.ultimate.core.common.repository.ContactListItem
 import com.future.ultimate.core.common.repository.DashboardStats
 import com.future.ultimate.core.common.repository.DriverAccountCredentials
 import com.future.ultimate.core.common.repository.EmailTemplateData
+import com.future.ultimate.core.common.repository.MailDispatchResult
 import com.future.ultimate.core.common.repository.PlantListItem
+import com.future.ultimate.core.common.repository.PayrollWorkbookRow
 import com.future.ultimate.core.common.repository.SessionReportListItem
 import com.future.ultimate.core.common.repository.SmtpSettingsData
 import com.future.ultimate.core.common.repository.WorkerListItem
@@ -37,17 +41,34 @@ import com.future.ultimate.core.database.entity.ClothesSizeEntity
 import com.future.ultimate.core.database.entity.ContactEntity
 import com.future.ultimate.core.database.entity.DriverAccountEntity
 import com.future.ultimate.core.database.entity.PlantEntity
+import com.future.ultimate.core.database.entity.ReportEntity
 import com.future.ultimate.core.database.entity.SettingEntity
 import com.future.ultimate.core.database.entity.WorkerEntity
 import java.io.File
 import java.time.LocalDate
+import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
+import java.util.Properties
 import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
 import kotlin.random.Random
+import javax.activation.DataHandler
+import javax.activation.FileDataSource
+import javax.mail.Message
+import javax.mail.Multipart
+import javax.mail.PasswordAuthentication
+import javax.mail.Session
+import javax.mail.Transport
+import javax.mail.internet.InternetAddress
+import javax.mail.internet.MimeBodyPart
+import javax.mail.internet.MimeMessage
+import javax.mail.internet.MimeMultipart
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.Dispatchers
 
 class LocalAdminRepository(
     private val dao: AppDao,
@@ -118,34 +139,56 @@ class LocalAdminRepository(
         dao.deleteClothesSizeByName(name, surname)
     }
 
-    override fun observeCars(): Flow<List<CarListItem>> = dao.observeCars().combine(dao.observeDriverAccounts()) { items, accounts ->
-        val accountsByRegistration = accounts.associateBy { it.registration.uppercase() }
-        items.map {
-            val driverAccount = accountsByRegistration[it.registration.uppercase()]
-            CarListItem(
-                id = it.id,
-                name = it.name,
-                registration = it.registration,
-                driver = it.driver,
-                mileage = it.mileage,
-                serviceInterval = it.serviceInterval,
-                lastService = it.lastService,
-                driverLogin = driverAccount?.login.orEmpty(),
-                driverPassword = driverAccount?.password.orEmpty(),
-                changePasswordRequired = driverAccount?.changePassword == 1,
-            )
-        }
-    }
+    override fun observeCars(): Flow<List<CarListItem>> =
+        dao.observeCars()
+            .combine(dao.observeDriverAccounts()) { items, accounts -> items to accounts }
+            .combine(dao.observeSettings()) { (items, accounts), settings ->
+                Triple(items, accounts, settings.associateBy({ it.key }, { it.valText }))
+            }
+            .map { (items, accounts, settings) ->
+                val accountsByRegistration = accounts.associateBy { it.registration.uppercase() }
+                items.map {
+                    val registrationKey = it.registration.uppercase()
+                    val driverAccount = accountsByRegistration[registrationKey]
+                    val queuedMileage = settings["driver_mileage_sync_pending_$registrationKey"]
+                        ?.substringBefore("|")
+                        ?.toIntOrNull()
+                    CarListItem(
+                        id = it.id,
+                        name = it.name,
+                        registration = it.registration,
+                        driver = it.driver,
+                        mileage = it.mileage,
+                        serviceInterval = it.serviceInterval,
+                        lastService = it.lastService,
+                        driverLogin = driverAccount?.login.orEmpty(),
+                        driverPassword = driverAccount?.password.orEmpty(),
+                        changePasswordRequired = driverAccount?.changePassword == 1,
+                        pendingMileageSync = queuedMileage != null,
+                        queuedMileage = queuedMileage,
+                        lastMileageSyncAt = settings["driver_mileage_sync_at_$registrationKey"].orEmpty(),
+                        lastMileageSyncStatus = settings["driver_mileage_sync_status_$registrationKey"].orEmpty(),
+                    )
+                }
+            }
 
     override suspend fun saveCar(draft: CarDraft) {
         val serviceInterval = draft.serviceInterval.toIntOrNull()?.coerceAtLeast(1) ?: 15000
         val registration = draft.registration.trim().uppercase()
+        val existingCar = if (draft.id != null) {
+            dao.getCar(draft.id)
+        } else {
+            dao.getCarByRegistration(registration)
+        }
         dao.upsertCar(
             CarEntity(
+                id = existingCar?.id ?: draft.id ?: 0,
                 name = draft.name.trim(),
                 registration = registration,
                 driver = draft.driver.trim(),
                 serviceInterval = serviceInterval,
+                mileage = existingCar?.mileage ?: 0,
+                lastService = existingCar?.lastService ?: 0,
             ),
         )
         syncDriverAccount(draft.driver, registration)
@@ -387,6 +430,22 @@ class LocalAdminRepository(
         syncClothesOrderIssueStatus(orderId)
     }
 
+    override suspend fun importClothesOrderItems(orderId: Long, rows: List<ClothesOrderImportRow>): Int {
+        rows.forEach { row ->
+            saveClothesOrderItem(
+                orderId = orderId,
+                draft = ClothesOrderItemDraft(
+                    name = row.name,
+                    surname = row.surname,
+                    item = row.item,
+                    size = row.size,
+                    qty = row.qty,
+                ),
+            )
+        }
+        return rows.size
+    }
+
     override suspend fun createClothesOrderStarter(
         draft: ClothesOrderDraft,
         workerIds: Set<Long>,
@@ -553,7 +612,7 @@ class LocalAdminRepository(
 
     override suspend fun exportClothesOrderCsv(orderId: Long): String {
         val order = dao.getClothesOrder(orderId) ?: return ""
-        val outputDir = context.getExternalFilesDir(null) ?: context.filesDir
+        val outputDir = PatchLoader.safeExternalDir(context, feature = "clothes_order_csv")
         val outputFile = File(outputDir, "clothes_order_${orderId}.csv")
         val items = dao.getClothesOrderItems(orderId)
         outputFile.bufferedWriter(Charsets.UTF_8).use { writer ->
@@ -587,7 +646,7 @@ class LocalAdminRepository(
         val items = dao.getClothesOrderItems(orderId)
         if (items.isEmpty()) return ClothesOrderXlsxExport()
 
-        val outputDir = context.getExternalFilesDir(null) ?: context.filesDir
+        val outputDir = PatchLoader.safeExternalDir(context, feature = "clothes_order_xlsx")
         val supplierFile = File(outputDir, "zamowienie_hurtownia_${orderId}.xlsx")
         val issueFile = File(outputDir, "raport_wydania_${orderId}.xlsx")
         val pendingItems = items.filter { it.issued == 0 }
@@ -701,6 +760,21 @@ class LocalAdminRepository(
         return normalized == "zamówione" || normalized == "częściowo wydane" || normalized == "wydane"
     }
 
+    private fun canIssueClothesOrder(status: String): Boolean {
+        val normalized = status.trim().lowercase()
+        return normalized == "zamówione" || normalized == "częściowo wydane"
+    }
+
+    private fun canMarkClothesOrderOrdered(status: String): Boolean {
+        val normalized = status.trim().lowercase()
+        return normalized != "częściowo wydane" && normalized != "wydane"
+    }
+
+    private fun isClothesOrderIssueWorkflowStatus(status: String): Boolean {
+        val normalized = status.trim().lowercase()
+        return normalized == "zamówione" || normalized == "częściowo wydane" || normalized == "wydane"
+    }
+
     override fun observeClothesHistory(): Flow<List<ClothesHistoryListItem>> = dao.observeClothesHistory().map { items ->
         items.map {
             ClothesHistoryListItem(
@@ -732,6 +806,18 @@ class LocalAdminRepository(
         dao.upsertSetting(SettingEntity(key = "smtp_password", valText = settings.password))
     }
 
+    override suspend fun validateSmtpConnection(settings: SmtpSettingsData) {
+        withContext(Dispatchers.IO) {
+            val normalized = settings.normalized()
+            val transport = buildMailSession(normalized).getTransport("smtp")
+            try {
+                transport.connect(normalized.host, normalized.port.toInt(), normalized.user, normalized.password)
+            } finally {
+                transport.close()
+            }
+        }
+    }
+
     override fun observeEmailTemplate(): Flow<EmailTemplateData> = dao.observeSettings().map { settings ->
         val map = settings.associateBy({ it.key }, { it.valText })
         EmailTemplateData(
@@ -743,6 +829,84 @@ class LocalAdminRepository(
     override suspend fun saveEmailTemplate(template: EmailTemplateData) {
         dao.upsertSetting(SettingEntity(key = "t_sub", valText = template.subject.trim()))
         dao.upsertSetting(SettingEntity(key = "t_body", valText = template.body.trim()))
+    }
+
+    override suspend fun sendSinglePreviewMail(attachmentPaths: List<String>): String {
+        return withContext(Dispatchers.IO) {
+            val settings = loadSavedSmtpSettings().normalized()
+            val template = loadSavedEmailTemplate().validated()
+            val today = LocalDate.now()
+            sendMail(
+                settings = settings,
+                recipient = settings.user,
+                subject = renderTemplate(template.subject, "Podgląd SMTP", today),
+                body = buildString {
+                    appendLine(renderTemplate(template.body, "Podgląd SMTP", today))
+                    appendLine()
+                    append("To jest testowa wiadomość podglądowa wysłana z natywnego modułu Android.")
+                },
+                attachments = sanitizeAttachments(attachmentPaths),
+            )
+            settings.user
+        }
+    }
+
+    override suspend fun sendMassMailing(attachmentPaths: List<String>, autoMode: Boolean): MailDispatchResult {
+        return withContext(Dispatchers.IO) {
+            val settings = loadSavedSmtpSettings().normalized()
+            val template = loadSavedEmailTemplate().validated()
+            val attachments = sanitizeAttachments(attachmentPaths)
+            val contacts = dao.observeContacts().first()
+            val today = LocalDate.now()
+            var ok = 0
+            var fail = 0
+            var skip = 0
+            val details = mutableListOf<String>()
+
+            contacts.forEach { contact ->
+                val email = contact.email.trim()
+                val fullName = listOf(contact.name, contact.surname).joinToString(" ").trim()
+                if (email.isBlank()) {
+                    skip += 1
+                    details += "SKIP: ${fullName.ifBlank { "Bez nazwy" }} — brak email"
+                    return@forEach
+                }
+
+                runCatching {
+                    sendMail(
+                        settings = settings,
+                        recipient = email,
+                        subject = renderTemplate(template.subject, contact.name.ifBlank { fullName }, today),
+                        body = renderTemplate(template.body, contact.name.ifBlank { fullName }, today),
+                        attachments = attachments,
+                    )
+                }.onSuccess {
+                    ok += 1
+                    details += "OK: ${fullName.ifBlank { email }} <$email>"
+                }.onFailure { error ->
+                    fail += 1
+                    details += "FAIL: ${fullName.ifBlank { email }} <$email> — ${error.message.orEmpty().ifBlank { "nieznany błąd" }}"
+                }
+            }
+
+            val result = MailDispatchResult(
+                ok = ok,
+                fail = fail,
+                skip = skip,
+                details = details.joinToString("\n"),
+            )
+            dao.insertReport(
+                ReportEntity(
+                    date = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")),
+                    ok = ok,
+                    fail = fail,
+                    skip = skip,
+                    auto = if (autoMode) 1 else 0,
+                    details = result.details,
+                ),
+            )
+            result
+        }
     }
 
     override fun observeSessionReports(): Flow<List<SessionReportListItem>> = dao.observeReports().map { items ->
@@ -790,7 +954,7 @@ class LocalAdminRepository(
         VehicleReportPdfExporter.export(context, draft, ownerTag = "admin")
 
     override suspend fun exportDatabaseSnapshot(): String {
-        val outputDir = context.getExternalFilesDir(null) ?: context.filesDir
+        val outputDir = PatchLoader.safeExternalDir(context, feature = "database_snapshot")
         val outputFile = File(outputDir, "future_v20_snapshot.zip")
         val databaseFiles = listOf(
             context.getDatabasePath("future_v20.db"),
@@ -809,7 +973,7 @@ class LocalAdminRepository(
     }
 
     override suspend fun exportContactsCsv(): String {
-        val outputDir = context.getExternalFilesDir(null) ?: context.filesDir
+        val outputDir = PatchLoader.safeExternalDir(context, feature = "contacts_csv")
         val outputFile = File(outputDir, "contacts_table.csv")
         val rows = dao.observeContacts().first().sortedWith(compareBy<ContactEntity> { it.surname }.thenBy { it.name })
         outputFile.bufferedWriter(Charsets.UTF_8).use { writer ->
@@ -832,7 +996,7 @@ class LocalAdminRepository(
     override suspend fun exportContactRowXlsx(name: String, surname: String): String {
         val contact = dao.getContact(name.trim().lowercase(), surname.trim().lowercase())
             ?: return ""
-        val outputDir = context.getExternalFilesDir(null) ?: context.filesDir
+        val outputDir = PatchLoader.safeExternalDir(context, feature = "contact_row_xlsx")
         val safeName = sanitizeFilePart(contact.name.ifBlank { "kontakt" })
         val safeSurname = sanitizeFilePart(contact.surname.ifBlank { "rekord" })
         val outputFile = File(outputDir, "kontakt_${safeName}_${safeSurname}.xlsx")
@@ -863,8 +1027,70 @@ class LocalAdminRepository(
         return outputFile.absolutePath
     }
 
+    override suspend fun exportPayrollPackage(contacts: List<ContactListItem>): String {
+        if (contacts.isEmpty()) return ""
+        val outputDir = PatchLoader.safeExternalDir(context, feature = "payroll_package")
+        val outputFile = File(
+            outputDir,
+            "payroll_package_${DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss").format(LocalDateTime.now())}.zip",
+        )
+        val selectedContacts = contacts
+            .distinctBy { "${it.name.trim().lowercase()}|${it.surname.trim().lowercase()}" }
+            .sortedWith(compareBy<ContactListItem> { it.surname.lowercase() }.thenBy { it.name.lowercase() })
+        val summaryCsv = File(outputDir, "payroll_package_contacts.csv")
+        summaryCsv.bufferedWriter(Charsets.UTF_8).use { writer ->
+            writer.appendLine("name,surname,email,phone,workplace,apartment,notes")
+            selectedContacts.forEach { row ->
+                writer.appendCsvLine(
+                    row.name,
+                    row.surname,
+                    row.email,
+                    row.phone,
+                    row.workplace,
+                    row.apartment,
+                    row.notes,
+                )
+            }
+        }
+        val attachments = buildList {
+            add(summaryCsv)
+            selectedContacts.forEach { contact ->
+                val path = exportContactRowXlsx(contact.name, contact.surname)
+                if (path.isNotBlank()) add(File(path))
+            }
+        }.distinctBy { it.absolutePath }
+
+        ZipOutputStream(outputFile.outputStream().buffered()).use { zip ->
+            attachments.filter { it.exists() }.forEach { file ->
+                zip.putNextEntry(ZipEntry(file.name))
+                file.inputStream().use { input -> input.copyTo(zip) }
+                zip.closeEntry()
+            }
+        }
+        return outputFile.absolutePath
+    }
+
+    override suspend fun exportPayrollWorkbookCsv(rows: List<PayrollWorkbookRow>): String {
+        if (rows.isEmpty()) return ""
+        val outputDir = PatchLoader.safeExternalDir(context, feature = "payroll_workbook_csv")
+        val outputFile = File(outputDir, "payroll_workbook_stage.csv")
+        outputFile.bufferedWriter(Charsets.UTF_8).use { writer ->
+            writer.appendLine("name,surname,workplace,email,amount")
+            rows.forEach { row ->
+                writer.appendCsvLine(
+                    row.name,
+                    row.surname,
+                    row.workplace,
+                    row.email,
+                    row.amount,
+                )
+            }
+        }
+        return outputFile.absolutePath
+    }
+
     override suspend fun exportClothesHistoryCsv(): String {
-        val outputDir = context.getExternalFilesDir(null) ?: context.filesDir
+        val outputDir = PatchLoader.safeExternalDir(context, feature = "clothes_history_csv")
         val outputFile = File(outputDir, "clothes_history.csv")
         val rows = dao.observeClothesHistory().map { items ->
             items.sortedWith(compareByDescending<com.future.ultimate.core.database.entity.ClothesHistoryEntity> { it.date }.thenByDescending { it.id })
@@ -887,7 +1113,7 @@ class LocalAdminRepository(
     }
 
     override suspend fun exportSessionReportsCsv(): String {
-        val outputDir = context.getExternalFilesDir(null) ?: context.filesDir
+        val outputDir = PatchLoader.safeExternalDir(context, feature = "session_reports_csv")
         val outputFile = File(outputDir, "session_reports.csv")
         val rows = dao.observeReports().map { items ->
             items.sortedByDescending { it.id }
@@ -907,6 +1133,105 @@ class LocalAdminRepository(
         }
         return outputFile.absolutePath
     }
+
+    private suspend fun loadSavedSmtpSettings(): SmtpSettingsData {
+        val settings = dao.observeSettings().first().associateBy({ it.key }, { it.valText })
+        return SmtpSettingsData(
+            host = settings["smtp_host"].orEmpty(),
+            port = settings["smtp_port"].orEmpty().ifBlank { "587" },
+            user = settings["smtp_user"].orEmpty(),
+            password = settings["smtp_password"].orEmpty(),
+        )
+    }
+
+    private suspend fun loadSavedEmailTemplate(): EmailTemplateData {
+        val settings = dao.observeSettings().first().associateBy({ it.key }, { it.valText })
+        return EmailTemplateData(
+            subject = settings["t_sub"].orEmpty(),
+            body = settings["t_body"].orEmpty(),
+        )
+    }
+
+    private fun SmtpSettingsData.normalized(): SmtpSettingsData {
+        val normalizedPort = port.trim().ifBlank { "587" }
+        require(host.trim().isNotBlank()) { "Brak hosta SMTP" }
+        require(user.trim().isNotBlank()) { "Brak loginu SMTP" }
+        require(password.isNotBlank()) { "Brak hasła SMTP" }
+        require(normalizedPort.toIntOrNull() != null) { "Port SMTP musi być liczbą" }
+        return copy(host = host.trim(), port = normalizedPort, user = user.trim())
+    }
+
+    private fun EmailTemplateData.validated(): EmailTemplateData {
+        require(subject.trim().isNotBlank()) { "Brak tematu email" }
+        require(body.trim().isNotBlank()) { "Brak treści email" }
+        return copy(subject = subject.trim(), body = body.trim())
+    }
+
+    private fun sanitizeAttachments(attachmentPaths: List<String>): List<File> =
+        attachmentPaths
+            .map { it.trim() }
+            .filter { it.isNotBlank() }
+            .distinct()
+            .map(::File)
+            .filter { it.exists() && it.isFile }
+
+    private fun renderTemplate(template: String, name: String, date: LocalDate): String =
+        template
+            .replace("{Imię}", name.ifBlank { "Pracownik" })
+            .replace("{Data}", date.format(DateTimeFormatter.ofPattern("dd.MM.yyyy")))
+
+    private fun buildMailSession(settings: SmtpSettingsData): Session {
+        val props = Properties().apply {
+            put("mail.smtp.host", settings.host)
+            put("mail.smtp.port", settings.port)
+            put("mail.smtp.auth", "true")
+            put("mail.smtp.starttls.enable", "true")
+            put("mail.smtp.connectiontimeout", "25000")
+            put("mail.smtp.timeout", "25000")
+            put("mail.smtp.writetimeout", "25000")
+        }
+        return Session.getInstance(
+            props,
+            object : javax.mail.Authenticator() {
+                override fun getPasswordAuthentication(): PasswordAuthentication =
+                    PasswordAuthentication(settings.user, settings.password)
+            },
+        )
+    }
+
+    private fun sendMail(
+        settings: SmtpSettingsData,
+        recipient: String,
+        subject: String,
+        body: String,
+        attachments: List<File>,
+    ) {
+        val message = MimeMessage(buildMailSession(settings)).apply {
+            setFrom(InternetAddress(settings.user))
+            setRecipients(Message.RecipientType.TO, InternetAddress.parse(recipient))
+            setSubject(subject, Charsets.UTF_8.name())
+            setContent(buildMultipartBody(body, attachments))
+            sentDate = java.util.Date()
+        }
+        Transport.send(message)
+    }
+
+    private fun buildMultipartBody(body: String, attachments: List<File>): Multipart =
+        MimeMultipart().apply {
+            addBodyPart(
+                MimeBodyPart().apply {
+                    setText(body, Charsets.UTF_8.name())
+                },
+            )
+            attachments.forEach { file ->
+                addBodyPart(
+                    MimeBodyPart().apply {
+                        dataHandler = DataHandler(FileDataSource(file))
+                        fileName = file.name
+                    },
+                )
+            }
+        }
 
     private suspend fun syncDriverAccount(
         driverName: String,

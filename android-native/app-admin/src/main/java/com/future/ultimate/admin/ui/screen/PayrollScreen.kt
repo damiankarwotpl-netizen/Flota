@@ -3,6 +3,7 @@ package com.future.ultimate.admin.ui.screen
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material3.Button
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -30,17 +31,62 @@ fun PayrollScreen(navController: NavController) {
                     Switch(checked = uiState.autoSend, onCheckedChange = { viewModel.toggleAutoSend() })
                     Text("AUTOMATYCZNA WYSYŁKA")
                 }
+                Text("Operator: ${uiState.operatorLabel}")
                 Text("Baza: ${uiState.totalRecipients} | Załączniki: ${uiState.attachmentCount}")
+                OutlinedTextField(
+                    value = uiState.grossAmount,
+                    onValueChange = viewModel::updateGrossAmount,
+                    label = { Text("Kwota brutto") },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                OutlinedTextField(
+                    value = uiState.bonusAmount,
+                    onValueChange = viewModel::updateBonusAmount,
+                    label = { Text("Premia") },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                OutlinedTextField(
+                    value = uiState.deductionsAmount,
+                    onValueChange = viewModel::updateDeductionsAmount,
+                    label = { Text("Potrącenia") },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                OutlinedTextField(
+                    value = uiState.taxPercent,
+                    onValueChange = viewModel::updateTaxPercent,
+                    label = { Text("Podatek %") },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                OutlinedTextField(
+                    value = uiState.workbookImportText,
+                    onValueChange = viewModel::updateWorkbookImportText,
+                    label = { Text("Wklej workbook CSV/TSV/;") },
+                    modifier = Modifier.fillMaxWidth(),
+                    minLines = 5,
+                )
+                Button(onClick = viewModel::calculatePayroll, modifier = Modifier.fillMaxWidth()) { Text("Przelicz płace") }
+                Button(onClick = viewModel::stageWorkbookImport, modifier = Modifier.fillMaxWidth()) { Text("Parsuj workbook do stagingu") }
+                Button(onClick = viewModel::attachStagedWorkbookCsv, modifier = Modifier.fillMaxWidth()) { Text("Dołącz staging workbooka") }
+                if (uiState.stagedWorkbookRows.isNotEmpty()) {
+                    Text("Staged workbook rows: ${uiState.stagedWorkbookRows.size}")
+                    uiState.stagedWorkbookRows.take(5).forEach { row ->
+                        Text("${row.name} ${row.surname} • ${row.workplace.ifBlank { "-" }} • ${row.amount.ifBlank { "-" }}")
+                    }
+                    Button(onClick = viewModel::clearWorkbookImport, modifier = Modifier.fillMaxWidth()) { Text("Wyczyść staging workbooka") }
+                }
+                Text("Netto: ${uiState.netAmount} | Koszt pracodawcy: ${uiState.employerCostAmount}")
+                Text(uiState.calculationSummary)
                 Text(uiState.progressLabel)
                 uiState.actionMessage?.let { Text(it) }
                 uiState.attachmentPaths.forEach { path ->
                     Text("• ${path.substringAfterLast('/')}")
                 }
-                Button(onClick = {}, modifier = Modifier.fillMaxWidth()) { Text("Wczytaj arkusz płac") }
+                Button(onClick = viewModel::stageWorkbookImport, modifier = Modifier.fillMaxWidth()) { Text("Wczytaj arkusz płac") }
                 Button(onClick = { navController.navigate(AdminRoute.Table.route) }, modifier = Modifier.fillMaxWidth()) { Text("Podgląd i eksport") }
                 Button(onClick = { navController.navigate(AdminRoute.Template.route) }, modifier = Modifier.fillMaxWidth()) { Text("Edytuj szablon") }
                 Button(onClick = viewModel::attachSessionReportsCsv, modifier = Modifier.fillMaxWidth()) { Text("Dodaj CSV raportów") }
                 Button(onClick = viewModel::attachContactsCsv, modifier = Modifier.fillMaxWidth()) { Text("Dołącz CSV kontaktów") }
+                Button(onClick = viewModel::attachPayrollPackage, modifier = Modifier.fillMaxWidth()) { Text("Dołącz paczkę płac") }
                 Button(onClick = viewModel::sendSingle, modifier = Modifier.fillMaxWidth()) { Text("Przygotuj jedną wysyłkę") }
                 Button(onClick = viewModel::startMassMailing, modifier = Modifier.fillMaxWidth()) { Text("Przygotuj masową wysyłkę") }
                 Button(onClick = viewModel::clearAttachments, modifier = Modifier.fillMaxWidth()) { Text("Wyczyść załączniki") }

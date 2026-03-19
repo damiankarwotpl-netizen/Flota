@@ -1,6 +1,7 @@
 package com.future.ultimate.core.database.repository
 
 import com.future.ultimate.core.common.model.VehicleReportDraft
+import com.future.ultimate.core.common.repository.DriverMileageSyncState
 import com.future.ultimate.core.common.repository.DriverRepository
 import com.future.ultimate.core.common.repository.DriverSession
 import kotlinx.coroutines.flow.Flow
@@ -11,6 +12,7 @@ class StubDriverRepository : DriverRepository {
     private val session = MutableStateFlow<DriverSession?>(null)
 
     override fun observeSession(): Flow<DriverSession?> = session.asStateFlow()
+    override fun observeMileageSyncState(): Flow<DriverMileageSyncState> = MutableStateFlow(DriverMileageSyncState()).asStateFlow()
 
     override suspend fun login(login: String, password: String): DriverSession = DriverSession(
         login = login,
@@ -30,8 +32,14 @@ class StubDriverRepository : DriverRepository {
     }
 
     override suspend fun saveMileage(login: String, registration: String, mileage: Int) = Unit
+    override suspend fun flushPendingMileageSync(): DriverMileageSyncState = DriverMileageSyncState(
+        registration = registrationFallback(session.value?.registration),
+        status = "Stub sync completed",
+    )
 
     override suspend fun saveVehicleReportDraft(draft: VehicleReportDraft) = Unit
 
     override suspend fun exportVehicleReportPdf(draft: VehicleReportDraft): String = "/tmp/vehicle_report.pdf"
+
+    private fun registrationFallback(value: String?): String = value.orEmpty().ifBlank { "REGISTRATION" }
 }

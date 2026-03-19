@@ -12,6 +12,7 @@ data class ContactDraft(
 )
 
 data class CarDraft(
+    val id: Long? = null,
     val name: String = "",
     val registration: String = "",
     val driver: String = "",

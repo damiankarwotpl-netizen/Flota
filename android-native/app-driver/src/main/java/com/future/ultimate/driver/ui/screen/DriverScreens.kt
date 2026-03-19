@@ -93,6 +93,16 @@ fun DriverMileageScreen(navController: NavController) {
         Button(onClick = viewModel::save, modifier = Modifier.fillMaxWidth()) {
             Text(if (uiState.isSaving) "Zapisywanie..." else "Save mileage")
         }
+        Text("Status synchronizacji: ${uiState.syncStatus}")
+        Text("Kolejka: ${uiState.pendingSyncCount} • Oczekujący przebieg: ${uiState.queuedMileage.ifBlank { "-" }}")
+        Text("Ostatnia próba: ${uiState.lastAttemptAt.ifBlank { "-" }}")
+        Text("Ostatnia synchronizacja: ${uiState.lastSyncedAt.ifBlank { "-" }}")
+        if (uiState.syncError.isNotBlank()) {
+            Text("Błąd synchronizacji: ${uiState.syncError}")
+        }
+        Button(onClick = viewModel::flushSyncNow, modifier = Modifier.fillMaxWidth()) {
+            Text(if (uiState.isSaving) "Synchronizowanie..." else "Wymuś synchronizację teraz")
+        }
         Button(onClick = { navController.navigate(DriverRoute.VehicleReport.route) }, modifier = Modifier.fillMaxWidth()) {
             Text("Raport stanu samochodu")
         }

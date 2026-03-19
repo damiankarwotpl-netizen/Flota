@@ -15,6 +15,12 @@ data class DriverMileageUiState(
     val mileage: String = "",
     val status: String? = null,
     val isSaving: Boolean = false,
+    val syncStatus: String = "Brak danych o synchronizacji",
+    val pendingSyncCount: Int = 0,
+    val queuedMileage: String = "",
+    val lastAttemptAt: String = "",
+    val lastSyncedAt: String = "",
+    val syncError: String = "",
 )
 
 data class DriverVehicleReportUiState(

@@ -11,11 +11,14 @@ import com.future.ultimate.core.common.model.ContactDraft
 import com.future.ultimate.core.common.model.PlantDraft
 import com.future.ultimate.core.common.model.VehicleReportDraft
 import com.future.ultimate.core.common.model.WorkerDraft
+import com.future.ultimate.core.common.patch.PatchLoader
 import com.future.ultimate.core.common.repository.AdminRepository
 import com.future.ultimate.core.common.repository.ClothesOrderItemListItem
+import com.future.ultimate.core.common.repository.ClothesOrderImportRow
 import com.future.ultimate.core.common.repository.ClothesOrderListItem
 import com.future.ultimate.core.common.repository.ClothesSizeListItem
 import com.future.ultimate.core.common.repository.EmailTemplateData
+import com.future.ultimate.core.common.repository.PayrollWorkbookRow
 import com.future.ultimate.core.common.repository.SmtpSettingsData
 import com.future.ultimate.core.common.ui.CarsUiState
 import com.future.ultimate.core.common.ui.ClothesOrdersUiState
@@ -83,7 +86,10 @@ class CarsViewModel(private val repository: AdminRepository) : ViewModel() {
 
     private fun refreshDriverSuggestions() {
         _uiState.value = _uiState.value.copy(
-            driverSuggestions = (workerDriverSuggestions + contactDriverSuggestions).distinct().sorted(),
+            driverSuggestions = (workerDriverSuggestions + contactDriverSuggestions)
+                .groupBy { it.trim().lowercase() }
+                .mapNotNull { (_, values) -> values.firstOrNull()?.trim()?.takeIf { it.isNotBlank() } }
+                .sorted(),
         )
     }
 
@@ -97,6 +103,21 @@ class CarsViewModel(private val repository: AdminRepository) : ViewModel() {
         _uiState.value = _uiState.value.copy(serviceFilter = nextFilter, actionMessage = null)
     }
     fun updateEditor(draft: CarDraft) { _uiState.value = _uiState.value.copy(editor = draft, actionMessage = null) }
+    fun editCar(car: CarListItem) {
+        _uiState.value = _uiState.value.copy(
+            editor = CarDraft(
+                id = car.id,
+                name = car.name,
+                registration = car.registration,
+                driver = car.driver,
+                serviceInterval = car.serviceInterval.toString(),
+            ),
+            actionMessage = null,
+        )
+    }
+    fun clearEditor() {
+        _uiState.value = _uiState.value.copy(editor = CarDraft(), actionMessage = null)
+    }
     fun applyEditorDriverSuggestion(driver: String) { _uiState.value = _uiState.value.copy(editor = _uiState.value.editor.copy(driver = driver), actionMessage = null) }
 
     fun updateMileageDraft(id: Long, value: String) {
@@ -112,14 +133,37 @@ class CarsViewModel(private val repository: AdminRepository) : ViewModel() {
     }
 
     fun save() = viewModelScope.launch {
+        val draft = _uiState.value.editor
+        if (draft.name.isBlank()) {
+            _uiState.value = _uiState.value.copy(actionMessage = "Nazwa samochodu jest wymagana")
+            return@launch
+        }
+        if (draft.registration.isBlank()) {
+            _uiState.value = _uiState.value.copy(actionMessage = "Rejestracja samochodu jest wymagana")
+            return@launch
+        }
+        if (draft.serviceInterval.toIntOrNull()?.let { it > 0 } != true) {
+            _uiState.value = _uiState.value.copy(actionMessage = "Interwał serwisowy musi być dodatnią liczbą")
+            return@launch
+        }
+        val isEditing = draft.id != null
         _uiState.value = _uiState.value.copy(isSaving = true, actionMessage = null)
-        repository.saveCar(_uiState.value.editor)
-        _uiState.value = _uiState.value.copy(isSaving = false, editor = CarDraft(), actionMessage = "Samochód zapisany")
+        repository.saveCar(draft)
+        _uiState.value = _uiState.value.copy(
+            isSaving = false,
+            editor = CarDraft(),
+            actionMessage = if (isEditing) "Samochód zaktualizowany" else "Samochód zapisany",
+        )
     }
 
     fun saveMileage(id: Long) = viewModelScope.launch {
+        val mileageText = _uiState.value.mileageDrafts[id]
+        val mileage = mileageText?.toIntOrNull()
+        if (mileage == null || mileage < 0) {
+            _uiState.value = _uiState.value.copy(actionMessage = "Przebieg musi być liczbą dodatnią lub zerem")
+            return@launch
+        }
         _uiState.value = _uiState.value.copy(actionInFlightId = id, actionMessage = null)
-        val mileage = _uiState.value.mileageDrafts[id]?.toIntOrNull() ?: 0
         repository.updateCarMileage(id, mileage)
         _uiState.value = _uiState.value.copy(actionInFlightId = null, actionMessage = "Przebieg zapisany")
     }
@@ -181,17 +225,93 @@ class VehicleReportViewModel(private val repository: AdminRepository) : ViewMode
 }
 
 class PayrollViewModel(private val repository: AdminRepository) : ViewModel() {
-    private val _uiState = MutableStateFlow(PayrollUiState())
+    private val _uiState = MutableStateFlow(PayrollUiState(operatorLabel = PatchLoader.fallbackUserLabel()))
     val uiState: StateFlow<PayrollUiState> = _uiState.asStateFlow()
+    private var contactsCache: List<com.future.ultimate.core.common.repository.ContactListItem> = emptyList()
 
     init {
         repository.observeContacts().onEach { items ->
+            contactsCache = items
             _uiState.value = _uiState.value.copy(totalRecipients = items.size)
         }.launchIn(viewModelScope)
     }
 
     fun toggleAutoSend() {
         _uiState.value = _uiState.value.copy(autoSend = !_uiState.value.autoSend, actionMessage = null)
+    }
+
+    fun updateGrossAmount(value: String) {
+        _uiState.value = _uiState.value.copy(grossAmount = value, actionMessage = null)
+    }
+
+    fun updateBonusAmount(value: String) {
+        _uiState.value = _uiState.value.copy(bonusAmount = value, actionMessage = null)
+    }
+
+    fun updateDeductionsAmount(value: String) {
+        _uiState.value = _uiState.value.copy(deductionsAmount = value, actionMessage = null)
+    }
+
+    fun updateTaxPercent(value: String) {
+        _uiState.value = _uiState.value.copy(taxPercent = value, actionMessage = null)
+    }
+
+    fun updateWorkbookImportText(value: String) {
+        _uiState.value = _uiState.value.copy(workbookImportText = value, actionMessage = null)
+    }
+
+    fun stageWorkbookImport() {
+        val rows = parseWorkbookRows(_uiState.value.workbookImportText)
+        if (rows.isEmpty()) {
+            _uiState.value = _uiState.value.copy(
+                stagedWorkbookRows = emptyList(),
+                actionMessage = "Nie udało się sparsować żadnych wierszy importu",
+                progressLabel = "Brak danych do stagingu",
+            )
+            return
+        }
+        _uiState.value = _uiState.value.copy(
+            stagedWorkbookRows = rows,
+            actionMessage = "Zaimportowano lokalnie ${rows.size} wierszy workbooka do stagingu",
+            progressLabel = "Workbook staged: ${rows.size} wierszy",
+        )
+    }
+
+    fun clearWorkbookImport() {
+        _uiState.value = _uiState.value.copy(
+            workbookImportText = "",
+            stagedWorkbookRows = emptyList(),
+            actionMessage = "Staging workbooka wyczyszczony",
+            progressLabel = "Gotowy",
+        )
+    }
+
+    fun attachStagedWorkbookCsv() = viewModelScope.launch {
+        val rows = _uiState.value.stagedWorkbookRows
+        if (rows.isEmpty()) {
+            _uiState.value = _uiState.value.copy(actionMessage = PatchLoader.fallbackImportMessage("Płace"))
+            return@launch
+        }
+        val path = repository.exportPayrollWorkbookCsv(rows)
+        addAttachment(path, "Dołączono staging workbooka")
+    }
+
+    fun calculatePayroll() {
+        val gross = _uiState.value.grossAmount.toDoubleOrNull()?.coerceAtLeast(0.0) ?: 0.0
+        val bonus = _uiState.value.bonusAmount.toDoubleOrNull()?.coerceAtLeast(0.0) ?: 0.0
+        val deductions = _uiState.value.deductionsAmount.toDoubleOrNull()?.coerceAtLeast(0.0) ?: 0.0
+        val taxPercent = (_uiState.value.taxPercent.toDoubleOrNull() ?: 12.0).coerceAtLeast(0.0)
+        val taxableBase = (gross + bonus - deductions).coerceAtLeast(0.0)
+        val taxAmount = taxableBase * (taxPercent / 100.0)
+        val employerCost = gross * 0.2048
+        val netAmount = (taxableBase - taxAmount).coerceAtLeast(0.0)
+        _uiState.value = _uiState.value.copy(
+            employerCostAmount = formatMoney(employerCost),
+            netAmount = formatMoney(netAmount),
+            calculationSummary = "Brutto ${formatMoney(gross)} + premia ${formatMoney(bonus)} - potrącenia ${formatMoney(deductions)} - podatek ${formatMoney(taxAmount)}",
+            actionMessage = "Kalkulacja płac wykonana lokalnie",
+            progressLabel = "Kalkulacja gotowa",
+        )
     }
 
     fun attachContactsCsv() = viewModelScope.launch {
@@ -202,6 +322,15 @@ class PayrollViewModel(private val repository: AdminRepository) : ViewModel() {
     fun attachSessionReportsCsv() = viewModelScope.launch {
         val path = repository.exportSessionReportsCsv()
         addAttachment(path, "Dołączono CSV raportów")
+    }
+
+    fun attachPayrollPackage() = viewModelScope.launch {
+        if (contactsCache.isEmpty()) {
+            _uiState.value = _uiState.value.copy(actionMessage = "Brak kontaktów do przygotowania paczki płac")
+            return@launch
+        }
+        val path = repository.exportPayrollPackage(contactsCache)
+        addAttachment(path, "Dołączono paczkę płac")
     }
 
     fun clearAttachments() {
@@ -215,33 +344,80 @@ class PayrollViewModel(private val repository: AdminRepository) : ViewModel() {
     }
 
     fun sendSingle() {
-        val latest = _uiState.value.attachmentPaths.lastOrNull()
-        _uiState.value = _uiState.value.copy(
-            actionMessage = if (latest == null) {
-                "Najpierw dołącz lokalny eksport jako załącznik"
-            } else {
-                "Pakiet gotowy do pojedynczej wysyłki SMTP: ${latest.substringAfterLast('/')}"
-            },
-            progressLabel = if (latest == null) "Brak załączników" else "Pakiet pojedynczej wysyłki przygotowany",
-        )
+        val attachments = _uiState.value.attachmentPaths
+        if (attachments.isEmpty()) {
+            _uiState.value = _uiState.value.copy(
+                actionMessage = "Najpierw dołącz lokalny eksport jako załącznik",
+                progressLabel = "Brak załączników",
+            )
+            return
+        }
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isMailingRunning = true, actionMessage = null, progressLabel = "Wysyłanie podglądu...")
+            runCatching {
+                repository.sendSinglePreviewMail(attachments)
+            }.onSuccess { mailbox ->
+                _uiState.value = _uiState.value.copy(
+                    isMailingRunning = false,
+                    actionMessage = "Wysłano testowy podgląd na skrzynkę SMTP: $mailbox",
+                    progressLabel = "Podgląd wysłany",
+                )
+            }.onFailure { error ->
+                _uiState.value = _uiState.value.copy(
+                    isMailingRunning = false,
+                    actionMessage = error.message ?: "Nie udało się wysłać podglądu",
+                    progressLabel = "Błąd wysyłki podglądu",
+                )
+            }
+        }
     }
 
     fun startMassMailing() {
         val hasRecipients = _uiState.value.totalRecipients > 0
         val hasAttachments = _uiState.value.attachmentPaths.isNotEmpty()
-        _uiState.value = _uiState.value.copy(
-            isMailingRunning = hasRecipients && hasAttachments,
-            progressLabel = when {
-                !hasRecipients -> "Brak odbiorców w kontaktach"
-                !hasAttachments -> "Brak załączników do masowej wysyłki"
-                else -> "Kolejka przygotowana dla ${_uiState.value.totalRecipients} odbiorców"
-            },
-            actionMessage = when {
-                !hasRecipients -> "Dodaj kontakty przed uruchomieniem wysyłki"
-                !hasAttachments -> "Dołącz co najmniej jeden lokalny eksport"
-                else -> "Przygotowano lokalny pakiet pod przyszły SMTP pipeline"
-            },
-        )
+        if (!hasRecipients || !hasAttachments) {
+            _uiState.value = _uiState.value.copy(
+                isMailingRunning = false,
+                progressLabel = when {
+                    !hasRecipients -> "Brak odbiorców w kontaktach"
+                    else -> "Brak załączników do masowej wysyłki"
+                },
+                actionMessage = when {
+                    !hasRecipients -> "Dodaj kontakty przed uruchomieniem wysyłki"
+                    else -> "Dołącz co najmniej jeden lokalny eksport"
+                },
+            )
+            return
+        }
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(
+                isMailingRunning = true,
+                actionMessage = null,
+                progressLabel = "Trwa realna wysyłka do ${_uiState.value.totalRecipients} kontaktów...",
+            )
+            runCatching {
+                repository.sendMassMailing(
+                    attachmentPaths = _uiState.value.attachmentPaths,
+                    autoMode = _uiState.value.autoSend,
+                )
+            }.onSuccess { result ->
+                _uiState.value = _uiState.value.copy(
+                    isMailingRunning = false,
+                    progressLabel = "Sesja zakończona: OK ${result.ok} / Błędy ${result.fail} / Skip ${result.skip}",
+                    actionMessage = if (result.details.isBlank()) {
+                        "Brak szczegółów sesji"
+                    } else {
+                        result.details.lineSequence().take(4).joinToString("\n")
+                    },
+                )
+            }.onFailure { error ->
+                _uiState.value = _uiState.value.copy(
+                    isMailingRunning = false,
+                    progressLabel = "Masowa wysyłka przerwana",
+                    actionMessage = error.message ?: "Nie udało się uruchomić masowej wysyłki",
+                )
+            }
+        }
     }
 
     fun togglePauseMailing() {
@@ -262,6 +438,32 @@ class PayrollViewModel(private val repository: AdminRepository) : ViewModel() {
             progressLabel = "Załączniki gotowe: ${updated.size}",
         )
     }
+
+    private fun formatMoney(value: Double): String = String.format(java.util.Locale.US, "%.2f", value)
+
+    private fun parseWorkbookRows(rawInput: String): List<PayrollWorkbookRow> =
+        rawInput.lineSequence()
+            .map { it.trim() }
+            .filter { it.isNotBlank() }
+            .mapNotNull { line ->
+                val parts = line.split('\t', ';', ',').map { it.trim() }
+                if (parts.size < 2) {
+                    null
+                } else {
+                    PayrollWorkbookRow(
+                        name = parts.getOrElse(0) { "" },
+                        surname = parts.getOrElse(1) { "" },
+                        workplace = parts.getOrElse(2) { "" },
+                        email = parts.getOrElse(3) { "" },
+                        amount = parts.getOrElse(4) { "" },
+                    )
+                }
+            }
+            .filterNot { row ->
+                val firstCell = row.name.lowercase()
+                firstCell.contains("imi") || firstCell.contains("name")
+            }
+            .toList()
 }
 
 class TableViewModel(private val repository: AdminRepository) : ViewModel() {
@@ -278,6 +480,27 @@ class TableViewModel(private val repository: AdminRepository) : ViewModel() {
         _uiState.value = _uiState.value.copy(query = value, exportMessage = null)
     }
 
+    fun toggleSelection(item: com.future.ultimate.core.common.repository.ContactListItem) {
+        val key = item.selectionKey()
+        val current = _uiState.value.selectedContactKeys
+        _uiState.value = _uiState.value.copy(
+            selectedContactKeys = if (key in current) current - key else current + key,
+            exportMessage = null,
+        )
+    }
+
+    fun selectVisible(items: List<com.future.ultimate.core.common.repository.ContactListItem>) {
+        if (items.isEmpty()) return
+        _uiState.value = _uiState.value.copy(
+            selectedContactKeys = _uiState.value.selectedContactKeys + items.map { it.selectionKey() },
+            exportMessage = null,
+        )
+    }
+
+    fun clearSelection() {
+        _uiState.value = _uiState.value.copy(selectedContactKeys = emptySet(), exportMessage = null)
+    }
+
     fun exportCsv() = viewModelScope.launch {
         _uiState.value = _uiState.value.copy(isExporting = true, exportMessage = null)
         val path = repository.exportContactsCsv()
@@ -292,6 +515,23 @@ class TableViewModel(private val repository: AdminRepository) : ViewModel() {
             exportMessage = if (path.isBlank()) "Nie znaleziono rekordu do eksportu" else "XLSX kontaktu zapisany: $path",
         )
     }
+
+    fun exportPackage() = viewModelScope.launch {
+        val selected = _uiState.value.items.filter { it.selectionKey() in _uiState.value.selectedContactKeys }
+        if (selected.isEmpty()) {
+            _uiState.value = _uiState.value.copy(exportMessage = "Najpierw wybierz co najmniej jeden rekord do paczki")
+            return@launch
+        }
+        _uiState.value = _uiState.value.copy(isExporting = true, exportMessage = null)
+        val path = repository.exportPayrollPackage(selected)
+        _uiState.value = _uiState.value.copy(
+            isExporting = false,
+            exportMessage = if (path.isBlank()) "Nie udało się przygotować paczki eksportowej" else "Paczka płac zapisana: $path",
+        )
+    }
+
+    private fun com.future.ultimate.core.common.repository.ContactListItem.selectionKey(): String =
+        "${name.trim().lowercase()}|${surname.trim().lowercase()}"
 }
 
 class WorkersViewModel(private val repository: AdminRepository) : ViewModel() {
@@ -380,6 +620,7 @@ class ClothesOrdersViewModel(private val repository: AdminRepository) : ViewMode
 
     fun updateEditor(draft: ClothesOrderDraft) { _uiState.value = _uiState.value.copy(editor = draft, actionMessage = null) }
     fun updateItemEditor(draft: ClothesOrderItemDraft) { _uiState.value = _uiState.value.copy(itemEditor = draft, actionMessage = null) }
+    fun updateImportText(value: String) { _uiState.value = _uiState.value.copy(importText = value, actionMessage = null) }
     fun updateWorkerQuery(value: String) { _uiState.value = _uiState.value.copy(workerQuery = value, actionMessage = null) }
     fun updateStarterQuantities(
         shirtQty: String = _uiState.value.shirtQty,
@@ -496,6 +737,8 @@ class ClothesOrdersViewModel(private val repository: AdminRepository) : ViewMode
             selectedOrderItems = emptyList(),
             selectedOrderSummary = emptyList(),
             showOnlyPendingItems = false,
+            importText = "",
+            importPreview = emptyList(),
             itemEditor = ClothesOrderItemDraft(),
         )
         orderItemsJob?.cancel()
@@ -591,6 +834,33 @@ class ClothesOrdersViewModel(private val repository: AdminRepository) : ViewMode
 
     fun clearItemEditor() {
         _uiState.value = _uiState.value.copy(itemEditor = ClothesOrderItemDraft(), actionMessage = null)
+    }
+
+    fun stageImportRows() {
+        val rows = parseImportRows(_uiState.value.importText)
+        _uiState.value = _uiState.value.copy(
+            importPreview = rows,
+            actionMessage = if (rows.isEmpty()) "Nie udało się sparsować żadnych pozycji importu" else "Przygotowano ${rows.size} pozycji do importu",
+        )
+    }
+
+    fun clearImport() {
+        _uiState.value = _uiState.value.copy(importText = "", importPreview = emptyList(), actionMessage = null)
+    }
+
+    fun applyImportedRows() = viewModelScope.launch {
+        val orderId = _uiState.value.selectedOrderId ?: return@launch
+        val rows = _uiState.value.importPreview.ifEmpty { parseImportRows(_uiState.value.importText) }
+        if (rows.isEmpty()) {
+            _uiState.value = _uiState.value.copy(actionMessage = "Brak pozycji do importu")
+            return@launch
+        }
+        val importedCount = repository.importClothesOrderItems(orderId, rows)
+        _uiState.value = _uiState.value.copy(
+            importText = "",
+            importPreview = emptyList(),
+            actionMessage = "Zaimportowano $importedCount pozycji do zamówienia",
+        )
     }
 
     fun togglePendingItemsFilter() {
@@ -714,6 +984,30 @@ class ClothesOrdersViewModel(private val repository: AdminRepository) : ViewMode
                 }
         }
 
+    private fun parseImportRows(rawInput: String): List<ClothesOrderImportRow> =
+        rawInput.lineSequence()
+            .map { it.trim() }
+            .filter { it.isNotBlank() }
+            .mapNotNull { line ->
+                val parts = line.split('\t', ';', ',').map { it.trim() }
+                if (parts.size < 3) {
+                    null
+                } else {
+                    ClothesOrderImportRow(
+                        name = parts.getOrElse(0) { "" },
+                        surname = parts.getOrElse(1) { "" },
+                        item = parts.getOrElse(2) { "" },
+                        size = parts.getOrElse(3) { "" },
+                        qty = parts.getOrElse(4) { "1" },
+                    )
+                }
+            }
+            .filterNot { row ->
+                val firstCell = row.name.lowercase()
+                firstCell.contains("imi") || firstCell.contains("name")
+            }
+            .toList()
+
     private fun canIssueClothesOrder(status: String): Boolean {
         val normalized = status.trim().lowercase()
         return normalized == "zamówione" || normalized == "częściowo wydane"
@@ -819,14 +1113,16 @@ class SmtpViewModel(private val repository: AdminRepository) : ViewModel() {
         _uiState.value = _uiState.value.copy(isSaving = false, message = "Ustawienia SMTP zapisane")
     }
 
-    fun validate() {
+    fun validate() = viewModelScope.launch {
         val current = _uiState.value.settings
-        val message = when {
-            current.host.isBlank() || current.user.isBlank() || current.password.isBlank() -> "Uzupełnij host, login i hasło"
-            current.port.toIntOrNull() == null -> "Port SMTP musi być liczbą"
-            else -> "Konfiguracja wygląda poprawnie. Realny test połączenia wróci w etapie SMTP pipeline."
+        _uiState.value = _uiState.value.copy(message = "Trwa test połączenia SMTP...")
+        runCatching {
+            repository.validateSmtpConnection(current)
+        }.onSuccess {
+            _uiState.value = _uiState.value.copy(message = "Połączenie SMTP zakończone powodzeniem")
+        }.onFailure { error ->
+            _uiState.value = _uiState.value.copy(message = error.message ?: "Test SMTP nie powiódł się")
         }
-        _uiState.value = _uiState.value.copy(message = message)
     }
 }
 

@@ -92,14 +92,26 @@ fun CarsScreen() {
                     modifier = Modifier.fillMaxWidth(),
                 )
                 Button(onClick = viewModel::save, modifier = Modifier.fillMaxWidth()) {
-                    Text(if (uiState.isSaving) "Zapisywanie..." else "+ DODAJ SAMOCHÓD")
+                    Text(
+                        if (uiState.isSaving) {
+                            "Zapisywanie..."
+                        } else if (uiState.editor.id == null) {
+                            "+ DODAJ SAMOCHÓD"
+                        } else {
+                            "ZAPISZ ZMIANY SAMOCHODU"
+                        },
+                    )
+                }
+                if (uiState.editor.id != null) {
+                    Button(onClick = viewModel::clearEditor, modifier = Modifier.fillMaxWidth()) { Text("Anuluj edycję samochodu") }
                 }
                 uiState.actionMessage?.let { Text(it) }
             }
         }
-        uiState.items
+        val filteredCars = uiState.items
             .filter {
-                val blob = "${it.name} ${it.registration} ${it.driver}".lowercase()
+                val serviceStatus = serviceStatusLabel(it.remainingToService)
+                val blob = "${it.name} ${it.registration} ${it.driver} ${it.driverLogin} $serviceStatus ${it.remainingToService}".lowercase()
                 val matchesQuery = uiState.query.isBlank() || uiState.query.lowercase() in blob
                 val matchesService = when (uiState.serviceFilter) {
                     CarsServiceFilter.All -> true
@@ -108,7 +120,17 @@ fun CarsScreen() {
                 }
                 matchesQuery && matchesService
             }
-            .forEach { car ->
+        if (filteredCars.isEmpty()) {
+            item {
+                Card(modifier = Modifier.fillMaxWidth()) {
+                    Column(modifier = Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text("Brak samochodów dla bieżącego filtra.")
+                        Text("Zmień wyszukiwanie albo filtr serwisowy, aby zobaczyć rekordy.")
+                    }
+                }
+            }
+        }
+        filteredCars.forEach { car ->
                 item {
                     Card(modifier = Modifier.fillMaxWidth()) {
                         Column(
@@ -118,8 +140,23 @@ fun CarsScreen() {
                             val serviceStatus = serviceStatusLabel(car.remainingToService)
                             Text("${car.name} • ${car.registration}")
                             Text("Kierowca: ${car.driver.ifBlank { "nieprzypisany" }}")
-                            Text("Przebieg: ${car.mileage} km • do serwisu: ${car.remainingToService} km")
+                            Text("Przebieg: ${car.mileage} km • ${serviceDistanceLabel(car.remainingToService)}")
                             Text("Status serwisu: $serviceStatus")
+                            Text(
+                                buildString {
+                                    append("Sync przebiegu: ")
+                                    append(car.lastMileageSyncStatus.ifBlank { "brak danych" })
+                                    if (car.pendingMileageSync) {
+                                        append(" • w kolejce: ${car.queuedMileage ?: "-"} km")
+                                    }
+                                },
+                            )
+                            if (car.lastMileageSyncAt.isNotBlank()) {
+                                Text("Ostatnia synchronizacja przebiegu: ${car.lastMileageSyncAt}")
+                            }
+                            Button(onClick = { viewModel.editCar(car) }, modifier = Modifier.fillMaxWidth()) {
+                                Text("Edytuj samochód")
+                            }
                             if (car.driverLogin.isNotBlank()) {
                                 Text("Login kierowcy: ${car.driverLogin}")
                                 Text(
@@ -200,4 +237,10 @@ private fun serviceStatusLabel(remainingToService: Int): String = when {
     remainingToService <= 0 -> "Serwis pilny"
     remainingToService <= 3000 -> "Serwis wkrótce"
     else -> "OK"
+}
+
+private fun serviceDistanceLabel(remainingToService: Int): String = when {
+    remainingToService < 0 -> "po serwisie spóźnione o ${-remainingToService} km"
+    remainingToService == 0 -> "serwis wymagany teraz"
+    else -> "do serwisu: $remainingToService km"
 }

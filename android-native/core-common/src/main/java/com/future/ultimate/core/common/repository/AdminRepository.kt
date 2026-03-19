@@ -31,6 +31,10 @@ data class CarListItem(
     val driverLogin: String = "",
     val driverPassword: String = "",
     val changePasswordRequired: Boolean = false,
+    val pendingMileageSync: Boolean = false,
+    val queuedMileage: Int? = null,
+    val lastMileageSyncAt: String = "",
+    val lastMileageSyncStatus: String = "",
 ) {
     val remainingToService: Int
         get() = serviceInterval - (mileage - lastService)
@@ -129,6 +133,13 @@ data class SessionReportListItem(
     val details: String,
 )
 
+data class MailDispatchResult(
+    val ok: Int,
+    val fail: Int,
+    val skip: Int,
+    val details: String,
+)
+
 data class DashboardStats(
     val contactCount: Int = 0,
     val workerCount: Int = 0,
@@ -137,6 +148,22 @@ data class DashboardStats(
     val clothesSizeCount: Int = 0,
     val clothesOrderCount: Int = 0,
     val clothesHistoryCount: Int = 0,
+)
+
+data class PayrollWorkbookRow(
+    val name: String,
+    val surname: String,
+    val workplace: String,
+    val email: String,
+    val amount: String,
+)
+
+data class ClothesOrderImportRow(
+    val name: String,
+    val surname: String,
+    val item: String,
+    val size: String,
+    val qty: String,
 )
 
 data class DriverAccountCredentials(
@@ -180,6 +207,7 @@ interface AdminRepository {
     fun observeClothesOrderWorkers(): Flow<List<ClothesOrderWorkerListItem>>
     fun observeClothesOrderItems(orderId: Long): Flow<List<ClothesOrderItemListItem>>
     suspend fun saveClothesOrderItem(orderId: Long, draft: ClothesOrderItemDraft)
+    suspend fun importClothesOrderItems(orderId: Long, rows: List<ClothesOrderImportRow>): Int
     suspend fun createClothesOrderStarter(
         draft: ClothesOrderDraft,
         workerIds: Set<Long>,
@@ -201,9 +229,12 @@ interface AdminRepository {
 
     fun observeSmtpSettings(): Flow<SmtpSettingsData>
     suspend fun saveSmtpSettings(settings: SmtpSettingsData)
+    suspend fun validateSmtpConnection(settings: SmtpSettingsData)
 
     fun observeEmailTemplate(): Flow<EmailTemplateData>
     suspend fun saveEmailTemplate(template: EmailTemplateData)
+    suspend fun sendSinglePreviewMail(attachmentPaths: List<String>): String
+    suspend fun sendMassMailing(attachmentPaths: List<String>, autoMode: Boolean): MailDispatchResult
 
     fun observeSessionReports(): Flow<List<SessionReportListItem>>
     fun observeDashboardStats(): Flow<DashboardStats>
@@ -213,6 +244,8 @@ interface AdminRepository {
     suspend fun exportDatabaseSnapshot(): String
     suspend fun exportContactsCsv(): String
     suspend fun exportContactRowXlsx(name: String, surname: String): String
+    suspend fun exportPayrollPackage(contacts: List<ContactListItem>): String
+    suspend fun exportPayrollWorkbookCsv(rows: List<PayrollWorkbookRow>): String
     suspend fun exportClothesHistoryCsv(): String
     suspend fun exportSessionReportsCsv(): String
 }
