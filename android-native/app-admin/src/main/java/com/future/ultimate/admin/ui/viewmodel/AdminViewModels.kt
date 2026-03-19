@@ -84,7 +84,10 @@ class CarsViewModel(private val repository: AdminRepository) : ViewModel() {
 
     private fun refreshDriverSuggestions() {
         _uiState.value = _uiState.value.copy(
-            driverSuggestions = (workerDriverSuggestions + contactDriverSuggestions).distinct().sorted(),
+            driverSuggestions = (workerDriverSuggestions + contactDriverSuggestions)
+                .groupBy { it.trim().lowercase() }
+                .mapNotNull { (_, values) -> values.firstOrNull()?.trim()?.takeIf { it.isNotBlank() } }
+                .sorted(),
         )
     }
 
