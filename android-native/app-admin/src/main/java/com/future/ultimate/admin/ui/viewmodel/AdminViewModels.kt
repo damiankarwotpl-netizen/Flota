@@ -638,6 +638,15 @@ class SettingsViewModel(private val repository: AdminRepository) : ViewModel() {
             _uiState.value = _uiState.value.copy(stats = stats)
         }.launchIn(viewModelScope)
     }
+
+    fun exportDatabaseSnapshot() = viewModelScope.launch {
+        _uiState.value = _uiState.value.copy(isExportingDatabase = true, actionMessage = null)
+        val path = repository.exportDatabaseSnapshot()
+        _uiState.value = _uiState.value.copy(
+            isExportingDatabase = false,
+            actionMessage = if (path.isBlank()) "Nie udało się wyeksportować bazy" else "Snapshot bazy zapisany: $path",
+        )
+    }
 }
 
 class AdminViewModelFactory(private val repository: AdminRepository) : ViewModelProvider.Factory {

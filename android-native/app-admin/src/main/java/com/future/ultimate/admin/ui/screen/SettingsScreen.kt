@@ -30,8 +30,11 @@ fun SettingsScreen(navController: NavController) {
                 Text("Rozmiary odzieży: ${uiState.stats.clothesSizeCount}   Zamówienia: ${uiState.stats.clothesOrderCount}")
                 Text("Historia wydań odzieży: ${uiState.stats.clothesHistoryCount}")
                 Button(onClick = { navController.navigate(AdminRoute.Reports.route) }, modifier = Modifier.fillMaxWidth()) { Text("Pokaż raporty sesji") }
-                Button(onClick = {}, modifier = Modifier.fillMaxWidth()) { Text("Wczytaj arkusz płac") }
-                Button(onClick = {}, modifier = Modifier.fillMaxWidth()) { Text("Dodaj bazę danych") }
+                Button(onClick = { navController.navigate(AdminRoute.Payroll.route) }, modifier = Modifier.fillMaxWidth()) { Text("Przejdź do modułu płac") }
+                Button(onClick = viewModel::exportDatabaseSnapshot, modifier = Modifier.fillMaxWidth()) {
+                    Text(if (uiState.isExportingDatabase) "Eksportowanie bazy..." else "Eksportuj snapshot bazy")
+                }
+                uiState.actionMessage?.let { Text(it) }
                 Button(onClick = { navController.navigate(AdminRoute.Smtp.route) }, modifier = Modifier.fillMaxWidth()) { Text("Ustawienia SMTP") }
                 Button(onClick = { navController.navigate(AdminRoute.Template.route) }, modifier = Modifier.fillMaxWidth()) { Text("Edytuj szablon email") }
             }

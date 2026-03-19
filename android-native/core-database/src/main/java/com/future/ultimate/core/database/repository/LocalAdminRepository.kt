@@ -39,6 +39,8 @@ import com.future.ultimate.core.database.entity.SettingEntity
 import com.future.ultimate.core.database.entity.WorkerEntity
 import java.io.File
 import java.time.LocalDate
+import java.util.zip.ZipEntry
+import java.util.zip.ZipOutputStream
 import kotlin.random.Random
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
@@ -605,6 +607,25 @@ class LocalAdminRepository(
 
     override suspend fun exportVehicleReportPdf(draft: VehicleReportDraft): String =
         VehicleReportPdfExporter.export(context, draft, ownerTag = "admin")
+
+    override suspend fun exportDatabaseSnapshot(): String {
+        val outputDir = context.getExternalFilesDir(null) ?: context.filesDir
+        val outputFile = File(outputDir, "future_v20_snapshot.zip")
+        val databaseFiles = listOf(
+            context.getDatabasePath("future_v20.db"),
+            context.getDatabasePath("future_v20.db-wal"),
+            context.getDatabasePath("future_v20.db-shm"),
+        ).filter { it.exists() }
+
+        ZipOutputStream(outputFile.outputStream().buffered()).use { zip ->
+            databaseFiles.forEach { file ->
+                zip.putNextEntry(ZipEntry(file.name))
+                file.inputStream().use { input -> input.copyTo(zip) }
+                zip.closeEntry()
+            }
+        }
+        return outputFile.absolutePath
+    }
 
     override suspend fun exportContactsCsv(): String {
         val outputDir = context.getExternalFilesDir(null) ?: context.filesDir

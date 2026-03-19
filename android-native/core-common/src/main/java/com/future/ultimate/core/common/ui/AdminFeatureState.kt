@@ -129,4 +129,6 @@ data class ReportsUiState(
 
 data class SettingsUiState(
     val stats: DashboardStats = DashboardStats(),
+    val isExportingDatabase: Boolean = false,
+    val actionMessage: String? = null,
 )
