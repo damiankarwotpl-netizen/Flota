@@ -26,6 +26,7 @@ import com.future.ultimate.core.common.repository.DashboardStats
 import com.future.ultimate.core.common.repository.DriverAccountCredentials
 import com.future.ultimate.core.common.repository.EmailTemplateData
 import com.future.ultimate.core.common.repository.PlantListItem
+import com.future.ultimate.core.common.repository.PayrollWorkbookRow
 import com.future.ultimate.core.common.repository.SessionReportListItem
 import com.future.ultimate.core.common.repository.SmtpSettingsData
 import com.future.ultimate.core.common.repository.WorkerListItem
@@ -912,6 +913,25 @@ class LocalAdminRepository(
                 zip.putNextEntry(ZipEntry(file.name))
                 file.inputStream().use { input -> input.copyTo(zip) }
                 zip.closeEntry()
+            }
+        }
+        return outputFile.absolutePath
+    }
+
+    override suspend fun exportPayrollWorkbookCsv(rows: List<PayrollWorkbookRow>): String {
+        if (rows.isEmpty()) return ""
+        val outputDir = PatchLoader.safeExternalDir(context, feature = "payroll_workbook_csv")
+        val outputFile = File(outputDir, "payroll_workbook_stage.csv")
+        outputFile.bufferedWriter(Charsets.UTF_8).use { writer ->
+            writer.appendLine("name,surname,workplace,email,amount")
+            rows.forEach { row ->
+                writer.appendCsvLine(
+                    row.name,
+                    row.surname,
+                    row.workplace,
+                    row.email,
+                    row.amount,
+                )
             }
         }
         return outputFile.absolutePath

@@ -57,7 +57,23 @@ fun PayrollScreen(navController: NavController) {
                     label = { Text("Podatek %") },
                     modifier = Modifier.fillMaxWidth(),
                 )
+                OutlinedTextField(
+                    value = uiState.workbookImportText,
+                    onValueChange = viewModel::updateWorkbookImportText,
+                    label = { Text("Wklej workbook CSV/TSV/;") },
+                    modifier = Modifier.fillMaxWidth(),
+                    minLines = 5,
+                )
                 Button(onClick = viewModel::calculatePayroll, modifier = Modifier.fillMaxWidth()) { Text("Przelicz płace") }
+                Button(onClick = viewModel::stageWorkbookImport, modifier = Modifier.fillMaxWidth()) { Text("Parsuj workbook do stagingu") }
+                Button(onClick = viewModel::attachStagedWorkbookCsv, modifier = Modifier.fillMaxWidth()) { Text("Dołącz staging workbooka") }
+                if (uiState.stagedWorkbookRows.isNotEmpty()) {
+                    Text("Staged workbook rows: ${uiState.stagedWorkbookRows.size}")
+                    uiState.stagedWorkbookRows.take(5).forEach { row ->
+                        Text("${row.name} ${row.surname} • ${row.workplace.ifBlank { "-" }} • ${row.amount.ifBlank { "-" }}")
+                    }
+                    Button(onClick = viewModel::clearWorkbookImport, modifier = Modifier.fillMaxWidth()) { Text("Wyczyść staging workbooka") }
+                }
                 Text("Netto: ${uiState.netAmount} | Koszt pracodawcy: ${uiState.employerCostAmount}")
                 Text(uiState.calculationSummary)
                 Text(uiState.progressLabel)
@@ -65,7 +81,7 @@ fun PayrollScreen(navController: NavController) {
                 uiState.attachmentPaths.forEach { path ->
                     Text("• ${path.substringAfterLast('/')}")
                 }
-                Button(onClick = viewModel::importWorkbookFallback, modifier = Modifier.fillMaxWidth()) { Text("Wczytaj arkusz płac") }
+                Button(onClick = viewModel::stageWorkbookImport, modifier = Modifier.fillMaxWidth()) { Text("Wczytaj arkusz płac") }
                 Button(onClick = { navController.navigate(AdminRoute.Table.route) }, modifier = Modifier.fillMaxWidth()) { Text("Podgląd i eksport") }
                 Button(onClick = { navController.navigate(AdminRoute.Template.route) }, modifier = Modifier.fillMaxWidth()) { Text("Edytuj szablon") }
                 Button(onClick = viewModel::attachSessionReportsCsv, modifier = Modifier.fillMaxWidth()) { Text("Dodaj CSV raportów") }

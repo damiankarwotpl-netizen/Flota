@@ -17,6 +17,7 @@ import com.future.ultimate.core.common.repository.ClothesOrderItemListItem
 import com.future.ultimate.core.common.repository.ClothesOrderListItem
 import com.future.ultimate.core.common.repository.ClothesSizeListItem
 import com.future.ultimate.core.common.repository.EmailTemplateData
+import com.future.ultimate.core.common.repository.PayrollWorkbookRow
 import com.future.ultimate.core.common.repository.SmtpSettingsData
 import com.future.ultimate.core.common.ui.CarsUiState
 import com.future.ultimate.core.common.ui.ClothesOrdersUiState
@@ -254,11 +255,44 @@ class PayrollViewModel(private val repository: AdminRepository) : ViewModel() {
         _uiState.value = _uiState.value.copy(taxPercent = value, actionMessage = null)
     }
 
-    fun importWorkbookFallback() {
+    fun updateWorkbookImportText(value: String) {
+        _uiState.value = _uiState.value.copy(workbookImportText = value, actionMessage = null)
+    }
+
+    fun stageWorkbookImport() {
+        val rows = parseWorkbookRows(_uiState.value.workbookImportText)
+        if (rows.isEmpty()) {
+            _uiState.value = _uiState.value.copy(
+                stagedWorkbookRows = emptyList(),
+                actionMessage = "Nie udało się sparsować żadnych wierszy importu",
+                progressLabel = "Brak danych do stagingu",
+            )
+            return
+        }
         _uiState.value = _uiState.value.copy(
-            actionMessage = PatchLoader.fallbackImportMessage("Płace"),
-            progressLabel = "Tryb lokalny PatchLoader aktywny",
+            stagedWorkbookRows = rows,
+            actionMessage = "Zaimportowano lokalnie ${rows.size} wierszy workbooka do stagingu",
+            progressLabel = "Workbook staged: ${rows.size} wierszy",
         )
+    }
+
+    fun clearWorkbookImport() {
+        _uiState.value = _uiState.value.copy(
+            workbookImportText = "",
+            stagedWorkbookRows = emptyList(),
+            actionMessage = "Staging workbooka wyczyszczony",
+            progressLabel = "Gotowy",
+        )
+    }
+
+    fun attachStagedWorkbookCsv() = viewModelScope.launch {
+        val rows = _uiState.value.stagedWorkbookRows
+        if (rows.isEmpty()) {
+            _uiState.value = _uiState.value.copy(actionMessage = PatchLoader.fallbackImportMessage("Płace"))
+            return@launch
+        }
+        val path = repository.exportPayrollWorkbookCsv(rows)
+        addAttachment(path, "Dołączono staging workbooka")
     }
 
     fun calculatePayroll() {
@@ -362,6 +396,30 @@ class PayrollViewModel(private val repository: AdminRepository) : ViewModel() {
     }
 
     private fun formatMoney(value: Double): String = String.format(java.util.Locale.US, "%.2f", value)
+
+    private fun parseWorkbookRows(rawInput: String): List<PayrollWorkbookRow> =
+        rawInput.lineSequence()
+            .map { it.trim() }
+            .filter { it.isNotBlank() }
+            .mapNotNull { line ->
+                val parts = line.split('\t', ';', ',').map { it.trim() }
+                if (parts.size < 2) {
+                    null
+                } else {
+                    PayrollWorkbookRow(
+                        name = parts.getOrElse(0) { "" },
+                        surname = parts.getOrElse(1) { "" },
+                        workplace = parts.getOrElse(2) { "" },
+                        email = parts.getOrElse(3) { "" },
+                        amount = parts.getOrElse(4) { "" },
+                    )
+                }
+            }
+            .filterNot { row ->
+                val firstCell = row.name.lowercase()
+                firstCell.contains("imi") || firstCell.contains("name")
+            }
+            .toList()
 }
 
 class TableViewModel(private val repository: AdminRepository) : ViewModel() {

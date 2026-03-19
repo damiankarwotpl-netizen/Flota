@@ -14,12 +14,11 @@ This repository now contains a native Android migration foundation in `android-n
 This is **not yet a finished 1:1 replacement** of the Python/Kivy application. It is the structural migration baseline required to continue safely.
 
 ## Next implementation blocks
-The migration is now tracked as a **8-step execution plan** in `docs/ANDROID_NATIVE_MIGRATION_BACKLOG.md`, covering:
+The migration is now tracked as a **7-step execution plan** in `docs/ANDROID_NATIVE_MIGRATION_BACKLOG.md`, covering:
 1. real remote driver-account sync
 2. driver mileage/background sync
-3. workbook import
-4. SMTP pipeline and mailing actions
-5. final clothes-flow parity
-6. remaining remote API wiring
-7. notifications and operational hardening
-8. QA, UAT, and release cutover
+3. SMTP pipeline and mailing actions
+4. final clothes-flow parity
+5. remaining remote API wiring
+6. notifications and operational hardening
+7. QA, UAT, and release cutover

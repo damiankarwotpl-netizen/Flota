@@ -139,6 +139,14 @@ data class DashboardStats(
     val clothesHistoryCount: Int = 0,
 )
 
+data class PayrollWorkbookRow(
+    val name: String,
+    val surname: String,
+    val workplace: String,
+    val email: String,
+    val amount: String,
+)
+
 data class DriverAccountCredentials(
     val login: String = "",
     val password: String = "",
@@ -214,6 +222,7 @@ interface AdminRepository {
     suspend fun exportContactsCsv(): String
     suspend fun exportContactRowXlsx(name: String, surname: String): String
     suspend fun exportPayrollPackage(contacts: List<ContactListItem>): String
+    suspend fun exportPayrollWorkbookCsv(rows: List<PayrollWorkbookRow>): String
     suspend fun exportClothesHistoryCsv(): String
     suspend fun exportSessionReportsCsv(): String
 }

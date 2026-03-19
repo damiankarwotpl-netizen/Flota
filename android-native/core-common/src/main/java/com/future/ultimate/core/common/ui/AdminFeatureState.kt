@@ -18,6 +18,7 @@ import com.future.ultimate.core.common.repository.ContactListItem
 import com.future.ultimate.core.common.repository.DashboardStats
 import com.future.ultimate.core.common.repository.EmailTemplateData
 import com.future.ultimate.core.common.repository.PlantListItem
+import com.future.ultimate.core.common.repository.PayrollWorkbookRow
 import com.future.ultimate.core.common.repository.SessionReportListItem
 import com.future.ultimate.core.common.repository.SmtpSettingsData
 import com.future.ultimate.core.common.repository.WorkerListItem
@@ -68,6 +69,8 @@ data class PayrollUiState(
     val employerCostAmount: String = "0",
     val netAmount: String = "0",
     val calculationSummary: String = "Wprowadź kwoty i uruchom kalkulację.",
+    val workbookImportText: String = "",
+    val stagedWorkbookRows: List<PayrollWorkbookRow> = emptyList(),
     val progressLabel: String = "Gotowy",
     val isMailingRunning: Boolean = false,
     val attachmentPaths: List<String> = emptyList(),
