@@ -48,16 +48,25 @@ internal object DriverMileageSyncCoordinator {
                 dao.upsertSetting(SettingEntity(key = errorKey(reg), valText = "Nie znaleziono auta o rejestracji $reg"))
                 return@forEach
             }
+            val driverAccount = dao.getDriverAccountByRegistration(reg)
 
             runCatching {
                 dao.updateMileageByRegistration(reg, pending.mileage)
+                syncRemoteMileage(
+                    dao = dao,
+                    registration = reg,
+                    mileage = pending.mileage,
+                    queuedAt = pending.queuedAt.ifBlank { attemptAt },
+                    login = driverAccount?.login.orEmpty(),
+                    driverName = driverAccount?.driverName.orEmpty(),
+                )
                 dao.upsertSetting(SettingEntity(key = "driver_last_mileage_$reg", valText = pending.mileage.toString()))
                 dao.upsertSetting(SettingEntity(key = syncedKey(reg), valText = attemptAt))
                 dao.upsertSetting(SettingEntity(key = statusKey(reg), valText = "Zsynchronizowano"))
                 dao.upsertSetting(SettingEntity(key = errorKey(reg), valText = ""))
                 dao.upsertSetting(SettingEntity(key = pendingKey(reg), valText = ""))
             }.onFailure { error ->
-                dao.upsertSetting(SettingEntity(key = statusKey(reg), valText = "Retry po błędzie"))
+                dao.upsertSetting(SettingEntity(key = statusKey(reg), valText = "Retry po błędzie synchronizacji"))
                 dao.upsertSetting(
                     SettingEntity(
                         key = errorKey(reg),
@@ -108,6 +117,22 @@ internal object DriverMileageSyncCoordinator {
     private fun syncedKey(registration: String): String = "$SyncedPrefix$registration"
     private fun errorKey(registration: String): String = "$ErrorPrefix$registration"
     private fun nowText(): String = LocalDateTime.now().format(timestampFormatter)
+
+    private suspend fun syncRemoteMileage(
+        dao: AppDao,
+        registration: String,
+        mileage: Int,
+        queuedAt: String,
+        login: String,
+        driverName: String,
+    ) = DriverRemoteSyncGateway.syncMileage(
+        dao = dao,
+        registration = registration,
+        mileage = mileage,
+        queuedAt = queuedAt,
+        login = login,
+        driverName = driverName,
+    )
 
     private data class PendingMileagePayload(
         val mileage: Int,

@@ -1,14 +1,23 @@
 package com.future.ultimate.admin.ui.screen
 
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.weight
 import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.AlertDialog
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
@@ -34,13 +43,23 @@ fun EmailScreen(navController: NavController) {
     val smtpConfigured = smtpUiState.settings.host.isNotBlank() && smtpUiState.settings.user.isNotBlank() && smtpUiState.settings.password.isNotBlank()
     val templateConfigured = templateUiState.template.subject.isNotBlank() && templateUiState.template.body.isNotBlank()
     val lastSession = reportsUiState.items.firstOrNull()
+    val filteredRecipients = uiState.contacts.filter {
+        val query = uiState.recipientQuery.trim().lowercase()
+        query.isBlank() || listOf(it.name, it.surname, it.email, it.workplace, it.phone)
+            .joinToString(" ")
+            .lowercase()
+            .contains(query)
+    }
 
     ScreenColumn("Moduł Email", "Wysyłka i komunikacja") {
         item {
             Column {
-                androidx.compose.foundation.layout.Row(modifier = Modifier.fillMaxWidth()) {
+                Row(modifier = Modifier.fillMaxWidth()) {
                     Switch(checked = uiState.autoSend, onCheckedChange = { viewModel.toggleAutoSend() })
                     Text("AUTOMATYCZNA WYSYŁKA")
+                }
+                if (!uiState.autoSend) {
+                    Text("Tryb ręcznej akceptacji: każdy odbiorca masowej wysyłki wymaga decyzji operatora.")
                 }
                 Text("Baza: ${uiState.totalRecipients} | Załączniki: ${uiState.attachmentCount}")
                 Text(uiState.progressLabel)
@@ -60,11 +79,101 @@ fun EmailScreen(navController: NavController) {
                 Button(onClick = { navController.navigate(AdminRoute.Template.route) }, modifier = Modifier.fillMaxWidth()) { Text("Edytuj szablon") }
                 Button(onClick = viewModel::attachSessionReportsCsv, modifier = Modifier.fillMaxWidth()) { Text("Dodaj CSV raportów") }
                 Button(onClick = viewModel::attachContactsCsv, modifier = Modifier.fillMaxWidth()) { Text("Dodaj CSV kontaktów") }
+                Button(onClick = viewModel::attachPayrollPackage, modifier = Modifier.fillMaxWidth()) { Text("Dodaj paczkę płac") }
                 Button(onClick = viewModel::sendSingle, modifier = Modifier.fillMaxWidth()) { Text("Przygotuj jedną wysyłkę") }
                 Button(onClick = viewModel::startMassMailing, modifier = Modifier.fillMaxWidth()) { Text("Przygotuj masową wysyłkę") }
+                Button(onClick = viewModel::togglePauseMailing, modifier = Modifier.fillMaxWidth()) {
+                    Text(if (uiState.isMailingPaused) "Wznów kolejkę" else "Wstrzymaj kolejkę")
+                }
                 Button(onClick = viewModel::clearAttachments, modifier = Modifier.fillMaxWidth()) { Text("Wyczyść załączniki") }
                 Button(onClick = { navController.navigate(AdminRoute.Reports.route) }, modifier = Modifier.fillMaxWidth()) { Text("Raporty sesji") }
             }
         }
+        item {
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
+                    Text("Wysyłka specjalna")
+                    Text("Zaznaczeni odbiorcy: ${uiState.selectedRecipientKeys.size} / ${uiState.contacts.size}")
+                    Text("Załączniki dołączone do wysyłki specjalnej: ${uiState.attachmentCount}")
+                    OutlinedTextField(
+                        value = uiState.recipientQuery,
+                        onValueChange = viewModel::updateRecipientQuery,
+                        label = { Text("Filtruj odbiorców") },
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    Row(modifier = Modifier.fillMaxWidth()) {
+                        Button(onClick = viewModel::selectVisibleRecipients, modifier = Modifier.weight(1f)) { Text("Zaznacz widocznych") }
+                        Button(onClick = viewModel::clearSpecialRecipients, modifier = Modifier.weight(1f)) { Text("Wyczyść zaznaczenie") }
+                    }
+                    Button(onClick = viewModel::loadTemplateIntoSpecial, modifier = Modifier.fillMaxWidth()) {
+                        Text("Wczytaj zapisany szablon")
+                    }
+                    OutlinedTextField(
+                        value = uiState.specialSubject,
+                        onValueChange = viewModel::updateSpecialSubject,
+                        label = { Text("Temat specjalnej wysyłki") },
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    OutlinedTextField(
+                        value = uiState.specialBody,
+                        onValueChange = viewModel::updateSpecialBody,
+                        label = { Text("Treść specjalnej wysyłki") },
+                        modifier = Modifier.fillMaxWidth(),
+                        minLines = 4,
+                    )
+                    Button(onClick = viewModel::sendSpecial, modifier = Modifier.fillMaxWidth()) {
+                        Text("Wyślij do zaznaczonych odbiorców")
+                    }
+                }
+            }
+        }
+        item {
+            if (filteredRecipients.isEmpty()) {
+                Text("Brak odbiorców pasujących do filtra wysyłki specjalnej.")
+            } else {
+                Card(modifier = Modifier.fillMaxWidth()) {
+                    Column(modifier = Modifier.fillMaxWidth().padding(8.dp)) {
+                        filteredRecipients.take(30).forEach { recipient ->
+                            val key = "${recipient.name.trim().lowercase()}|${recipient.surname.trim().lowercase()}|${recipient.email.trim().lowercase()}"
+                            Row(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
+                                Checkbox(
+                                    checked = key in uiState.selectedRecipientKeys,
+                                    onCheckedChange = { viewModel.toggleSpecialRecipient(recipient) },
+                                )
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text("${recipient.name} ${recipient.surname}".trim().ifBlank { "Bez nazwy" })
+                                    Text(recipient.email.ifBlank { "Brak email" })
+                                    Text(recipient.workplace.ifBlank { "Brak miejsca pracy" })
+                                }
+                            }
+                            HorizontalDivider()
+                        }
+                    }
+                }
+            }
+        }
+    }
+    if (uiState.isAwaitingMailApproval) {
+        AlertDialog(
+            onDismissRequest = {},
+            title = { Text("Weryfikacja odbiorcy") },
+            text = {
+                Column {
+                    Text(uiState.pendingApprovalRecipientName.ifBlank { "Bez nazwy" })
+                    Text(uiState.pendingApprovalRecipientEmail.ifBlank { "Brak email" })
+                    Text("Czy kontynuować wysyłkę do tego odbiorcy?")
+                }
+            },
+            confirmButton = {
+                Button(onClick = { viewModel.resolvePendingApproval(true) }) {
+                    Text("Wyślij")
+                }
+            },
+            dismissButton = {
+                Button(onClick = { viewModel.resolvePendingApproval(false) }) {
+                    Text("Pomiń")
+                }
+            },
+        )
     }
 }
