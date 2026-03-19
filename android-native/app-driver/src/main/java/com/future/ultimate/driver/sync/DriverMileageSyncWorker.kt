@@ -20,6 +20,7 @@ class DriverMileageSyncWorker(
             context = applicationContext,
         )
         val state = repository.flushPendingMileageSync()
+        DriverSyncNotifier.notifySyncState(applicationContext, state)
         return if (state.pendingCount > 0) Result.retry() else Result.success()
     }
 
