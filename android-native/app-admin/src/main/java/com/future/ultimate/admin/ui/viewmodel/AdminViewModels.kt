@@ -364,6 +364,27 @@ class TableViewModel(private val repository: AdminRepository) : ViewModel() {
         _uiState.value = _uiState.value.copy(query = value, exportMessage = null)
     }
 
+    fun toggleSelection(item: com.future.ultimate.core.common.repository.ContactListItem) {
+        val key = item.selectionKey()
+        val current = _uiState.value.selectedContactKeys
+        _uiState.value = _uiState.value.copy(
+            selectedContactKeys = if (key in current) current - key else current + key,
+            exportMessage = null,
+        )
+    }
+
+    fun selectVisible(items: List<com.future.ultimate.core.common.repository.ContactListItem>) {
+        if (items.isEmpty()) return
+        _uiState.value = _uiState.value.copy(
+            selectedContactKeys = _uiState.value.selectedContactKeys + items.map { it.selectionKey() },
+            exportMessage = null,
+        )
+    }
+
+    fun clearSelection() {
+        _uiState.value = _uiState.value.copy(selectedContactKeys = emptySet(), exportMessage = null)
+    }
+
     fun exportCsv() = viewModelScope.launch {
         _uiState.value = _uiState.value.copy(isExporting = true, exportMessage = null)
         val path = repository.exportContactsCsv()
@@ -378,6 +399,23 @@ class TableViewModel(private val repository: AdminRepository) : ViewModel() {
             exportMessage = if (path.isBlank()) "Nie znaleziono rekordu do eksportu" else "XLSX kontaktu zapisany: $path",
         )
     }
+
+    fun exportPackage() = viewModelScope.launch {
+        val selected = _uiState.value.items.filter { it.selectionKey() in _uiState.value.selectedContactKeys }
+        if (selected.isEmpty()) {
+            _uiState.value = _uiState.value.copy(exportMessage = "Najpierw wybierz co najmniej jeden rekord do paczki")
+            return@launch
+        }
+        _uiState.value = _uiState.value.copy(isExporting = true, exportMessage = null)
+        val path = repository.exportPayrollPackage(selected)
+        _uiState.value = _uiState.value.copy(
+            isExporting = false,
+            exportMessage = if (path.isBlank()) "Nie udało się przygotować paczki eksportowej" else "Paczka płac zapisana: $path",
+        )
+    }
+
+    private fun com.future.ultimate.core.common.repository.ContactListItem.selectionKey(): String =
+        "${name.trim().lowercase()}|${surname.trim().lowercase()}"
 }
 
 class WorkersViewModel(private val repository: AdminRepository) : ViewModel() {

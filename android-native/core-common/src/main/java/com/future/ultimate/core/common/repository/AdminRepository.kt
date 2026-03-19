@@ -213,6 +213,7 @@ interface AdminRepository {
     suspend fun exportDatabaseSnapshot(): String
     suspend fun exportContactsCsv(): String
     suspend fun exportContactRowXlsx(name: String, surname: String): String
+    suspend fun exportPayrollPackage(contacts: List<ContactListItem>): String
     suspend fun exportClothesHistoryCsv(): String
     suspend fun exportSessionReportsCsv(): String
 }

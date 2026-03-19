@@ -42,6 +42,8 @@ import com.future.ultimate.core.database.entity.SettingEntity
 import com.future.ultimate.core.database.entity.WorkerEntity
 import java.io.File
 import java.time.LocalDate
+import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
 import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
 import kotlin.random.Random
@@ -869,6 +871,49 @@ class LocalAdminRepository(
                 ),
             ),
         )
+        return outputFile.absolutePath
+    }
+
+    override suspend fun exportPayrollPackage(contacts: List<ContactListItem>): String {
+        if (contacts.isEmpty()) return ""
+        val outputDir = PatchLoader.safeExternalDir(context, feature = "payroll_package")
+        val outputFile = File(
+            outputDir,
+            "payroll_package_${DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss").format(LocalDateTime.now())}.zip",
+        )
+        val selectedContacts = contacts
+            .distinctBy { "${it.name.trim().lowercase()}|${it.surname.trim().lowercase()}" }
+            .sortedWith(compareBy<ContactListItem> { it.surname.lowercase() }.thenBy { it.name.lowercase() })
+        val summaryCsv = File(outputDir, "payroll_package_contacts.csv")
+        summaryCsv.bufferedWriter(Charsets.UTF_8).use { writer ->
+            writer.appendLine("name,surname,email,phone,workplace,apartment,notes")
+            selectedContacts.forEach { row ->
+                writer.appendCsvLine(
+                    row.name,
+                    row.surname,
+                    row.email,
+                    row.phone,
+                    row.workplace,
+                    row.apartment,
+                    row.notes,
+                )
+            }
+        }
+        val attachments = buildList {
+            add(summaryCsv)
+            selectedContacts.forEach { contact ->
+                val path = exportContactRowXlsx(contact.name, contact.surname)
+                if (path.isNotBlank()) add(File(path))
+            }
+        }.distinctBy { it.absolutePath }
+
+        ZipOutputStream(outputFile.outputStream().buffered()).use { zip ->
+            attachments.filter { it.exists() }.forEach { file ->
+                zip.putNextEntry(ZipEntry(file.name))
+                file.inputStream().use { input -> input.copyTo(zip) }
+                zip.closeEntry()
+            }
+        }
         return outputFile.absolutePath
     }
 

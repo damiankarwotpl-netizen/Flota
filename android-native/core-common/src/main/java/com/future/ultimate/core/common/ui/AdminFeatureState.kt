@@ -77,6 +77,7 @@ data class PayrollUiState(
 data class TableUiState(
     val query: String = "",
     val items: List<ContactListItem> = emptyList(),
+    val selectedContactKeys: Set<String> = emptySet(),
     val exportMessage: String? = null,
     val isExporting: Boolean = false,
 )
