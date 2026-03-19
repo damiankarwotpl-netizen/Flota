@@ -455,6 +455,7 @@ class LocalAdminRepository(
 
     override suspend fun markClothesOrderOrdered(orderId: Long) {
         val order = dao.getClothesOrder(orderId) ?: return
+        if (dao.countClothesOrderItems(orderId) <= 0) return
         if (!canMarkClothesOrderOrdered(order.status)) return
         dao.updateClothesOrderStatus(orderId, "Zamówione")
     }
@@ -667,7 +668,12 @@ class LocalAdminRepository(
     private suspend fun syncClothesOrderIssueStatus(orderId: Long) {
         val order = dao.getClothesOrder(orderId) ?: return
         val totalCount = dao.countClothesOrderItems(orderId)
-        if (totalCount <= 0) return
+        if (totalCount <= 0) {
+            if (isClothesOrderIssueWorkflowStatus(order.status)) {
+                dao.updateClothesOrderStatus(orderId, "Nowe")
+            }
+            return
+        }
         val issuedCount = dao.countIssuedClothesOrderItems(orderId)
         val nextStatus = when {
             issuedCount >= totalCount -> "Wydane"

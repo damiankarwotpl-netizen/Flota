@@ -619,6 +619,10 @@ class ClothesOrdersViewModel(private val repository: AdminRepository) : ViewMode
     fun markOrdered(orderId: Long) = viewModelScope.launch {
         val order = _uiState.value.items.find { it.id == orderId }
         if (order == null) return@launch
+        if (_uiState.value.selectedOrderId == orderId && _uiState.value.selectedOrderItems.isEmpty()) {
+            _uiState.value = _uiState.value.copy(actionMessage = "Dodaj co najmniej jedną pozycję przed oznaczeniem zamówienia jako Zamówione")
+            return@launch
+        }
         if (!canMarkClothesOrderOrdered(order.status)) {
             _uiState.value = _uiState.value.copy(actionMessage = "Nie można cofnąć zamówienia wydanego lub częściowo wydanego do statusu Zamówione")
             return@launch
