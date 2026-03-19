@@ -25,6 +25,3 @@ One top-level step still remains: execute QA/UAT/signed-release validation and p
 ## Next implementation blocks
 The migration is currently tracked as a **1-step remaining plan** in `docs/ANDROID_NATIVE_MIGRATION_BACKLOG.md`:
 1. QA, UAT, and release cutover execution using `docs/ANDROID_NATIVE_FIRST_BUILD.md`, `docs/ANDROID_NATIVE_QA_UAT_RELEASE.md`, and `docs/ANDROID_NATIVE_UAT_SIGNOFF_TEMPLATE.md`
-
-Execution aid for that final step:
-- Capture and keep the latest repository gate report from `./scripts/run_cutover_gate.sh` in `docs/NATIVE_ANDROID_MIGRATION_EXECUTION_LOG.md` before each cutover attempt

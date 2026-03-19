@@ -4,19 +4,6 @@ This document supports the final migration workstream by codifying how to verify
 
 Start with `docs/ANDROID_NATIVE_FIRST_BUILD.md` if you need the exact first-build sequence.
 
-## 0. Repository gate (recommended before QA/UAT)
-
-Run the cutover gate script to capture an auditable preflight report in
-`docs/NATIVE_ANDROID_MIGRATION_EXECUTION_LOG.md`:
-
-```bash
-./scripts/run_cutover_gate.sh
-```
-
-The script checks Java/Gradle prerequisites, attempts both debug builds, and records
-whether release-signing inputs are already present. If the gate fails, resolve the
-reported blockers before moving into device QA/UAT.
-
 ## 1. Release prerequisites
 
 ### Toolchain
