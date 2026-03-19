@@ -10,3 +10,4 @@ are persisted automatically on failure (pull requests are excluded).
 Current latest report paths:
 - `latest/problems-report.html` (if Gradle generated the Problems Report)
 - `latest/gradle-build.log` (raw build log from assemble step)
+- `latest/error-summary.md` (filtered key error lines for quick triage)

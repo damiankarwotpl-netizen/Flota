@@ -126,6 +126,26 @@ jobs:
             cp "native-gradle-build.log" "$TARGET_DIR/gradle-build.log"
           fi
 
+          SUMMARY_FILE="$TARGET_DIR/error-summary.md"
+          {
+            echo "# Native build failure summary"
+            echo
+            echo "- Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            echo "- Workflow: \`${{ github.workflow }}\`"
+            echo "- Build type: \`${{ github.event.inputs.build_type || 'debug' }}\`"
+            echo
+            echo "## Kotlin/Gradle error lines"
+            if [[ -f "native-gradle-build.log" ]]; then
+              if grep -E "^[we]: |^FAILURE:|^\\* What went wrong:|^Execution failed for task" "native-gradle-build.log" >/dev/null; then
+                grep -E "^[we]: |^FAILURE:|^\\* What went wrong:|^Execution failed for task" "native-gradle-build.log" | sed -n '1,200p'
+              else
+                echo "_No explicit Kotlin error markers found in log._"
+              fi
+            else
+              echo "_No gradle-build.log available._"
+            fi
+          } > "$SUMMARY_FILE"
+
           cat > "$TARGET_DIR/README.md" <<EOF
           # Latest native build problems report
 
@@ -135,6 +155,7 @@ jobs:
           - Included files:
             - \`problems-report.html\` (when Gradle generated it)
             - \`gradle-build.log\` (raw console output from assemble step)
+            - \`error-summary.md\` (extracted key failure lines)
           EOF
 
           git config user.name "github-actions[bot]"
