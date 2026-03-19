@@ -32,13 +32,19 @@ fun PayrollScreen(navController: NavController) {
                 }
                 Text("Baza: ${uiState.totalRecipients} | Załączniki: ${uiState.attachmentCount}")
                 Text(uiState.progressLabel)
+                uiState.actionMessage?.let { Text(it) }
+                uiState.attachmentPaths.forEach { path ->
+                    Text("• ${path.substringAfterLast('/')}")
+                }
                 Button(onClick = {}, modifier = Modifier.fillMaxWidth()) { Text("Wczytaj arkusz płac") }
                 Button(onClick = { navController.navigate(AdminRoute.Table.route) }, modifier = Modifier.fillMaxWidth()) { Text("Podgląd i eksport") }
                 Button(onClick = { navController.navigate(AdminRoute.Template.route) }, modifier = Modifier.fillMaxWidth()) { Text("Edytuj szablon") }
-                Button(onClick = {}, modifier = Modifier.fillMaxWidth()) { Text("Dołącz załącznik") }
-                Button(onClick = {}, modifier = Modifier.fillMaxWidth()) { Text("Wyślij jeden plik") }
-                Button(onClick = {}, modifier = Modifier.fillMaxWidth()) { Text("Start masowa wysyłka") }
-                Button(onClick = {}, modifier = Modifier.fillMaxWidth()) { Text("PAUZA/RESUME") }
+                Button(onClick = viewModel::attachSessionReportsCsv, modifier = Modifier.fillMaxWidth()) { Text("Dodaj CSV raportów") }
+                Button(onClick = viewModel::attachContactsCsv, modifier = Modifier.fillMaxWidth()) { Text("Dołącz CSV kontaktów") }
+                Button(onClick = viewModel::sendSingle, modifier = Modifier.fillMaxWidth()) { Text("Przygotuj jedną wysyłkę") }
+                Button(onClick = viewModel::startMassMailing, modifier = Modifier.fillMaxWidth()) { Text("Przygotuj masową wysyłkę") }
+                Button(onClick = viewModel::clearAttachments, modifier = Modifier.fillMaxWidth()) { Text("Wyczyść załączniki") }
+                Button(onClick = viewModel::togglePauseMailing, modifier = Modifier.fillMaxWidth()) { Text("PAUZA/RESUME") }
                 Button(onClick = { navController.navigate(AdminRoute.Reports.route) }, modifier = Modifier.fillMaxWidth()) { Text("Raporty sesji") }
             }
         }

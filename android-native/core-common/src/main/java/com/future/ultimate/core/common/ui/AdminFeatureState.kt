@@ -53,6 +53,8 @@ data class PayrollUiState(
     val totalRecipients: Int = 0,
     val progressLabel: String = "Gotowy",
     val isMailingRunning: Boolean = false,
+    val attachmentPaths: List<String> = emptyList(),
+    val actionMessage: String? = null,
 )
 
 data class TableUiState(

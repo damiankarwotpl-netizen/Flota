@@ -150,10 +150,88 @@ class VehicleReportViewModel(private val repository: AdminRepository) : ViewMode
     }
 }
 
-class PayrollViewModel : ViewModel() {
+class PayrollViewModel(private val repository: AdminRepository) : ViewModel() {
     private val _uiState = MutableStateFlow(PayrollUiState())
     val uiState: StateFlow<PayrollUiState> = _uiState.asStateFlow()
-    fun toggleAutoSend() { _uiState.value = _uiState.value.copy(autoSend = !_uiState.value.autoSend) }
+
+    init {
+        repository.observeContacts().onEach { items ->
+            _uiState.value = _uiState.value.copy(totalRecipients = items.size)
+        }.launchIn(viewModelScope)
+    }
+
+    fun toggleAutoSend() {
+        _uiState.value = _uiState.value.copy(autoSend = !_uiState.value.autoSend, actionMessage = null)
+    }
+
+    fun attachContactsCsv() = viewModelScope.launch {
+        val path = repository.exportContactsCsv()
+        addAttachment(path, "Dołączono CSV kontaktów")
+    }
+
+    fun attachSessionReportsCsv() = viewModelScope.launch {
+        val path = repository.exportSessionReportsCsv()
+        addAttachment(path, "Dołączono CSV raportów")
+    }
+
+    fun clearAttachments() {
+        _uiState.value = _uiState.value.copy(
+            attachmentPaths = emptyList(),
+            attachmentCount = 0,
+            actionMessage = "Załączniki wyczyszczone",
+            progressLabel = "Gotowy",
+            isMailingRunning = false,
+        )
+    }
+
+    fun sendSingle() {
+        val latest = _uiState.value.attachmentPaths.lastOrNull()
+        _uiState.value = _uiState.value.copy(
+            actionMessage = if (latest == null) {
+                "Najpierw dołącz lokalny eksport jako załącznik"
+            } else {
+                "Pakiet gotowy do pojedynczej wysyłki SMTP: ${latest.substringAfterLast('/')}"
+            },
+            progressLabel = if (latest == null) "Brak załączników" else "Pakiet pojedynczej wysyłki przygotowany",
+        )
+    }
+
+    fun startMassMailing() {
+        val hasRecipients = _uiState.value.totalRecipients > 0
+        val hasAttachments = _uiState.value.attachmentPaths.isNotEmpty()
+        _uiState.value = _uiState.value.copy(
+            isMailingRunning = hasRecipients && hasAttachments,
+            progressLabel = when {
+                !hasRecipients -> "Brak odbiorców w kontaktach"
+                !hasAttachments -> "Brak załączników do masowej wysyłki"
+                else -> "Kolejka przygotowana dla ${_uiState.value.totalRecipients} odbiorców"
+            },
+            actionMessage = when {
+                !hasRecipients -> "Dodaj kontakty przed uruchomieniem wysyłki"
+                !hasAttachments -> "Dołącz co najmniej jeden lokalny eksport"
+                else -> "Przygotowano lokalny pakiet pod przyszły SMTP pipeline"
+            },
+        )
+    }
+
+    fun togglePauseMailing() {
+        val running = _uiState.value.isMailingRunning
+        _uiState.value = _uiState.value.copy(
+            isMailingRunning = !running && _uiState.value.attachmentPaths.isNotEmpty() && _uiState.value.totalRecipients > 0,
+            progressLabel = if (running) "Wysyłka wstrzymana" else "Wysyłka wznowiona",
+            actionMessage = if (running) "Kolejka została wstrzymana" else "Kolejka została wznowiona",
+        )
+    }
+
+    private fun addAttachment(path: String, label: String) {
+        val updated = (_uiState.value.attachmentPaths + path).distinct()
+        _uiState.value = _uiState.value.copy(
+            attachmentPaths = updated,
+            attachmentCount = updated.size,
+            actionMessage = "$label: ${path.substringAfterLast('/')}",
+            progressLabel = "Załączniki gotowe: ${updated.size}",
+        )
+    }
 }
 
 class TableViewModel(private val repository: AdminRepository) : ViewModel() {
@@ -567,7 +645,7 @@ class AdminViewModelFactory(private val repository: AdminRepository) : ViewModel
         modelClass.isAssignableFrom(ContactsViewModel::class.java) -> ContactsViewModel(repository) as T
         modelClass.isAssignableFrom(CarsViewModel::class.java) -> CarsViewModel(repository) as T
         modelClass.isAssignableFrom(VehicleReportViewModel::class.java) -> VehicleReportViewModel(repository) as T
-        modelClass.isAssignableFrom(PayrollViewModel::class.java) -> PayrollViewModel() as T
+        modelClass.isAssignableFrom(PayrollViewModel::class.java) -> PayrollViewModel(repository) as T
         modelClass.isAssignableFrom(TableViewModel::class.java) -> TableViewModel(repository) as T
         modelClass.isAssignableFrom(WorkersViewModel::class.java) -> WorkersViewModel(repository) as T
         modelClass.isAssignableFrom(PlantsViewModel::class.java) -> PlantsViewModel(repository) as T
