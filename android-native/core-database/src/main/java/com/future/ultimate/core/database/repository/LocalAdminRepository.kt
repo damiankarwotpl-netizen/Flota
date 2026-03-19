@@ -10,12 +10,14 @@ import com.future.ultimate.core.common.model.PlantDraft
 import com.future.ultimate.core.common.model.VehicleReportDraft
 import com.future.ultimate.core.common.model.WorkerDraft
 import com.future.ultimate.core.common.export.SimpleXlsxWorkbookWriter
+import com.future.ultimate.core.common.pdf.ClothesOrderPdfExporter
 import com.future.ultimate.core.common.pdf.VehicleReportPdfExporter
 import com.future.ultimate.core.common.repository.AdminRepository
 import com.future.ultimate.core.common.repository.CarListItem
 import com.future.ultimate.core.common.repository.ClothesOrderXlsxExport
 import com.future.ultimate.core.common.repository.ClothesOrderItemListItem
 import com.future.ultimate.core.common.repository.ClothesOrderListItem
+import com.future.ultimate.core.common.repository.ClothesOrderWorkerListItem
 import com.future.ultimate.core.common.repository.ClothesSizeListItem
 import com.future.ultimate.core.common.repository.ClothesHistoryListItem
 import com.future.ultimate.core.common.repository.ContactListItem
@@ -314,6 +316,25 @@ class LocalAdminRepository(
         dao.deleteClothesOrder(orderId)
     }
 
+    override fun observeClothesOrderWorkers(): Flow<List<ClothesOrderWorkerListItem>> =
+        dao.observeWorkers().combine(dao.observeClothesSizes()) { workers, sizes ->
+            val sizeByWorker = sizes.associateBy { "${it.name.trim().lowercase()}|${it.surname.trim().lowercase()}" }
+            workers.map { worker ->
+                val size = sizeByWorker["${worker.name.trim().lowercase()}|${worker.surname.trim().lowercase()}"]
+                ClothesOrderWorkerListItem(
+                    id = worker.id,
+                    name = worker.name,
+                    surname = worker.surname,
+                    plant = worker.plant.ifBlank { size?.plant.orEmpty() },
+                    shirt = size?.shirt.orEmpty(),
+                    hoodie = size?.hoodie.orEmpty(),
+                    pants = size?.pants.orEmpty(),
+                    jacket = size?.jacket.orEmpty(),
+                    shoes = size?.shoes.orEmpty(),
+                )
+            }.sortedWith(compareBy({ it.surname.lowercase() }, { it.name.lowercase() }))
+        }
+
     override fun observeClothesOrderItems(orderId: Long): Flow<List<ClothesOrderItemListItem>> =
         dao.observeClothesOrderItems(orderId).map { items ->
             items.map {
@@ -363,18 +384,86 @@ class LocalAdminRepository(
                 ),
             ),
         )
+        syncClothesOrderIssueStatus(orderId)
     }
 
-    override suspend fun deleteClothesOrderItem(id: Long) = dao.deleteClothesOrderItem(id)
+    override suspend fun createClothesOrderStarter(
+        draft: ClothesOrderDraft,
+        workerIds: Set<Long>,
+        shirtQty: Int,
+        hoodieQty: Int,
+        pantsQty: Int,
+        jacketQty: Int,
+        shoesQty: Int,
+    ): Long? {
+        val selectedWorkers = dao.observeWorkers().first().filter { it.id in workerIds }
+        if (selectedWorkers.isEmpty()) return null
+
+        val sizeByWorker = dao.observeClothesSizes().first().associateBy {
+            "${it.name.trim().lowercase()}|${it.surname.trim().lowercase()}"
+        }
+        val inferredPlant = selectedWorkers.map { it.plant.trim() }.filter { it.isNotBlank() }.distinct().singleOrNull().orEmpty()
+
+        val orderId = dao.upsertClothesOrder(
+            ClothesOrderEntity(
+                id = 0,
+                date = draft.date.ifBlank { LocalDate.now().toString() },
+                plant = draft.plant.trim().ifBlank { inferredPlant },
+                status = draft.status.trim().ifBlank { "Nowe" },
+                orderDesc = draft.orderDesc.trim(),
+            ),
+        )
+
+        val items = buildList {
+            selectedWorkers.forEach { worker ->
+                val size = sizeByWorker["${worker.name.trim().lowercase()}|${worker.surname.trim().lowercase()}"]
+                fun addItem(label: String, itemSize: String, qty: Int) {
+                    if (qty <= 0) return
+                    add(
+                        ClothesOrderItemEntity(
+                            orderId = orderId,
+                            workerId = worker.id,
+                            name = worker.name.trim(),
+                            surname = worker.surname.trim(),
+                            item = label,
+                            size = itemSize,
+                            qty = qty,
+                            issued = 0,
+                        ),
+                    )
+                }
+                addItem("Koszulka", size?.shirt.orEmpty(), shirtQty)
+                addItem("Bluza", size?.hoodie.orEmpty(), hoodieQty)
+                addItem("Spodnie", size?.pants.orEmpty(), pantsQty)
+                addItem("Kurtka", size?.jacket.orEmpty(), jacketQty)
+                addItem("Buty", size?.shoes.orEmpty(), shoesQty)
+            }
+        }
+        if (items.isEmpty()) {
+            dao.deleteClothesOrder(orderId)
+            return null
+        }
+        dao.upsertClothesOrderItems(items)
+        return orderId
+    }
+
+    override suspend fun deleteClothesOrderItem(id: Long) {
+        val item = dao.getClothesOrderItem(id)
+        dao.deleteClothesOrderItem(id)
+        item?.orderId?.let { syncClothesOrderIssueStatus(it) }
+    }
 
     override suspend fun markClothesOrderOrdered(orderId: Long) {
+        val order = dao.getClothesOrder(orderId) ?: return
+        if (dao.countClothesOrderItems(orderId) <= 0) return
+        if (!canMarkClothesOrderOrdered(order.status)) return
         dao.updateClothesOrderStatus(orderId, "Zamówione")
     }
 
     override suspend fun issueClothesOrderItem(id: Long) {
         val item = dao.getClothesOrderItem(id) ?: return
         val order = dao.getClothesOrder(item.orderId) ?: return
-        if (item.issued != 0 || order.status.trim().lowercase() != "zamówione") return
+        if (item.issued != 0 || !canIssueClothesOrder(order.status)) return
         dao.insertClothesHistory(
             ClothesHistoryEntity(
                 workerId = item.workerId,
@@ -386,12 +475,12 @@ class LocalAdminRepository(
             ),
         )
         dao.updateClothesOrderItemIssued(id, 1)
-        refreshClothesOrderIssueStatus(item.orderId)
+        syncClothesOrderIssueStatus(item.orderId)
     }
 
     override suspend fun issueAllClothesOrderItems(orderId: Long) {
         val order = dao.getClothesOrder(orderId) ?: return
-        if (order.status.trim().lowercase() != "zamówione") return
+        if (!canIssueClothesOrder(order.status)) return
         dao.getUnissuedClothesOrderItems(orderId).forEach { item ->
             dao.insertClothesHistory(
                 ClothesHistoryEntity(
@@ -405,7 +494,61 @@ class LocalAdminRepository(
             )
             dao.updateClothesOrderItemIssued(item.id, 1)
         }
-        refreshClothesOrderIssueStatus(orderId)
+        syncClothesOrderIssueStatus(orderId)
+    }
+
+    override suspend fun exportClothesOrderPdf(orderId: Long): String {
+        val order = dao.getClothesOrder(orderId) ?: return ""
+        val items = dao.getClothesOrderItems(orderId).map {
+            ClothesOrderItemListItem(
+                id = it.id,
+                orderId = it.orderId,
+                workerId = it.workerId,
+                name = it.name,
+                surname = it.surname,
+                item = it.item,
+                size = it.size,
+                qty = it.qty,
+                issued = it.issued != 0,
+            )
+        }
+        if (items.isEmpty()) return ""
+        return ClothesOrderPdfExporter.export(
+            context = context,
+            orderId = order.id,
+            date = order.date,
+            plant = order.plant,
+            status = order.status,
+            description = order.orderDesc,
+            items = items,
+        )
+    }
+
+    override suspend fun exportClothesIssuePdf(orderId: Long): String {
+        val order = dao.getClothesOrder(orderId) ?: return ""
+        val items = dao.getUnissuedClothesOrderItems(orderId).map {
+            ClothesOrderItemListItem(
+                id = it.id,
+                orderId = it.orderId,
+                workerId = it.workerId,
+                name = it.name,
+                surname = it.surname,
+                item = it.item,
+                size = it.size,
+                qty = it.qty,
+                issued = it.issued != 0,
+            )
+        }
+        if (items.isEmpty()) return ""
+        return ClothesOrderPdfExporter.exportIssueReport(
+            context = context,
+            orderId = order.id,
+            date = order.date,
+            plant = order.plant,
+            status = order.status,
+            description = order.orderDesc,
+            items = items,
+        )
     }
 
     override suspend fun exportClothesOrderCsv(orderId: Long): String {
@@ -447,6 +590,7 @@ class LocalAdminRepository(
         val outputDir = context.getExternalFilesDir(null) ?: context.filesDir
         val supplierFile = File(outputDir, "zamowienie_hurtownia_${orderId}.xlsx")
         val issueFile = File(outputDir, "raport_wydania_${orderId}.xlsx")
+        val pendingItems = items.filter { it.issued == 0 }
 
         val supplierRows = buildList {
             add(
@@ -479,18 +623,29 @@ class LocalAdminRepository(
                     SimpleXlsxWorkbookWriter.Cell.text("Ilość"),
                 ),
             )
-            items
-                .sortedWith(compareBy({ it.surname.lowercase() }, { it.name.lowercase() }, { it.item.lowercase() }))
-                .forEach { item ->
-                    add(
-                        listOf(
-                            SimpleXlsxWorkbookWriter.Cell.text("${item.name} ${item.surname}".trim()),
-                            SimpleXlsxWorkbookWriter.Cell.text(item.item),
-                            SimpleXlsxWorkbookWriter.Cell.text(item.size.ifBlank { "-" }),
-                            SimpleXlsxWorkbookWriter.Cell.number(item.qty),
-                        ),
-                    )
-                }
+            if (pendingItems.isEmpty()) {
+                add(
+                    listOf(
+                        SimpleXlsxWorkbookWriter.Cell.text("Brak pozycji do wydania"),
+                        SimpleXlsxWorkbookWriter.Cell.text("-"),
+                        SimpleXlsxWorkbookWriter.Cell.text("-"),
+                        SimpleXlsxWorkbookWriter.Cell.text("-"),
+                    ),
+                )
+            } else {
+                pendingItems
+                    .sortedWith(compareBy({ it.surname.lowercase() }, { it.name.lowercase() }, { it.item.lowercase() }))
+                    .forEach { item ->
+                        add(
+                            listOf(
+                                SimpleXlsxWorkbookWriter.Cell.text("${item.name} ${item.surname}".trim()),
+                                SimpleXlsxWorkbookWriter.Cell.text(item.item),
+                                SimpleXlsxWorkbookWriter.Cell.text(item.size.ifBlank { "-" }),
+                                SimpleXlsxWorkbookWriter.Cell.number(item.qty),
+                            ),
+                        )
+                    }
+            }
         }
 
         SimpleXlsxWorkbookWriter.writeSingleSheet(
@@ -510,14 +665,40 @@ class LocalAdminRepository(
         )
     }
 
-    private suspend fun refreshClothesOrderIssueStatus(orderId: Long) {
+    private suspend fun syncClothesOrderIssueStatus(orderId: Long) {
+        val order = dao.getClothesOrder(orderId) ?: return
         val totalCount = dao.countClothesOrderItems(orderId)
-        if (totalCount <= 0) return
-        val issuedCount = dao.countIssuedClothesOrderItems(orderId)
-        when {
-            issuedCount >= totalCount -> dao.updateClothesOrderStatus(orderId, "Wydane")
-            issuedCount > 0 -> dao.updateClothesOrderStatus(orderId, "Częściowo wydane")
+        if (totalCount <= 0) {
+            if (isClothesOrderIssueWorkflowStatus(order.status)) {
+                dao.updateClothesOrderStatus(orderId, "Nowe")
+            }
+            return
         }
+        val issuedCount = dao.countIssuedClothesOrderItems(orderId)
+        val nextStatus = when {
+            issuedCount >= totalCount -> "Wydane"
+            issuedCount > 0 -> "Częściowo wydane"
+            isClothesOrderIssueWorkflowStatus(order.status) -> "Zamówione"
+            else -> order.status
+        }
+        if (nextStatus != order.status) {
+            dao.updateClothesOrderStatus(orderId, nextStatus)
+        }
+    }
+
+    private fun canIssueClothesOrder(status: String): Boolean {
+        val normalized = status.trim().lowercase()
+        return normalized == "zamówione" || normalized == "częściowo wydane"
+    }
+
+    private fun canMarkClothesOrderOrdered(status: String): Boolean {
+        val normalized = status.trim().lowercase()
+        return normalized != "częściowo wydane" && normalized != "wydane"
+    }
+
+    private fun isClothesOrderIssueWorkflowStatus(status: String): Boolean {
+        val normalized = status.trim().lowercase()
+        return normalized == "zamówione" || normalized == "częściowo wydane" || normalized == "wydane"
     }
 
     override fun observeClothesHistory(): Flow<List<ClothesHistoryListItem>> = dao.observeClothesHistory().map { items ->

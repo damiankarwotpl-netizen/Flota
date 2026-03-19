@@ -87,6 +87,18 @@ data class ClothesOrderItemListItem(
     val issued: Boolean,
 )
 
+data class ClothesOrderWorkerListItem(
+    val id: Long,
+    val name: String,
+    val surname: String,
+    val plant: String,
+    val shirt: String,
+    val hoodie: String,
+    val pants: String,
+    val jacket: String,
+    val shoes: String,
+)
+
 data class ClothesHistoryListItem(
     val id: Long,
     val workerId: Long,
@@ -165,12 +177,24 @@ interface AdminRepository {
     fun observeClothesOrders(): Flow<List<ClothesOrderListItem>>
     suspend fun saveClothesOrder(draft: ClothesOrderDraft)
     suspend fun deleteClothesOrder(orderId: Long)
+    fun observeClothesOrderWorkers(): Flow<List<ClothesOrderWorkerListItem>>
     fun observeClothesOrderItems(orderId: Long): Flow<List<ClothesOrderItemListItem>>
     suspend fun saveClothesOrderItem(orderId: Long, draft: ClothesOrderItemDraft)
+    suspend fun createClothesOrderStarter(
+        draft: ClothesOrderDraft,
+        workerIds: Set<Long>,
+        shirtQty: Int,
+        hoodieQty: Int,
+        pantsQty: Int,
+        jacketQty: Int,
+        shoesQty: Int,
+    ): Long?
     suspend fun deleteClothesOrderItem(id: Long)
     suspend fun markClothesOrderOrdered(orderId: Long)
     suspend fun issueClothesOrderItem(id: Long)
     suspend fun issueAllClothesOrderItems(orderId: Long)
+    suspend fun exportClothesOrderPdf(orderId: Long): String
+    suspend fun exportClothesIssuePdf(orderId: Long): String
     suspend fun exportClothesOrderCsv(orderId: Long): String
     suspend fun exportClothesOrderXlsx(orderId: Long): ClothesOrderXlsxExport
     fun observeClothesHistory(): Flow<List<ClothesHistoryListItem>>
