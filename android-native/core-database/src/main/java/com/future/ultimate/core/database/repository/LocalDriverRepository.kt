@@ -13,12 +13,17 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.runBlocking
 
 class LocalDriverRepository(
     private val dao: AppDao,
     private val context: Context,
 ) : DriverRepository {
-    private val session = MutableStateFlow<DriverSession?>(null)
+    private companion object {
+        const val SessionRegistrationKey = "driver_session_registration"
+    }
+
+    private val session = MutableStateFlow<DriverSession?>(restorePersistedSession())
 
     override fun observeSession(): Flow<DriverSession?> = session.asStateFlow()
     override fun observeMileageSyncState(): Flow<DriverMileageSyncState> =
@@ -39,11 +44,15 @@ class LocalDriverRepository(
             driverName = account.driverName,
             registration = account.registration,
             changePasswordRequired = account.changePassword == 1,
-        ).also { session.value = it }
+        ).also {
+            session.value = it
+            persistSessionRegistration(it.registration)
+        }
     }
 
     override suspend fun logout() {
         session.value = null
+        persistSessionRegistration("")
     }
 
     override suspend fun changePassword(login: String, password: String) {
@@ -69,6 +78,7 @@ class LocalDriverRepository(
         )
         dao.upsertDriverAccount(account)
         session.value = current.copy(password = newPassword, changePasswordRequired = false)
+        persistSessionRegistration(account.registration)
     }
 
     override suspend fun saveMileage(login: String, registration: String, mileage: Int) {
@@ -90,4 +100,29 @@ class LocalDriverRepository(
 
     override suspend fun exportVehicleReportPdf(draft: VehicleReportDraft): String =
         VehicleReportPdfExporter.export(context, draft, ownerTag = "driver")
+
+    private fun restorePersistedSession(): DriverSession? = runBlocking {
+        val registration = dao.getSetting(SessionRegistrationKey)?.valText.orEmpty().trim().uppercase()
+        if (registration.isBlank()) return@runBlocking null
+        val account = dao.getDriverAccountByRegistration(registration) ?: run {
+            dao.upsertSetting(SettingEntity(key = SessionRegistrationKey, valText = ""))
+            return@runBlocking null
+        }
+        DriverSession(
+            login = account.login,
+            password = account.password,
+            driverName = account.driverName,
+            registration = account.registration,
+            changePasswordRequired = account.changePassword == 1,
+        )
+    }
+
+    private suspend fun persistSessionRegistration(registration: String) {
+        dao.upsertSetting(
+            SettingEntity(
+                key = SessionRegistrationKey,
+                valText = registration.trim().uppercase(),
+            ),
+        )
+    }
 }
