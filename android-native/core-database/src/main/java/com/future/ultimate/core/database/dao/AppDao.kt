@@ -124,6 +124,12 @@ interface AppDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsertClothesOrder(entity: ClothesOrderEntity): Long
 
+    @Query("DELETE FROM clothes_orders WHERE id = :orderId")
+    suspend fun deleteClothesOrder(orderId: Long)
+
+    @Query("DELETE FROM clothes_order_items WHERE orderId = :orderId")
+    suspend fun deleteClothesOrderItemsByOrderId(orderId: Long)
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsertClothesOrderItems(entities: List<ClothesOrderItemEntity>)
 

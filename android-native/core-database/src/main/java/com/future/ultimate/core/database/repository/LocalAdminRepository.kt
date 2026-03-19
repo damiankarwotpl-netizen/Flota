@@ -283,12 +283,18 @@ class LocalAdminRepository(
     override suspend fun saveClothesOrder(draft: ClothesOrderDraft) {
         dao.upsertClothesOrder(
             ClothesOrderEntity(
+                id = draft.id ?: 0,
                 date = draft.date.ifBlank { LocalDate.now().toString() },
                 plant = draft.plant.trim(),
                 status = draft.status.trim().ifBlank { "Nowe" },
                 orderDesc = draft.orderDesc.trim(),
             ),
         )
+    }
+
+    override suspend fun deleteClothesOrder(orderId: Long) {
+        dao.deleteClothesOrderItemsByOrderId(orderId)
+        dao.deleteClothesOrder(orderId)
     }
 
     override fun observeClothesOrderItems(orderId: Long): Flow<List<ClothesOrderItemListItem>> =
@@ -312,6 +318,7 @@ class LocalAdminRepository(
         val cleanName = draft.name.trim()
         val cleanSurname = draft.surname.trim()
         val cleanItem = draft.item.trim()
+        val existingItem = draft.id?.let { dao.getClothesOrderItem(it) }
         val worker = dao.getWorkerByName(cleanName, cleanSurname)
         val sizeEntity = dao.getClothesSizeByName(cleanName, cleanSurname)
         val resolvedSize = draft.size.trim().ifBlank {
@@ -321,19 +328,21 @@ class LocalAdminRepository(
                 "spodnie", "pants" -> sizeEntity?.pants.orEmpty()
                 "kurtka", "jacket" -> sizeEntity?.jacket.orEmpty()
                 "buty", "shoes" -> sizeEntity?.shoes.orEmpty()
-                else -> ""
+                else -> existingItem?.size.orEmpty()
             }
         }
         dao.upsertClothesOrderItems(
             listOf(
                 ClothesOrderItemEntity(
+                    id = draft.id ?: 0,
                     orderId = orderId,
-                    workerId = worker?.id ?: 0,
+                    workerId = worker?.id ?: existingItem?.workerId ?: 0,
                     name = cleanName,
                     surname = cleanSurname,
                     item = cleanItem,
                     size = resolvedSize,
                     qty = draft.qty.toIntOrNull()?.coerceAtLeast(1) ?: 1,
+                    issued = existingItem?.issued ?: 0,
                 ),
             ),
         )

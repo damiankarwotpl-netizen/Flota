@@ -56,14 +56,24 @@ fun ClothesScreen() {
                         OutlinedTextField(sizesUiState.editor.pants, { sizesViewModel.updateEditor(sizesUiState.editor.copy(pants = it)) }, label = { Text("Spodnie") }, modifier = Modifier.fillMaxWidth())
                         OutlinedTextField(sizesUiState.editor.jacket, { sizesViewModel.updateEditor(sizesUiState.editor.copy(jacket = it)) }, label = { Text("Kurtka") }, modifier = Modifier.fillMaxWidth())
                         OutlinedTextField(sizesUiState.editor.shoes, { sizesViewModel.updateEditor(sizesUiState.editor.copy(shoes = it)) }, label = { Text("Buty") }, modifier = Modifier.fillMaxWidth())
-                        Button(onClick = sizesViewModel::save, modifier = Modifier.fillMaxWidth()) { Text(if (sizesUiState.isSaving) "Zapisywanie..." else "Dodaj rozmiar pracownika") }
+                        Button(onClick = sizesViewModel::save, modifier = Modifier.fillMaxWidth()) {
+                            Text(if (sizesUiState.isSaving) "Zapisywanie..." else if (sizesUiState.editor.id == null) "Dodaj rozmiar pracownika" else "Zapisz zmiany rozmiaru")
+                        }
+                        if (sizesUiState.editor.id != null) {
+                            Button(onClick = sizesViewModel::clearEditor, modifier = Modifier.fillMaxWidth()) { Text("Anuluj edycję rozmiaru") }
+                        }
                     }
                     1 -> {
                         OutlinedTextField(ordersUiState.editor.date, { ordersViewModel.updateEditor(ordersUiState.editor.copy(date = it)) }, label = { Text("Data (YYYY-MM-DD)") }, modifier = Modifier.fillMaxWidth())
                         OutlinedTextField(ordersUiState.editor.plant, { ordersViewModel.updateEditor(ordersUiState.editor.copy(plant = it)) }, label = { Text("Zakład") }, modifier = Modifier.fillMaxWidth())
                         OutlinedTextField(ordersUiState.editor.status, { ordersViewModel.updateEditor(ordersUiState.editor.copy(status = it)) }, label = { Text("Status") }, modifier = Modifier.fillMaxWidth())
                         OutlinedTextField(ordersUiState.editor.orderDesc, { ordersViewModel.updateEditor(ordersUiState.editor.copy(orderDesc = it)) }, label = { Text("Opis zamówienia") }, modifier = Modifier.fillMaxWidth(), minLines = 3)
-                        Button(onClick = ordersViewModel::save, modifier = Modifier.fillMaxWidth()) { Text(if (ordersUiState.isSaving) "Zapisywanie..." else "Nowe zamówienie") }
+                        Button(onClick = ordersViewModel::save, modifier = Modifier.fillMaxWidth()) {
+                            Text(if (ordersUiState.isSaving) "Zapisywanie..." else if (ordersUiState.editor.id == null) "Nowe zamówienie" else "Zapisz zmiany zamówienia")
+                        }
+                        if (ordersUiState.editor.id != null) {
+                            Button(onClick = ordersViewModel::clearOrderEditor, modifier = Modifier.fillMaxWidth()) { Text("Anuluj edycję zamówienia") }
+                        }
                         ordersUiState.actionMessage?.let { Text(it) }
                         Text("Po zapisaniu zamówienia rozwiń kartę poniżej, aby dodać pozycje i oznaczyć status.")
                     }
@@ -94,6 +104,7 @@ fun ClothesScreen() {
                             Text("${itemData.name} ${itemData.surname} • ${itemData.plant}")
                             Text("Koszulka: ${itemData.shirt} • Bluza: ${itemData.hoodie}")
                             Text("Spodnie: ${itemData.pants} • Kurtka: ${itemData.jacket} • Buty: ${itemData.shoes}")
+                            Button(onClick = { sizesViewModel.edit(itemData) }, modifier = Modifier.fillMaxWidth()) { Text("Edytuj rozmiar") }
                             Button(onClick = { sizesViewModel.delete(itemData.id) }, modifier = Modifier.fillMaxWidth()) { Text("Usuń rozmiar") }
                         }
                     }
@@ -106,6 +117,9 @@ fun ClothesScreen() {
                             Text("${itemData.date} • ${itemData.plant.ifBlank { "Bez zakładu" }}")
                             Text("Status: ${itemData.status}")
                             Text(if (itemData.orderDesc.isBlank()) "Brak opisu" else itemData.orderDesc)
+                            Button(onClick = { ordersViewModel.editOrder(itemData) }, modifier = Modifier.fillMaxWidth()) {
+                                Text("Edytuj nagłówek zamówienia")
+                            }
                             Button(onClick = { ordersViewModel.toggleOrderSelection(itemData.id) }, modifier = Modifier.fillMaxWidth()) {
                                 Text(if (ordersUiState.selectedOrderId == itemData.id) "Ukryj pozycje" else "Pokaż pozycje")
                             }
@@ -123,6 +137,9 @@ fun ClothesScreen() {
                                 modifier = Modifier.fillMaxWidth(),
                             ) {
                                 Text(if (ordersUiState.isExportingXlsx) "Eksportowanie XLSX..." else "Eksport XLSX zamówienia")
+                            }
+                            Button(onClick = { ordersViewModel.deleteOrder(itemData.id) }, modifier = Modifier.fillMaxWidth()) {
+                                Text("Usuń zamówienie")
                             }
                             if (ordersUiState.selectedOrderId == itemData.id) {
                                 OutlinedTextField(
@@ -157,7 +174,10 @@ fun ClothesScreen() {
                                 )
                                 Text("Gdy rozmiar zostanie pusty, aplikacja spróbuje pobrać go z zapisanych rozmiarów pracownika.")
                                 Button(onClick = ordersViewModel::saveItem, modifier = Modifier.fillMaxWidth()) {
-                                    Text(if (ordersUiState.isSavingItem) "Zapisywanie pozycji..." else "Dodaj pozycję")
+                                    Text(if (ordersUiState.isSavingItem) "Zapisywanie pozycji..." else if (ordersUiState.itemEditor.id == null) "Dodaj pozycję" else "Zapisz zmiany pozycji")
+                                }
+                                if (ordersUiState.itemEditor.id != null) {
+                                    Button(onClick = ordersViewModel::clearItemEditor, modifier = Modifier.fillMaxWidth()) { Text("Anuluj edycję pozycji") }
                                 }
                                 ordersUiState.selectedOrderItems.forEach { orderItem ->
                                     Card(modifier = Modifier.fillMaxWidth()) {
@@ -165,6 +185,9 @@ fun ClothesScreen() {
                                             Text("${orderItem.name} ${orderItem.surname}".trim().ifBlank { "Pracownik nieuzupełniony" })
                                             Text("${orderItem.item} • rozmiar: ${orderItem.size.ifBlank { "-" }} • ilość: ${orderItem.qty}")
                                             Text(if (orderItem.issued) "Status pozycji: wydane" else "Status pozycji: niewydane")
+                                            Button(onClick = { ordersViewModel.editItem(orderItem) }, modifier = Modifier.fillMaxWidth()) {
+                                                Text("Edytuj pozycję")
+                                            }
                                             Button(
                                                 onClick = { ordersViewModel.issueItem(orderItem.id) },
                                                 modifier = Modifier.fillMaxWidth(),

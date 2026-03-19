@@ -12,6 +12,9 @@ import com.future.ultimate.core.common.model.PlantDraft
 import com.future.ultimate.core.common.model.VehicleReportDraft
 import com.future.ultimate.core.common.model.WorkerDraft
 import com.future.ultimate.core.common.repository.AdminRepository
+import com.future.ultimate.core.common.repository.ClothesOrderItemListItem
+import com.future.ultimate.core.common.repository.ClothesOrderListItem
+import com.future.ultimate.core.common.repository.ClothesSizeListItem
 import com.future.ultimate.core.common.repository.EmailTemplateData
 import com.future.ultimate.core.common.repository.SmtpSettingsData
 import com.future.ultimate.core.common.ui.CarsUiState
@@ -178,8 +181,31 @@ class ClothesSizesViewModel(private val repository: AdminRepository) : ViewModel
         _uiState.value = _uiState.value.copy(isSaving = false, editor = ClothesSizeDraft())
     }
 
+    fun edit(item: ClothesSizeListItem) {
+        _uiState.value = _uiState.value.copy(
+            editor = ClothesSizeDraft(
+                id = item.id,
+                name = item.name,
+                surname = item.surname,
+                plant = item.plant,
+                shirt = item.shirt,
+                hoodie = item.hoodie,
+                pants = item.pants,
+                jacket = item.jacket,
+                shoes = item.shoes,
+            ),
+        )
+    }
+
+    fun clearEditor() {
+        _uiState.value = _uiState.value.copy(editor = ClothesSizeDraft())
+    }
+
     fun delete(id: Long) = viewModelScope.launch {
         repository.deleteClothesSize(id)
+        if (_uiState.value.editor.id == id) {
+            _uiState.value = _uiState.value.copy(editor = ClothesSizeDraft())
+        }
     }
 }
 
@@ -195,9 +221,14 @@ class ClothesOrdersViewModel(private val repository: AdminRepository) : ViewMode
     fun updateItemEditor(draft: ClothesOrderItemDraft) { _uiState.value = _uiState.value.copy(itemEditor = draft, actionMessage = null) }
 
     fun save() = viewModelScope.launch {
+        val isEditing = _uiState.value.editor.id != null
         _uiState.value = _uiState.value.copy(isSaving = true)
         repository.saveClothesOrder(_uiState.value.editor)
-        _uiState.value = _uiState.value.copy(isSaving = false, editor = ClothesOrderDraft(), actionMessage = "Zamówienie zapisane")
+        _uiState.value = _uiState.value.copy(
+            isSaving = false,
+            editor = ClothesOrderDraft(),
+            actionMessage = if (isEditing) "Zamówienie zaktualizowane" else "Zamówienie zapisane",
+        )
     }
 
     fun toggleOrderSelection(orderId: Long) {
@@ -226,14 +257,68 @@ class ClothesOrdersViewModel(private val repository: AdminRepository) : ViewMode
         val selectedOrderId = _uiState.value.selectedOrderId ?: return@launch
         val draft = _uiState.value.itemEditor
         if (draft.name.isBlank() || draft.surname.isBlank() || draft.item.isBlank()) return@launch
+        val isEditing = draft.id != null
         _uiState.value = _uiState.value.copy(isSavingItem = true, actionMessage = null)
         repository.saveClothesOrderItem(selectedOrderId, draft)
-        _uiState.value = _uiState.value.copy(isSavingItem = false, itemEditor = ClothesOrderItemDraft(), actionMessage = "Pozycja dodana")
+        _uiState.value = _uiState.value.copy(
+            isSavingItem = false,
+            itemEditor = ClothesOrderItemDraft(),
+            actionMessage = if (isEditing) "Pozycja zaktualizowana" else "Pozycja dodana",
+        )
     }
 
     fun deleteItem(id: Long) = viewModelScope.launch {
         repository.deleteClothesOrderItem(id)
-        _uiState.value = _uiState.value.copy(actionMessage = "Pozycja usunięta")
+        _uiState.value = _uiState.value.copy(
+            itemEditor = if (_uiState.value.itemEditor.id == id) ClothesOrderItemDraft() else _uiState.value.itemEditor,
+            actionMessage = "Pozycja usunięta",
+        )
+    }
+
+    fun editOrder(item: ClothesOrderListItem) {
+        _uiState.value = _uiState.value.copy(
+            editor = ClothesOrderDraft(
+                id = item.id,
+                date = item.date,
+                plant = item.plant,
+                status = item.status,
+                orderDesc = item.orderDesc,
+            ),
+            actionMessage = null,
+        )
+    }
+
+    fun clearOrderEditor() {
+        _uiState.value = _uiState.value.copy(editor = ClothesOrderDraft(), actionMessage = null)
+    }
+
+    fun editItem(item: ClothesOrderItemListItem) {
+        _uiState.value = _uiState.value.copy(
+            itemEditor = ClothesOrderItemDraft(
+                id = item.id,
+                name = item.name,
+                surname = item.surname,
+                item = item.item,
+                size = item.size,
+                qty = item.qty.toString(),
+            ),
+            actionMessage = null,
+        )
+    }
+
+    fun clearItemEditor() {
+        _uiState.value = _uiState.value.copy(itemEditor = ClothesOrderItemDraft(), actionMessage = null)
+    }
+
+    fun deleteOrder(orderId: Long) = viewModelScope.launch {
+        repository.deleteClothesOrder(orderId)
+        _uiState.value = _uiState.value.copy(
+            selectedOrderId = if (_uiState.value.selectedOrderId == orderId) null else _uiState.value.selectedOrderId,
+            selectedOrderItems = if (_uiState.value.selectedOrderId == orderId) emptyList() else _uiState.value.selectedOrderItems,
+            editor = if (_uiState.value.editor.id == orderId) ClothesOrderDraft() else _uiState.value.editor,
+            itemEditor = ClothesOrderItemDraft(),
+            actionMessage = "Zamówienie usunięte",
+        )
     }
 
     fun markOrdered(orderId: Long) = viewModelScope.launch {

@@ -158,6 +158,7 @@ interface AdminRepository {
 
     fun observeClothesOrders(): Flow<List<ClothesOrderListItem>>
     suspend fun saveClothesOrder(draft: ClothesOrderDraft)
+    suspend fun deleteClothesOrder(orderId: Long)
     fun observeClothesOrderItems(orderId: Long): Flow<List<ClothesOrderItemListItem>>
     suspend fun saveClothesOrderItem(orderId: Long, draft: ClothesOrderItemDraft)
     suspend fun deleteClothesOrderItem(id: Long)
