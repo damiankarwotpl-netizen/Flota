@@ -34,6 +34,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
+import java.time.format.DateTimeFormatter
 import java.time.LocalDate
 
 class ContactsViewModel(private val repository: AdminRepository) : ViewModel() {
@@ -331,17 +332,46 @@ class SmtpViewModel(private val repository: AdminRepository) : ViewModel() {
 }
 
 class TemplateViewModel(private val repository: AdminRepository) : ViewModel() {
-    private val _uiState = MutableStateFlow(TemplateUiState())
+    private val _uiState = MutableStateFlow(
+        TemplateUiState(
+            previewDate = LocalDate.now().format(DateTimeFormatter.ofPattern("dd.MM.yyyy")),
+        ),
+    )
     val uiState: StateFlow<TemplateUiState> = _uiState.asStateFlow()
 
     init {
         repository.observeEmailTemplate().onEach { template ->
-            _uiState.value = _uiState.value.copy(template = template)
+            _uiState.value = _uiState.value.copy(
+                template = template,
+                subjectPreview = renderPreview(template.subject, _uiState.value.previewName, _uiState.value.previewDate),
+                bodyPreview = renderPreview(template.body, _uiState.value.previewName, _uiState.value.previewDate),
+            )
         }.launchIn(viewModelScope)
     }
 
     fun updateTemplate(update: EmailTemplateData) {
-        _uiState.value = _uiState.value.copy(template = update, message = null)
+        _uiState.value = _uiState.value.copy(
+            template = update,
+            subjectPreview = renderPreview(update.subject, _uiState.value.previewName, _uiState.value.previewDate),
+            bodyPreview = renderPreview(update.body, _uiState.value.previewName, _uiState.value.previewDate),
+            message = null,
+        )
+    }
+
+    fun updatePreviewName(value: String) {
+        _uiState.value = _uiState.value.copy(
+            previewName = value,
+            subjectPreview = renderPreview(_uiState.value.template.subject, value, _uiState.value.previewDate),
+            bodyPreview = renderPreview(_uiState.value.template.body, value, _uiState.value.previewDate),
+        )
+    }
+
+    fun updatePreviewDate(value: String) {
+        _uiState.value = _uiState.value.copy(
+            previewDate = value,
+            subjectPreview = renderPreview(_uiState.value.template.subject, _uiState.value.previewName, value),
+            bodyPreview = renderPreview(_uiState.value.template.body, _uiState.value.previewName, value),
+        )
     }
 
     fun save() = viewModelScope.launch {
@@ -349,6 +379,11 @@ class TemplateViewModel(private val repository: AdminRepository) : ViewModel() {
         repository.saveEmailTemplate(_uiState.value.template)
         _uiState.value = _uiState.value.copy(isSaving = false, message = "Szablon email zapisany")
     }
+
+    private fun renderPreview(template: String, name: String, date: String): String =
+        template
+            .replace("{Imię}", name.ifBlank { "Jan" })
+            .replace("{Data}", date.ifBlank { LocalDate.now().format(DateTimeFormatter.ofPattern("dd.MM.yyyy")) })
 }
 
 class ReportsViewModel(private val repository: AdminRepository) : ViewModel() {

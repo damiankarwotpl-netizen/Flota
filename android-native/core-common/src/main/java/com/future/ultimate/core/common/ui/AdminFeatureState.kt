@@ -102,6 +102,10 @@ data class SmtpUiState(
 
 data class TemplateUiState(
     val template: EmailTemplateData = EmailTemplateData(),
+    val previewName: String = "Jan",
+    val previewDate: String = "",
+    val subjectPreview: String = "",
+    val bodyPreview: String = "",
     val message: String? = null,
     val isSaving: Boolean = false,
 )
