@@ -184,14 +184,15 @@ class LocalAdminRepository(
     override suspend fun saveCar(draft: CarDraft) {
         val serviceInterval = draft.serviceInterval.toIntOrNull()?.coerceAtLeast(1) ?: 15000
         val registration = draft.registration.trim().uppercase()
-        val existingCar = if (draft.id != null) {
-            dao.getCar(draft.id)
+        val draftId = draft.id
+        val existingCar = if (draftId != null) {
+            dao.getCar(draftId)
         } else {
             dao.getCarByRegistration(registration)
         }
         dao.upsertCar(
             CarEntity(
-                id = existingCar?.id ?: draft.id ?: 0,
+                id = existingCar?.id ?: draftId ?: 0,
                 name = draft.name.trim(),
                 registration = registration,
                 driver = draft.driver.trim(),
