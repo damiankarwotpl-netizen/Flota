@@ -225,9 +225,11 @@ class VehicleReportViewModel(private val repository: AdminRepository) : ViewMode
 class PayrollViewModel(private val repository: AdminRepository) : ViewModel() {
     private val _uiState = MutableStateFlow(PayrollUiState(operatorLabel = PatchLoader.fallbackUserLabel()))
     val uiState: StateFlow<PayrollUiState> = _uiState.asStateFlow()
+    private var contactsCache: List<com.future.ultimate.core.common.repository.ContactListItem> = emptyList()
 
     init {
         repository.observeContacts().onEach { items ->
+            contactsCache = items
             _uiState.value = _uiState.value.copy(totalRecipients = items.size)
         }.launchIn(viewModelScope)
     }
@@ -285,6 +287,15 @@ class PayrollViewModel(private val repository: AdminRepository) : ViewModel() {
     fun attachSessionReportsCsv() = viewModelScope.launch {
         val path = repository.exportSessionReportsCsv()
         addAttachment(path, "Dołączono CSV raportów")
+    }
+
+    fun attachPayrollPackage() = viewModelScope.launch {
+        if (contactsCache.isEmpty()) {
+            _uiState.value = _uiState.value.copy(actionMessage = "Brak kontaktów do przygotowania paczki płac")
+            return@launch
+        }
+        val path = repository.exportPayrollPackage(contactsCache)
+        addAttachment(path, "Dołączono paczkę płac")
     }
 
     fun clearAttachments() {

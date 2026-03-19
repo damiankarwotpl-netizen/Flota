@@ -52,6 +52,7 @@ fun TableScreen() {
                         Text("Wyczyść wybór (${uiState.selectedContactKeys.size})")
                     }
                 }
+                Text("Wybrane do paczki: ${uiState.selectedContactKeys.size}")
                 Text("Kolumny: imię, nazwisko, email, telefon, miejsce pracy, mieszkanie, notatki")
                 uiState.exportMessage?.let { Text(it) }
             }
