@@ -495,6 +495,7 @@ class ClothesOrdersViewModel(private val repository: AdminRepository) : ViewMode
             selectedOrderId = orderId,
             selectedOrderItems = emptyList(),
             selectedOrderSummary = emptyList(),
+            showOnlyPendingItems = false,
             itemEditor = ClothesOrderItemDraft(),
         )
         orderItemsJob?.cancel()
@@ -600,6 +601,9 @@ class ClothesOrdersViewModel(private val repository: AdminRepository) : ViewMode
     }
 
     fun deleteOrder(orderId: Long) = viewModelScope.launch {
+        if (_uiState.value.selectedOrderId == orderId) {
+            orderItemsJob?.cancel()
+        }
         repository.deleteClothesOrder(orderId)
         _uiState.value = _uiState.value.copy(
             selectedOrderId = if (_uiState.value.selectedOrderId == orderId) null else _uiState.value.selectedOrderId,
@@ -666,12 +670,18 @@ class ClothesOrdersViewModel(private val repository: AdminRepository) : ViewMode
     }
 
     private fun buildOrderSummary(items: List<ClothesOrderItemListItem>): List<String> =
-        items.groupBy { it.item.trim() to it.size.trim().ifBlank { "-" } }
-            .toList()
-            .sortedWith(compareBy({ it.first.first.lowercase() }, { it.first.second.lowercase() }))
-            .map { (key, groupedItems) ->
-                "${key.first} • rozmiar: ${key.second} • suma: ${groupedItems.sumOf { it.qty }}"
-            }
+        if (items.isEmpty()) {
+            emptyList()
+        } else {
+            listOf(
+                "Łącznie: ${items.sumOf { it.qty }} • wydane: ${items.filter { it.issued }.sumOf { it.qty }} • niewydane: ${items.filterNot { it.issued }.sumOf { it.qty }}",
+            ) + items.groupBy { it.item.trim() to it.size.trim().ifBlank { "-" } }
+                .toList()
+                .sortedWith(compareBy({ it.first.first.lowercase() }, { it.first.second.lowercase() }))
+                .map { (key, groupedItems) ->
+                    "${key.first} • rozmiar: ${key.second} • suma: ${groupedItems.sumOf { it.qty }}"
+                }
+        }
 }
 
 class ClothesReportsViewModel(private val repository: AdminRepository) : ViewModel() {

@@ -241,7 +241,11 @@ fun ClothesScreen() {
                                 Button(onClick = { ordersViewModel.markOrdered(itemData.id) }, modifier = Modifier.fillMaxWidth()) {
                                     Text("Oznacz jako zamówione")
                                 }
-                                Button(onClick = { ordersViewModel.issueAll(itemData.id) }, modifier = Modifier.fillMaxWidth()) {
+                                Button(
+                                    onClick = { ordersViewModel.issueAll(itemData.id) },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    enabled = canIssueClothesOrder(itemData.status),
+                                ) {
                                     Text("Wydaj wszystkie pozycje")
                                 }
                                 Button(onClick = { ordersViewModel.exportOrderCsv(itemData.id) }, modifier = Modifier.fillMaxWidth()) {
@@ -333,7 +337,7 @@ fun ClothesScreen() {
                                                 Button(
                                                     onClick = { ordersViewModel.issueItem(orderItem.id) },
                                                     modifier = Modifier.fillMaxWidth(),
-                                                    enabled = !orderItem.issued,
+                                                    enabled = !orderItem.issued && canIssueClothesOrder(itemData.status),
                                                 ) {
                                                     Text(if (orderItem.issued) "Pozycja wydana" else "Wydaj pozycję")
                                                 }
@@ -381,4 +385,9 @@ fun ClothesScreen() {
             }
         }
     }
+}
+
+private fun canIssueClothesOrder(status: String): Boolean {
+    val normalized = status.trim().lowercase()
+    return normalized == "zamówione" || normalized == "częściowo wydane"
 }
