@@ -269,6 +269,16 @@ fun ClothesScreen() {
                                     Text("Usuń zamówienie")
                                 }
                                 if (ordersUiState.selectedOrderId == itemData.id) {
+                                    if (ordersUiState.selectedOrderSummary.isNotEmpty()) {
+                                        Card(modifier = Modifier.fillMaxWidth()) {
+                                            Column(modifier = Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                                Text("Podsumowanie zamówienia")
+                                                ordersUiState.selectedOrderSummary.forEach { summary ->
+                                                    Text(summary)
+                                                }
+                                            }
+                                        }
+                                    }
                                     OutlinedTextField(
                                         ordersUiState.itemEditor.name,
                                         { ordersViewModel.updateItemEditor(ordersUiState.itemEditor.copy(name = it)) },

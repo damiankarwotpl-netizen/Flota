@@ -494,11 +494,15 @@ class ClothesOrdersViewModel(private val repository: AdminRepository) : ViewMode
             actionMessage = "Utworzono zamówienie startowe #$orderId",
             selectedOrderId = orderId,
             selectedOrderItems = emptyList(),
+            selectedOrderSummary = emptyList(),
             itemEditor = ClothesOrderItemDraft(),
         )
         orderItemsJob?.cancel()
         orderItemsJob = repository.observeClothesOrderItems(orderId).onEach { items ->
-            _uiState.value = _uiState.value.copy(selectedOrderItems = items)
+            _uiState.value = _uiState.value.copy(
+                selectedOrderItems = items,
+                selectedOrderSummary = buildOrderSummary(items),
+            )
         }.launchIn(viewModelScope)
     }
 
@@ -509,6 +513,7 @@ class ClothesOrdersViewModel(private val repository: AdminRepository) : ViewMode
             _uiState.value = _uiState.value.copy(
                 selectedOrderId = null,
                 selectedOrderItems = emptyList(),
+                selectedOrderSummary = emptyList(),
                 itemEditor = ClothesOrderItemDraft(),
             )
             return
@@ -517,10 +522,14 @@ class ClothesOrdersViewModel(private val repository: AdminRepository) : ViewMode
         _uiState.value = _uiState.value.copy(
             selectedOrderId = orderId,
             selectedOrderItems = emptyList(),
+            selectedOrderSummary = emptyList(),
             itemEditor = ClothesOrderItemDraft(),
         )
         orderItemsJob = repository.observeClothesOrderItems(orderId).onEach { items ->
-            _uiState.value = _uiState.value.copy(selectedOrderItems = items)
+            _uiState.value = _uiState.value.copy(
+                selectedOrderItems = items,
+                selectedOrderSummary = buildOrderSummary(items),
+            )
         }.launchIn(viewModelScope)
     }
 
@@ -586,6 +595,7 @@ class ClothesOrdersViewModel(private val repository: AdminRepository) : ViewMode
         _uiState.value = _uiState.value.copy(
             selectedOrderId = if (_uiState.value.selectedOrderId == orderId) null else _uiState.value.selectedOrderId,
             selectedOrderItems = if (_uiState.value.selectedOrderId == orderId) emptyList() else _uiState.value.selectedOrderItems,
+            selectedOrderSummary = if (_uiState.value.selectedOrderId == orderId) emptyList() else _uiState.value.selectedOrderSummary,
             editor = if (_uiState.value.editor.id == orderId) ClothesOrderDraft() else _uiState.value.editor,
             itemEditor = ClothesOrderItemDraft(),
             actionMessage = "Zamówienie usunięte",
@@ -644,6 +654,14 @@ class ClothesOrdersViewModel(private val repository: AdminRepository) : ViewMode
             },
         )
     }
+
+    private fun buildOrderSummary(items: List<ClothesOrderItemListItem>): List<String> =
+        items.groupBy { it.item.trim() to it.size.trim().ifBlank { "-" } }
+            .toList()
+            .sortedWith(compareBy({ it.first.first.lowercase() }, { it.first.second.lowercase() }))
+            .map { (key, groupedItems) ->
+                "${key.first} • rozmiar: ${key.second} • suma: ${groupedItems.sumOf { it.qty }}"
+            }
 }
 
 class ClothesReportsViewModel(private val repository: AdminRepository) : ViewModel() {

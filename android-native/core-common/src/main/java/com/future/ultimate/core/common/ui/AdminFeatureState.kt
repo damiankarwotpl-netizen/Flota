@@ -106,6 +106,7 @@ data class ClothesOrdersUiState(
     val shoesQty: String = "1",
     val selectedOrderId: Long? = null,
     val selectedOrderItems: List<ClothesOrderItemListItem> = emptyList(),
+    val selectedOrderSummary: List<String> = emptyList(),
     val editor: ClothesOrderDraft = ClothesOrderDraft(),
     val itemEditor: ClothesOrderItemDraft = ClothesOrderItemDraft(),
     val actionMessage: String? = null,
