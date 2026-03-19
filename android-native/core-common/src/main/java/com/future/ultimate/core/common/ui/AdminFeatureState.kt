@@ -109,6 +109,7 @@ data class ClothesOrdersUiState(
 
 data class ClothesReportsUiState(
     val year: String = "",
+    val workerQuery: String = "",
     val history: List<ClothesHistoryListItem> = emptyList(),
     val yearlySummary: List<String> = emptyList(),
     val exportMessage: String? = null,

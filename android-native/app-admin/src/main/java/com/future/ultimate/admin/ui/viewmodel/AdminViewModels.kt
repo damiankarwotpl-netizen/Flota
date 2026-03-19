@@ -606,7 +606,7 @@ class ClothesReportsViewModel(private val repository: AdminRepository) : ViewMod
         repository.observeClothesHistory().onEach { history ->
             _uiState.value = _uiState.value.copy(
                 history = history,
-                yearlySummary = buildYearlySummary(history, _uiState.value.year),
+                yearlySummary = buildYearlySummary(history, _uiState.value.year, _uiState.value.workerQuery),
             )
         }.launchIn(viewModelScope)
     }
@@ -614,7 +614,14 @@ class ClothesReportsViewModel(private val repository: AdminRepository) : ViewMod
     fun updateYear(value: String) {
         _uiState.value = _uiState.value.copy(
             year = value,
-            yearlySummary = buildYearlySummary(_uiState.value.history, value),
+            yearlySummary = buildYearlySummary(_uiState.value.history, value, _uiState.value.workerQuery),
+        )
+    }
+
+    fun updateWorkerQuery(value: String) {
+        _uiState.value = _uiState.value.copy(
+            workerQuery = value,
+            yearlySummary = buildYearlySummary(_uiState.value.history, _uiState.value.year, value),
         )
     }
 
@@ -624,19 +631,43 @@ class ClothesReportsViewModel(private val repository: AdminRepository) : ViewMod
         _uiState.value = _uiState.value.copy(isExporting = false, exportMessage = "CSV zapisane: $path")
     }
 
-    private fun buildYearlySummary(history: List<com.future.ultimate.core.common.repository.ClothesHistoryListItem>, year: String): List<String> {
+    private fun buildYearlySummary(
+        history: List<com.future.ultimate.core.common.repository.ClothesHistoryListItem>,
+        year: String,
+        workerQuery: String,
+    ): List<String> {
         val normalizedYear = year.trim()
         if (normalizedYear.isBlank()) return emptyList()
+        val normalizedQuery = workerQuery.trim().lowercase()
         return history
             .filter { it.date.startsWith(normalizedYear) }
+            .filter { item ->
+                normalizedQuery.isBlank() || listOf(item.name, item.surname, item.item, item.size).joinToString(" ").lowercase().contains(normalizedQuery)
+            }
             .groupBy { Triple(it.workerId, it.name.trim(), it.surname.trim()) }
             .map { (worker, entries) ->
                 val workerLabel = "${worker.second} ${worker.third}".trim().ifBlank { "Pracownik #${worker.first}" }
                 val lastIssueDate = entries.maxOfOrNull { it.date }.orEmpty()
-                "$workerLabel • ${entries.size} wydań • ostatnie: $lastIssueDate"
+                val groupedItems = entries.groupBy { entry ->
+                    when {
+                        entry.item.contains("koszul", ignoreCase = true) -> "Koszulka"
+                        entry.item.contains("bluz", ignoreCase = true) || entry.item.contains("hoodie", ignoreCase = true) -> "Bluza"
+                        entry.item.contains("spodni", ignoreCase = true) || entry.item.contains("pants", ignoreCase = true) -> "Spodnie"
+                        entry.item.contains("kurt", ignoreCase = true) || entry.item.contains("jacket", ignoreCase = true) -> "Kurtka"
+                        entry.item.contains("but", ignoreCase = true) || entry.item.contains("shoe", ignoreCase = true) -> "Buty"
+                        else -> "Inne"
+                    }
+                }.mapValues { (_, categoryEntries) -> categoryEntries.size }
+                val categorySummary = listOf("Koszulka", "Bluza", "Spodnie", "Kurtka", "Buty", "Inne")
+                    .mapNotNull { label ->
+                        val count = groupedItems[label] ?: 0
+                        if (count <= 0) null else "$label: $count"
+                    }
+                    .joinToString(" • ")
+                "$workerLabel\n$categorySummary\nŁącznie: ${entries.size} • ostatnie wydanie: $lastIssueDate"
             }
             .sortedByDescending { summary ->
-                summary.substringAfter("• ").substringBefore(" wydań").toIntOrNull() ?: 0
+                summary.substringAfter("Łącznie: ").substringBefore(" •").toIntOrNull() ?: 0
             }
     }
 }

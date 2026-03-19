@@ -138,6 +138,12 @@ fun ClothesScreen() {
                             label = { Text("Rok statystyk") },
                             modifier = Modifier.fillMaxWidth(),
                         )
+                        OutlinedTextField(
+                            reportsUiState.workerQuery,
+                            reportsViewModel::updateWorkerQuery,
+                            label = { Text("Filtruj pracownika / pozycję") },
+                            modifier = Modifier.fillMaxWidth(),
+                        )
                         reportsUiState.exportMessage?.let { Text(it) }
                         Text("Podsumowanie wydań dla roku ${reportsUiState.year.ifBlank { "----" }}")
                     }
@@ -326,7 +332,16 @@ fun ClothesScreen() {
                         }
                     }
                 }
-                reportsUiState.history.forEach { historyItem ->
+                reportsUiState.history.filter { historyItem ->
+                    val matchesYear = reportsUiState.year.isBlank() || historyItem.date.startsWith(reportsUiState.year.trim())
+                    val matchesQuery = reportsUiState.workerQuery.isBlank() || listOf(
+                        historyItem.name,
+                        historyItem.surname,
+                        historyItem.item,
+                        historyItem.size,
+                    ).joinToString(" ").lowercase().contains(reportsUiState.workerQuery.trim().lowercase())
+                    matchesYear && matchesQuery
+                }.forEach { historyItem ->
                     item {
                         Card(modifier = Modifier.fillMaxWidth()) {
                             Column(modifier = Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
