@@ -194,6 +194,7 @@ interface AdminRepository {
     suspend fun issueClothesOrderItem(id: Long)
     suspend fun issueAllClothesOrderItems(orderId: Long)
     suspend fun exportClothesOrderPdf(orderId: Long): String
+    suspend fun exportClothesIssuePdf(orderId: Long): String
     suspend fun exportClothesOrderCsv(orderId: Long): String
     suspend fun exportClothesOrderXlsx(orderId: Long): ClothesOrderXlsxExport
     fun observeClothesHistory(): Flow<List<ClothesHistoryListItem>>

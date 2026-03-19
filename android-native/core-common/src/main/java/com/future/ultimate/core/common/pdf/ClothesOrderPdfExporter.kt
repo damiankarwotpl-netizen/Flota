@@ -22,11 +22,60 @@ object ClothesOrderPdfExporter {
         description: String,
         items: List<ClothesOrderItemListItem>,
     ): String {
+        return exportDocument(
+            context = context,
+            orderId = orderId,
+            date = date,
+            plant = plant,
+            status = status,
+            description = description,
+            items = items,
+            title = "Zamówienie odzieży roboczej",
+            sectionTitle = "Pozycje zamówienia",
+            filePrefix = "clothes_order",
+        )
+    }
+
+    fun exportIssueReport(
+        context: Context,
+        orderId: Long,
+        date: String,
+        plant: String,
+        status: String,
+        description: String,
+        items: List<ClothesOrderItemListItem>,
+    ): String {
+        return exportDocument(
+            context = context,
+            orderId = orderId,
+            date = date,
+            plant = plant,
+            status = status,
+            description = description,
+            items = items.sortedWith(compareBy({ it.surname.lowercase() }, { it.name.lowercase() }, { it.item.lowercase() })),
+            title = "Raport wydania odzieży",
+            sectionTitle = "Pozycje do wydania",
+            filePrefix = "clothes_issue",
+        )
+    }
+
+    private fun exportDocument(
+        context: Context,
+        orderId: Long,
+        date: String,
+        plant: String,
+        status: String,
+        description: String,
+        items: List<ClothesOrderItemListItem>,
+        title: String,
+        sectionTitle: String,
+        filePrefix: String,
+    ): String {
         val outputDir = File(
             context.getExternalFilesDir(Environment.DIRECTORY_DOCUMENTS) ?: context.filesDir,
             "clothes-orders",
         ).apply { mkdirs() }
-        val outputFile = File(outputDir, buildFileName(orderId))
+        val outputFile = File(outputDir, buildFileName(filePrefix, orderId))
 
         val document = PdfDocument()
         val pageWidth = 595
@@ -56,10 +105,11 @@ object ClothesOrderPdfExporter {
             plant = plant,
             status = status,
             description = description,
+            title = title,
             margin = margin,
         )
 
-        canvas.drawText("Pozycje zamówienia", margin, y, sectionPaint)
+        canvas.drawText(sectionTitle, margin, y, sectionPaint)
         y += 18f
 
         items.forEachIndexed { index, item ->
@@ -79,9 +129,10 @@ object ClothesOrderPdfExporter {
                     plant = plant,
                     status = status,
                     description = description,
+                    title = title,
                     margin = margin,
                 )
-                canvas.drawText("Pozycje zamówienia (cd.)", margin, y, sectionPaint)
+                canvas.drawText("$sectionTitle (cd.)", margin, y, sectionPaint)
                 y += 18f
             }
 
@@ -112,10 +163,11 @@ object ClothesOrderPdfExporter {
         plant: String,
         status: String,
         description: String,
+        title: String,
         margin: Float,
     ): Float {
         var y = 42f
-        canvas.drawText("Zamówienie odzieży roboczej", margin, y, titlePaint)
+        canvas.drawText(title, margin, y, titlePaint)
         y += 18f
         canvas.drawText("Eksport Android-native 1:1", margin, y, subtitlePaint)
         y += 24f
@@ -134,9 +186,9 @@ object ClothesOrderPdfExporter {
         typeface = if (bold) Typeface.create(Typeface.DEFAULT, Typeface.BOLD) else Typeface.DEFAULT
     }
 
-    private fun buildFileName(orderId: Long): String {
+    private fun buildFileName(prefix: String, orderId: Long): String {
         val datePart = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
-        return "${datePart}_clothes_order_${orderId}.pdf"
+        return "${datePart}_${prefix}_${orderId}.pdf"
     }
 
     private fun safe(value: String): String = value.trim().ifBlank { "-" }

@@ -254,6 +254,12 @@ fun ClothesScreen() {
                                     Text(if (ordersUiState.isExportingPdf) "Eksportowanie PDF..." else "Eksport PDF zamówienia")
                                 }
                                 Button(
+                                    onClick = { ordersViewModel.exportIssuePdf(itemData.id) },
+                                    modifier = Modifier.fillMaxWidth(),
+                                ) {
+                                    Text(if (ordersUiState.isExportingIssuePdf) "Eksportowanie PDF wydania..." else "Eksport PDF wydania")
+                                }
+                                Button(
                                     onClick = { ordersViewModel.exportOrderXlsx(itemData.id) },
                                     modifier = Modifier.fillMaxWidth(),
                                 ) {

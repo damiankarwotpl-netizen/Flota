@@ -621,6 +621,15 @@ class ClothesOrdersViewModel(private val repository: AdminRepository) : ViewMode
         )
     }
 
+    fun exportIssuePdf(orderId: Long) = viewModelScope.launch {
+        _uiState.value = _uiState.value.copy(isExportingIssuePdf = true, actionMessage = null)
+        val path = repository.exportClothesIssuePdf(orderId)
+        _uiState.value = _uiState.value.copy(
+            isExportingIssuePdf = false,
+            actionMessage = if (path.isBlank()) "Nie znaleziono pozycji do raportu wydania PDF" else "PDF wydania: $path",
+        )
+    }
+
     fun exportOrderXlsx(orderId: Long) = viewModelScope.launch {
         _uiState.value = _uiState.value.copy(isExportingXlsx = true, actionMessage = null)
         val export = repository.exportClothesOrderXlsx(orderId)

@@ -516,6 +516,33 @@ class LocalAdminRepository(
         )
     }
 
+    override suspend fun exportClothesIssuePdf(orderId: Long): String {
+        val order = dao.getClothesOrder(orderId) ?: return ""
+        val items = dao.getClothesOrderItems(orderId).map {
+            ClothesOrderItemListItem(
+                id = it.id,
+                orderId = it.orderId,
+                workerId = it.workerId,
+                name = it.name,
+                surname = it.surname,
+                item = it.item,
+                size = it.size,
+                qty = it.qty,
+                issued = it.issued != 0,
+            )
+        }
+        if (items.isEmpty()) return ""
+        return ClothesOrderPdfExporter.exportIssueReport(
+            context = context,
+            orderId = order.id,
+            date = order.date,
+            plant = order.plant,
+            status = order.status,
+            description = order.orderDesc,
+            items = items,
+        )
+    }
+
     override suspend fun exportClothesOrderCsv(orderId: Long): String {
         val order = dao.getClothesOrder(orderId) ?: return ""
         val outputDir = context.getExternalFilesDir(null) ?: context.filesDir
