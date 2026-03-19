@@ -11,6 +11,7 @@ import com.future.ultimate.core.common.model.WorkerDraft
 import com.future.ultimate.core.common.repository.CarListItem
 import com.future.ultimate.core.common.repository.ClothesOrderItemListItem
 import com.future.ultimate.core.common.repository.ClothesOrderListItem
+import com.future.ultimate.core.common.repository.ClothesOrderWorkerListItem
 import com.future.ultimate.core.common.repository.ClothesSizeListItem
 import com.future.ultimate.core.common.repository.ClothesHistoryListItem
 import com.future.ultimate.core.common.repository.ContactListItem
@@ -87,6 +88,14 @@ data class ClothesSizesUiState(
 
 data class ClothesOrdersUiState(
     val items: List<ClothesOrderListItem> = emptyList(),
+    val workerQuery: String = "",
+    val availableWorkers: List<ClothesOrderWorkerListItem> = emptyList(),
+    val selectedWorkerIds: Set<Long> = emptySet(),
+    val shirtQty: String = "1",
+    val hoodieQty: String = "1",
+    val pantsQty: String = "1",
+    val jacketQty: String = "1",
+    val shoesQty: String = "1",
     val selectedOrderId: Long? = null,
     val selectedOrderItems: List<ClothesOrderItemListItem> = emptyList(),
     val editor: ClothesOrderDraft = ClothesOrderDraft(),
@@ -94,6 +103,7 @@ data class ClothesOrdersUiState(
     val actionMessage: String? = null,
     val isSaving: Boolean = false,
     val isSavingItem: Boolean = false,
+    val isCreatingStarterOrder: Boolean = false,
     val isExportingXlsx: Boolean = false,
 )
 

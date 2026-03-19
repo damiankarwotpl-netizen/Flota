@@ -2,10 +2,13 @@ package com.future.ultimate.admin.ui.screen
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.weight
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
@@ -64,18 +67,66 @@ fun ClothesScreen() {
                         }
                     }
                     1 -> {
+                        Text("Generator zamówienia startowego na bazie pracowników i zapisanych rozmiarów")
                         OutlinedTextField(ordersUiState.editor.date, { ordersViewModel.updateEditor(ordersUiState.editor.copy(date = it)) }, label = { Text("Data (YYYY-MM-DD)") }, modifier = Modifier.fillMaxWidth())
                         OutlinedTextField(ordersUiState.editor.plant, { ordersViewModel.updateEditor(ordersUiState.editor.copy(plant = it)) }, label = { Text("Zakład") }, modifier = Modifier.fillMaxWidth())
                         OutlinedTextField(ordersUiState.editor.status, { ordersViewModel.updateEditor(ordersUiState.editor.copy(status = it)) }, label = { Text("Status") }, modifier = Modifier.fillMaxWidth())
                         OutlinedTextField(ordersUiState.editor.orderDesc, { ordersViewModel.updateEditor(ordersUiState.editor.copy(orderDesc = it)) }, label = { Text("Opis zamówienia") }, modifier = Modifier.fillMaxWidth(), minLines = 3)
+                        OutlinedTextField(
+                            ordersUiState.workerQuery,
+                            ordersViewModel::updateWorkerQuery,
+                            label = { Text("Filtruj pracowników do zestawu startowego") },
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                        Row(modifier = Modifier.fillMaxWidth()) {
+                            OutlinedTextField(
+                                ordersUiState.shirtQty,
+                                { ordersViewModel.updateStarterQuantities(shirtQty = it) },
+                                label = { Text("Koszulka") },
+                                modifier = Modifier.weight(1f),
+                            )
+                            OutlinedTextField(
+                                ordersUiState.hoodieQty,
+                                { ordersViewModel.updateStarterQuantities(hoodieQty = it) },
+                                label = { Text("Bluza") },
+                                modifier = Modifier.weight(1f),
+                            )
+                        }
+                        Row(modifier = Modifier.fillMaxWidth()) {
+                            OutlinedTextField(
+                                ordersUiState.pantsQty,
+                                { ordersViewModel.updateStarterQuantities(pantsQty = it) },
+                                label = { Text("Spodnie") },
+                                modifier = Modifier.weight(1f),
+                            )
+                            OutlinedTextField(
+                                ordersUiState.jacketQty,
+                                { ordersViewModel.updateStarterQuantities(jacketQty = it) },
+                                label = { Text("Kurtka") },
+                                modifier = Modifier.weight(1f),
+                            )
+                            OutlinedTextField(
+                                ordersUiState.shoesQty,
+                                { ordersViewModel.updateStarterQuantities(shoesQty = it) },
+                                label = { Text("Buty") },
+                                modifier = Modifier.weight(1f),
+                            )
+                        }
+                        Text("Wybierz pracowników, a aplikacja utworzy pozycje Koszulka/Bluza/Spodnie/Kurtka/Buty z ich zapisanymi rozmiarami.")
+                        Button(onClick = ordersViewModel::createStarterOrder, modifier = Modifier.fillMaxWidth()) {
+                            Text(if (ordersUiState.isCreatingStarterOrder) "Tworzenie zamówienia..." else "Utwórz zamówienie startowe")
+                        }
                         Button(onClick = ordersViewModel::save, modifier = Modifier.fillMaxWidth()) {
-                            Text(if (ordersUiState.isSaving) "Zapisywanie..." else if (ordersUiState.editor.id == null) "Nowe zamówienie" else "Zapisz zmiany zamówienia")
+                            Text(if (ordersUiState.isSaving) "Zapisywanie..." else if (ordersUiState.editor.id == null) "Zapisz pusty nagłówek zamówienia" else "Zapisz zmiany zamówienia")
                         }
                         if (ordersUiState.editor.id != null) {
                             Button(onClick = ordersViewModel::clearOrderEditor, modifier = Modifier.fillMaxWidth()) { Text("Anuluj edycję zamówienia") }
                         }
+                        if (ordersUiState.selectedWorkerIds.isNotEmpty()) {
+                            Button(onClick = ordersViewModel::clearStarterSelection, modifier = Modifier.fillMaxWidth()) { Text("Wyczyść wybór pracowników") }
+                        }
                         ordersUiState.actionMessage?.let { Text(it) }
-                        Text("Po zapisaniu zamówienia rozwiń kartę poniżej, aby dodać pozycje i oznaczyć status.")
+                        Text("Po zapisaniu lub wygenerowaniu zamówienia rozwiń kartę poniżej, aby dodać pozycje ręcznie i oznaczyć status.")
                     }
                     else -> {
                         Button(onClick = reportsViewModel::exportCsv, modifier = Modifier.fillMaxWidth()) {
@@ -110,93 +161,125 @@ fun ClothesScreen() {
                     }
                 }
             }
-            1 -> ordersUiState.items.forEach { itemData ->
+            1 -> {
+                val workerFilter = ordersUiState.workerQuery.trim().lowercase()
+                val visibleWorkers = ordersUiState.availableWorkers.filter { worker ->
+                    workerFilter.isBlank() || listOf(worker.name, worker.surname, worker.plant).joinToString(" ").lowercase().contains(workerFilter)
+                }
                 item {
                     Card(modifier = Modifier.fillMaxWidth()) {
                         Column(modifier = Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                            Text("${itemData.date} • ${itemData.plant.ifBlank { "Bez zakładu" }}")
-                            Text("Status: ${itemData.status}")
-                            Text(if (itemData.orderDesc.isBlank()) "Brak opisu" else itemData.orderDesc)
-                            Button(onClick = { ordersViewModel.editOrder(itemData) }, modifier = Modifier.fillMaxWidth()) {
-                                Text("Edytuj nagłówek zamówienia")
-                            }
-                            Button(onClick = { ordersViewModel.toggleOrderSelection(itemData.id) }, modifier = Modifier.fillMaxWidth()) {
-                                Text(if (ordersUiState.selectedOrderId == itemData.id) "Ukryj pozycje" else "Pokaż pozycje")
-                            }
-                            Button(onClick = { ordersViewModel.markOrdered(itemData.id) }, modifier = Modifier.fillMaxWidth()) {
-                                Text("Oznacz jako zamówione")
-                            }
-                            Button(onClick = { ordersViewModel.issueAll(itemData.id) }, modifier = Modifier.fillMaxWidth()) {
-                                Text("Wydaj wszystkie pozycje")
-                            }
-                            Button(onClick = { ordersViewModel.exportOrderCsv(itemData.id) }, modifier = Modifier.fillMaxWidth()) {
-                                Text("Eksport CSV zamówienia")
-                            }
-                            Button(
-                                onClick = { ordersViewModel.exportOrderXlsx(itemData.id) },
-                                modifier = Modifier.fillMaxWidth(),
-                            ) {
-                                Text(if (ordersUiState.isExportingXlsx) "Eksportowanie XLSX..." else "Eksport XLSX zamówienia")
-                            }
-                            Button(onClick = { ordersViewModel.deleteOrder(itemData.id) }, modifier = Modifier.fillMaxWidth()) {
-                                Text("Usuń zamówienie")
-                            }
-                            if (ordersUiState.selectedOrderId == itemData.id) {
-                                OutlinedTextField(
-                                    ordersUiState.itemEditor.name,
-                                    { ordersViewModel.updateItemEditor(ordersUiState.itemEditor.copy(name = it)) },
-                                    label = { Text("Imię pracownika") },
-                                    modifier = Modifier.fillMaxWidth(),
-                                )
-                                OutlinedTextField(
-                                    ordersUiState.itemEditor.surname,
-                                    { ordersViewModel.updateItemEditor(ordersUiState.itemEditor.copy(surname = it)) },
-                                    label = { Text("Nazwisko pracownika") },
-                                    modifier = Modifier.fillMaxWidth(),
-                                )
-                                OutlinedTextField(
-                                    ordersUiState.itemEditor.item,
-                                    { ordersViewModel.updateItemEditor(ordersUiState.itemEditor.copy(item = it)) },
-                                    label = { Text("Pozycja") },
-                                    modifier = Modifier.fillMaxWidth(),
-                                )
-                                OutlinedTextField(
-                                    ordersUiState.itemEditor.size,
-                                    { ordersViewModel.updateItemEditor(ordersUiState.itemEditor.copy(size = it)) },
-                                    label = { Text("Rozmiar (opcjonalnie)") },
-                                    modifier = Modifier.fillMaxWidth(),
-                                )
-                                OutlinedTextField(
-                                    ordersUiState.itemEditor.qty,
-                                    { ordersViewModel.updateItemEditor(ordersUiState.itemEditor.copy(qty = it)) },
-                                    label = { Text("Ilość") },
-                                    modifier = Modifier.fillMaxWidth(),
-                                )
-                                Text("Gdy rozmiar zostanie pusty, aplikacja spróbuje pobrać go z zapisanych rozmiarów pracownika.")
-                                Button(onClick = ordersViewModel::saveItem, modifier = Modifier.fillMaxWidth()) {
-                                    Text(if (ordersUiState.isSavingItem) "Zapisywanie pozycji..." else if (ordersUiState.itemEditor.id == null) "Dodaj pozycję" else "Zapisz zmiany pozycji")
+                            Text("Pracownicy do zestawu startowego: ${ordersUiState.selectedWorkerIds.size} / ${visibleWorkers.size}")
+                            if (visibleWorkers.isEmpty()) {
+                                Text("Brak pracowników pasujących do filtra.")
+                            } else {
+                                visibleWorkers.forEach { worker ->
+                                    Row(modifier = Modifier.fillMaxWidth()) {
+                                        Checkbox(
+                                            checked = worker.id in ordersUiState.selectedWorkerIds,
+                                            onCheckedChange = { ordersViewModel.toggleWorkerSelection(worker.id) },
+                                        )
+                                        Column(modifier = Modifier.weight(1f).padding(top = 12.dp)) {
+                                            Text("${worker.name} ${worker.surname} • ${worker.plant.ifBlank { "Bez zakładu" }}")
+                                            Text(
+                                                "Koszulka ${worker.shirt.ifBlank { "-" }}, Bluza ${worker.hoodie.ifBlank { "-" }}, " +
+                                                    "Spodnie ${worker.pants.ifBlank { "-" }}, Kurtka ${worker.jacket.ifBlank { "-" }}, Buty ${worker.shoes.ifBlank { "-" }}",
+                                            )
+                                        }
+                                    }
                                 }
-                                if (ordersUiState.itemEditor.id != null) {
-                                    Button(onClick = ordersViewModel::clearItemEditor, modifier = Modifier.fillMaxWidth()) { Text("Anuluj edycję pozycji") }
+                            }
+                        }
+                    }
+                }
+                ordersUiState.items.forEach { itemData ->
+                    item {
+                        Card(modifier = Modifier.fillMaxWidth()) {
+                            Column(modifier = Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                Text("${itemData.date} • ${itemData.plant.ifBlank { "Bez zakładu" }}")
+                                Text("Status: ${itemData.status}")
+                                Text(if (itemData.orderDesc.isBlank()) "Brak opisu" else itemData.orderDesc)
+                                Button(onClick = { ordersViewModel.editOrder(itemData) }, modifier = Modifier.fillMaxWidth()) {
+                                    Text("Edytuj nagłówek zamówienia")
                                 }
-                                ordersUiState.selectedOrderItems.forEach { orderItem ->
-                                    Card(modifier = Modifier.fillMaxWidth()) {
-                                        Column(modifier = Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                            Text("${orderItem.name} ${orderItem.surname}".trim().ifBlank { "Pracownik nieuzupełniony" })
-                                            Text("${orderItem.item} • rozmiar: ${orderItem.size.ifBlank { "-" }} • ilość: ${orderItem.qty}")
-                                            Text(if (orderItem.issued) "Status pozycji: wydane" else "Status pozycji: niewydane")
-                                            Button(onClick = { ordersViewModel.editItem(orderItem) }, modifier = Modifier.fillMaxWidth()) {
-                                                Text("Edytuj pozycję")
-                                            }
-                                            Button(
-                                                onClick = { ordersViewModel.issueItem(orderItem.id) },
-                                                modifier = Modifier.fillMaxWidth(),
-                                                enabled = !orderItem.issued,
-                                            ) {
-                                                Text(if (orderItem.issued) "Pozycja wydana" else "Wydaj pozycję")
-                                            }
-                                            Button(onClick = { ordersViewModel.deleteItem(orderItem.id) }, modifier = Modifier.fillMaxWidth()) {
-                                                Text("Usuń pozycję")
+                                Button(onClick = { ordersViewModel.toggleOrderSelection(itemData.id) }, modifier = Modifier.fillMaxWidth()) {
+                                    Text(if (ordersUiState.selectedOrderId == itemData.id) "Ukryj pozycje" else "Pokaż pozycje")
+                                }
+                                Button(onClick = { ordersViewModel.markOrdered(itemData.id) }, modifier = Modifier.fillMaxWidth()) {
+                                    Text("Oznacz jako zamówione")
+                                }
+                                Button(onClick = { ordersViewModel.issueAll(itemData.id) }, modifier = Modifier.fillMaxWidth()) {
+                                    Text("Wydaj wszystkie pozycje")
+                                }
+                                Button(onClick = { ordersViewModel.exportOrderCsv(itemData.id) }, modifier = Modifier.fillMaxWidth()) {
+                                    Text("Eksport CSV zamówienia")
+                                }
+                                Button(
+                                    onClick = { ordersViewModel.exportOrderXlsx(itemData.id) },
+                                    modifier = Modifier.fillMaxWidth(),
+                                ) {
+                                    Text(if (ordersUiState.isExportingXlsx) "Eksportowanie XLSX..." else "Eksport XLSX zamówienia")
+                                }
+                                Button(onClick = { ordersViewModel.deleteOrder(itemData.id) }, modifier = Modifier.fillMaxWidth()) {
+                                    Text("Usuń zamówienie")
+                                }
+                                if (ordersUiState.selectedOrderId == itemData.id) {
+                                    OutlinedTextField(
+                                        ordersUiState.itemEditor.name,
+                                        { ordersViewModel.updateItemEditor(ordersUiState.itemEditor.copy(name = it)) },
+                                        label = { Text("Imię pracownika") },
+                                        modifier = Modifier.fillMaxWidth(),
+                                    )
+                                    OutlinedTextField(
+                                        ordersUiState.itemEditor.surname,
+                                        { ordersViewModel.updateItemEditor(ordersUiState.itemEditor.copy(surname = it)) },
+                                        label = { Text("Nazwisko pracownika") },
+                                        modifier = Modifier.fillMaxWidth(),
+                                    )
+                                    OutlinedTextField(
+                                        ordersUiState.itemEditor.item,
+                                        { ordersViewModel.updateItemEditor(ordersUiState.itemEditor.copy(item = it)) },
+                                        label = { Text("Pozycja") },
+                                        modifier = Modifier.fillMaxWidth(),
+                                    )
+                                    OutlinedTextField(
+                                        ordersUiState.itemEditor.size,
+                                        { ordersViewModel.updateItemEditor(ordersUiState.itemEditor.copy(size = it)) },
+                                        label = { Text("Rozmiar (opcjonalnie)") },
+                                        modifier = Modifier.fillMaxWidth(),
+                                    )
+                                    OutlinedTextField(
+                                        ordersUiState.itemEditor.qty,
+                                        { ordersViewModel.updateItemEditor(ordersUiState.itemEditor.copy(qty = it)) },
+                                        label = { Text("Ilość") },
+                                        modifier = Modifier.fillMaxWidth(),
+                                    )
+                                    Text("Gdy rozmiar zostanie pusty, aplikacja spróbuje pobrać go z zapisanych rozmiarów pracownika.")
+                                    Button(onClick = ordersViewModel::saveItem, modifier = Modifier.fillMaxWidth()) {
+                                        Text(if (ordersUiState.isSavingItem) "Zapisywanie pozycji..." else if (ordersUiState.itemEditor.id == null) "Dodaj pozycję" else "Zapisz zmiany pozycji")
+                                    }
+                                    if (ordersUiState.itemEditor.id != null) {
+                                        Button(onClick = ordersViewModel::clearItemEditor, modifier = Modifier.fillMaxWidth()) { Text("Anuluj edycję pozycji") }
+                                    }
+                                    ordersUiState.selectedOrderItems.forEach { orderItem ->
+                                        Card(modifier = Modifier.fillMaxWidth()) {
+                                            Column(modifier = Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                                Text("${orderItem.name} ${orderItem.surname}".trim().ifBlank { "Pracownik nieuzupełniony" })
+                                                Text("${orderItem.item} • rozmiar: ${orderItem.size.ifBlank { "-" }} • ilość: ${orderItem.qty}")
+                                                Text(if (orderItem.issued) "Status pozycji: wydane" else "Status pozycji: niewydane")
+                                                Button(onClick = { ordersViewModel.editItem(orderItem) }, modifier = Modifier.fillMaxWidth()) {
+                                                    Text("Edytuj pozycję")
+                                                }
+                                                Button(
+                                                    onClick = { ordersViewModel.issueItem(orderItem.id) },
+                                                    modifier = Modifier.fillMaxWidth(),
+                                                    enabled = !orderItem.issued,
+                                                ) {
+                                                    Text(if (orderItem.issued) "Pozycja wydana" else "Wydaj pozycję")
+                                                }
+                                                Button(onClick = { ordersViewModel.deleteItem(orderItem.id) }, modifier = Modifier.fillMaxWidth()) {
+                                                    Text("Usuń pozycję")
+                                                }
                                             }
                                         }
                                     }

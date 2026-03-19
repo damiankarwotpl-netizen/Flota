@@ -16,6 +16,7 @@ import com.future.ultimate.core.common.repository.CarListItem
 import com.future.ultimate.core.common.repository.ClothesOrderXlsxExport
 import com.future.ultimate.core.common.repository.ClothesOrderItemListItem
 import com.future.ultimate.core.common.repository.ClothesOrderListItem
+import com.future.ultimate.core.common.repository.ClothesOrderWorkerListItem
 import com.future.ultimate.core.common.repository.ClothesSizeListItem
 import com.future.ultimate.core.common.repository.ClothesHistoryListItem
 import com.future.ultimate.core.common.repository.ContactListItem
@@ -314,6 +315,25 @@ class LocalAdminRepository(
         dao.deleteClothesOrder(orderId)
     }
 
+    override fun observeClothesOrderWorkers(): Flow<List<ClothesOrderWorkerListItem>> =
+        dao.observeWorkers().combine(dao.observeClothesSizes()) { workers, sizes ->
+            val sizeByWorker = sizes.associateBy { "${it.name.trim().lowercase()}|${it.surname.trim().lowercase()}" }
+            workers.map { worker ->
+                val size = sizeByWorker["${worker.name.trim().lowercase()}|${worker.surname.trim().lowercase()}"]
+                ClothesOrderWorkerListItem(
+                    id = worker.id,
+                    name = worker.name,
+                    surname = worker.surname,
+                    plant = worker.plant.ifBlank { size?.plant.orEmpty() },
+                    shirt = size?.shirt.orEmpty(),
+                    hoodie = size?.hoodie.orEmpty(),
+                    pants = size?.pants.orEmpty(),
+                    jacket = size?.jacket.orEmpty(),
+                    shoes = size?.shoes.orEmpty(),
+                )
+            }.sortedWith(compareBy({ it.surname.lowercase() }, { it.name.lowercase() }))
+        }
+
     override fun observeClothesOrderItems(orderId: Long): Flow<List<ClothesOrderItemListItem>> =
         dao.observeClothesOrderItems(orderId).map { items ->
             items.map {
@@ -363,6 +383,66 @@ class LocalAdminRepository(
                 ),
             ),
         )
+    }
+
+    override suspend fun createClothesOrderStarter(
+        draft: ClothesOrderDraft,
+        workerIds: Set<Long>,
+        shirtQty: Int,
+        hoodieQty: Int,
+        pantsQty: Int,
+        jacketQty: Int,
+        shoesQty: Int,
+    ): Long? {
+        val selectedWorkers = dao.observeWorkers().first().filter { it.id in workerIds }
+        if (selectedWorkers.isEmpty()) return null
+
+        val sizeByWorker = dao.observeClothesSizes().first().associateBy {
+            "${it.name.trim().lowercase()}|${it.surname.trim().lowercase()}"
+        }
+        val inferredPlant = selectedWorkers.map { it.plant.trim() }.filter { it.isNotBlank() }.distinct().singleOrNull().orEmpty()
+
+        val orderId = dao.upsertClothesOrder(
+            ClothesOrderEntity(
+                id = 0,
+                date = draft.date.ifBlank { LocalDate.now().toString() },
+                plant = draft.plant.trim().ifBlank { inferredPlant },
+                status = draft.status.trim().ifBlank { "Nowe" },
+                orderDesc = draft.orderDesc.trim(),
+            ),
+        )
+
+        val items = buildList {
+            selectedWorkers.forEach { worker ->
+                val size = sizeByWorker["${worker.name.trim().lowercase()}|${worker.surname.trim().lowercase()}"]
+                fun addItem(label: String, itemSize: String, qty: Int) {
+                    if (qty <= 0) return
+                    add(
+                        ClothesOrderItemEntity(
+                            orderId = orderId,
+                            workerId = worker.id,
+                            name = worker.name.trim(),
+                            surname = worker.surname.trim(),
+                            item = label,
+                            size = itemSize,
+                            qty = qty,
+                            issued = 0,
+                        ),
+                    )
+                }
+                addItem("Koszulka", size?.shirt.orEmpty(), shirtQty)
+                addItem("Bluza", size?.hoodie.orEmpty(), hoodieQty)
+                addItem("Spodnie", size?.pants.orEmpty(), pantsQty)
+                addItem("Kurtka", size?.jacket.orEmpty(), jacketQty)
+                addItem("Buty", size?.shoes.orEmpty(), shoesQty)
+            }
+        }
+        if (items.isEmpty()) {
+            dao.deleteClothesOrder(orderId)
+            return null
+        }
+        dao.upsertClothesOrderItems(items)
+        return orderId
     }
 
     override suspend fun deleteClothesOrderItem(id: Long) = dao.deleteClothesOrderItem(id)

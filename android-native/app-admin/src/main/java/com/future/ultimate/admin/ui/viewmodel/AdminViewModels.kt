@@ -341,10 +341,53 @@ class ClothesOrdersViewModel(private val repository: AdminRepository) : ViewMode
     val uiState: StateFlow<ClothesOrdersUiState> = _uiState.asStateFlow()
     private var orderItemsJob: Job? = null
 
-    init { repository.observeClothesOrders().onEach { _uiState.value = _uiState.value.copy(items = it) }.launchIn(viewModelScope) }
+    init {
+        repository.observeClothesOrders().onEach { _uiState.value = _uiState.value.copy(items = it) }.launchIn(viewModelScope)
+        repository.observeClothesOrderWorkers().onEach { workers ->
+            _uiState.value = _uiState.value.copy(availableWorkers = workers)
+        }.launchIn(viewModelScope)
+    }
 
     fun updateEditor(draft: ClothesOrderDraft) { _uiState.value = _uiState.value.copy(editor = draft, actionMessage = null) }
     fun updateItemEditor(draft: ClothesOrderItemDraft) { _uiState.value = _uiState.value.copy(itemEditor = draft, actionMessage = null) }
+    fun updateWorkerQuery(value: String) { _uiState.value = _uiState.value.copy(workerQuery = value, actionMessage = null) }
+    fun updateStarterQuantities(
+        shirtQty: String = _uiState.value.shirtQty,
+        hoodieQty: String = _uiState.value.hoodieQty,
+        pantsQty: String = _uiState.value.pantsQty,
+        jacketQty: String = _uiState.value.jacketQty,
+        shoesQty: String = _uiState.value.shoesQty,
+    ) {
+        _uiState.value = _uiState.value.copy(
+            shirtQty = shirtQty,
+            hoodieQty = hoodieQty,
+            pantsQty = pantsQty,
+            jacketQty = jacketQty,
+            shoesQty = shoesQty,
+            actionMessage = null,
+        )
+    }
+
+    fun toggleWorkerSelection(workerId: Long) {
+        val selected = _uiState.value.selectedWorkerIds
+        _uiState.value = _uiState.value.copy(
+            selectedWorkerIds = if (workerId in selected) selected - workerId else selected + workerId,
+            actionMessage = null,
+        )
+    }
+
+    fun clearStarterSelection() {
+        _uiState.value = _uiState.value.copy(
+            workerQuery = "",
+            selectedWorkerIds = emptySet(),
+            shirtQty = "1",
+            hoodieQty = "1",
+            pantsQty = "1",
+            jacketQty = "1",
+            shoesQty = "1",
+            actionMessage = null,
+        )
+    }
 
     fun save() = viewModelScope.launch {
         val isEditing = _uiState.value.editor.id != null
@@ -354,6 +397,51 @@ class ClothesOrdersViewModel(private val repository: AdminRepository) : ViewMode
             isSaving = false,
             editor = ClothesOrderDraft(),
             actionMessage = if (isEditing) "Zamówienie zaktualizowane" else "Zamówienie zapisane",
+        )
+    }
+
+    fun createStarterOrder() = viewModelScope.launch {
+        val state = _uiState.value
+        if (state.selectedWorkerIds.isEmpty()) {
+            _uiState.value = state.copy(actionMessage = "Wybierz co najmniej jednego pracownika do zestawu startowego")
+            return@launch
+        }
+        val quantities = listOf(
+            state.shirtQty.toIntOrNull()?.coerceAtLeast(0) ?: 0,
+            state.hoodieQty.toIntOrNull()?.coerceAtLeast(0) ?: 0,
+            state.pantsQty.toIntOrNull()?.coerceAtLeast(0) ?: 0,
+            state.jacketQty.toIntOrNull()?.coerceAtLeast(0) ?: 0,
+            state.shoesQty.toIntOrNull()?.coerceAtLeast(0) ?: 0,
+        )
+        if (quantities.all { it == 0 }) {
+            _uiState.value = state.copy(actionMessage = "Ustaw ilość większą od zera dla przynajmniej jednej pozycji")
+            return@launch
+        }
+        _uiState.value = state.copy(isCreatingStarterOrder = true, actionMessage = null)
+        val orderId = repository.createClothesOrderStarter(
+            draft = state.editor,
+            workerIds = state.selectedWorkerIds,
+            shirtQty = quantities[0],
+            hoodieQty = quantities[1],
+            pantsQty = quantities[2],
+            jacketQty = quantities[3],
+            shoesQty = quantities[4],
+        )
+        _uiState.value = _uiState.value.copy(
+            isCreatingStarterOrder = false,
+            editor = ClothesOrderDraft(),
+            workerQuery = "",
+            selectedWorkerIds = emptySet(),
+            shirtQty = "1",
+            hoodieQty = "1",
+            pantsQty = "1",
+            jacketQty = "1",
+            shoesQty = "1",
+            actionMessage = if (orderId == null) {
+                "Nie udało się zbudować zamówienia — sprawdź pracowników i ilości"
+            } else {
+                "Utworzono zamówienie startowe #$orderId"
+            },
         )
     }
 
