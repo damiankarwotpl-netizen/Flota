@@ -59,7 +59,7 @@ jobs:
 
       - name: Build debug APKs
         if: ${{ github.event.inputs.build_type != 'release' }}
-        run: gradle :app-admin:assembleDebug :app-driver:assembleDebug --stacktrace --no-daemon
+        run: gradle clean :app-admin:assembleDebug :app-driver:assembleDebug --stacktrace --no-daemon --console=plain
 
       - name: Build release APKs
         if: ${{ github.event.inputs.build_type == 'release' }}
@@ -68,7 +68,7 @@ jobs:
           FLOTA_RELEASE_STORE_PASSWORD: ${{ secrets.FLOTA_RELEASE_STORE_PASSWORD }}
           FLOTA_RELEASE_KEY_ALIAS: ${{ secrets.FLOTA_RELEASE_KEY_ALIAS }}
           FLOTA_RELEASE_KEY_PASSWORD: ${{ secrets.FLOTA_RELEASE_KEY_PASSWORD }}
-        run: gradle :app-admin:assembleRelease :app-driver:assembleRelease --stacktrace --no-daemon
+        run: gradle clean :app-admin:assembleRelease :app-driver:assembleRelease --stacktrace --no-daemon --console=plain
 
       - name: Upload admin APKs
         if: always()
@@ -84,4 +84,14 @@ jobs:
         with:
           name: native-driver-apk-${{ github.event.inputs.build_type || 'debug' }}
           path: android-native/app-driver/build/outputs/apk/**/*.apk
+          if-no-files-found: warn
+
+      - name: Upload Gradle problem reports
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-gradle-problem-reports
+          path: |
+            android-native/build/reports/problems/**
+            android-native/**/build/reports/**
           if-no-files-found: warn
