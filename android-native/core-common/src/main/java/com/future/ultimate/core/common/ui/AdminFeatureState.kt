@@ -112,6 +112,7 @@ data class ClothesOrdersUiState(
     val isSaving: Boolean = false,
     val isSavingItem: Boolean = false,
     val isCreatingStarterOrder: Boolean = false,
+    val isExportingPdf: Boolean = false,
     val isExportingXlsx: Boolean = false,
 )
 

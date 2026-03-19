@@ -612,6 +612,15 @@ class ClothesOrdersViewModel(private val repository: AdminRepository) : ViewMode
         _uiState.value = _uiState.value.copy(actionMessage = if (path.isBlank()) "Nie znaleziono zamówienia" else "CSV zamówienia: $path")
     }
 
+    fun exportOrderPdf(orderId: Long) = viewModelScope.launch {
+        _uiState.value = _uiState.value.copy(isExportingPdf = true, actionMessage = null)
+        val path = repository.exportClothesOrderPdf(orderId)
+        _uiState.value = _uiState.value.copy(
+            isExportingPdf = false,
+            actionMessage = if (path.isBlank()) "Nie znaleziono pozycji do eksportu PDF" else "PDF zamówienia: $path",
+        )
+    }
+
     fun exportOrderXlsx(orderId: Long) = viewModelScope.launch {
         _uiState.value = _uiState.value.copy(isExportingXlsx = true, actionMessage = null)
         val export = repository.exportClothesOrderXlsx(orderId)

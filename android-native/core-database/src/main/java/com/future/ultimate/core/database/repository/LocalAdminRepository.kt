@@ -10,6 +10,7 @@ import com.future.ultimate.core.common.model.PlantDraft
 import com.future.ultimate.core.common.model.VehicleReportDraft
 import com.future.ultimate.core.common.model.WorkerDraft
 import com.future.ultimate.core.common.export.SimpleXlsxWorkbookWriter
+import com.future.ultimate.core.common.pdf.ClothesOrderPdfExporter
 import com.future.ultimate.core.common.pdf.VehicleReportPdfExporter
 import com.future.ultimate.core.common.repository.AdminRepository
 import com.future.ultimate.core.common.repository.CarListItem
@@ -486,6 +487,33 @@ class LocalAdminRepository(
             dao.updateClothesOrderItemIssued(item.id, 1)
         }
         refreshClothesOrderIssueStatus(orderId)
+    }
+
+    override suspend fun exportClothesOrderPdf(orderId: Long): String {
+        val order = dao.getClothesOrder(orderId) ?: return ""
+        val items = dao.getClothesOrderItems(orderId).map {
+            ClothesOrderItemListItem(
+                id = it.id,
+                orderId = it.orderId,
+                workerId = it.workerId,
+                name = it.name,
+                surname = it.surname,
+                item = it.item,
+                size = it.size,
+                qty = it.qty,
+                issued = it.issued != 0,
+            )
+        }
+        if (items.isEmpty()) return ""
+        return ClothesOrderPdfExporter.export(
+            context = context,
+            orderId = order.id,
+            date = order.date,
+            plant = order.plant,
+            status = order.status,
+            description = order.orderDesc,
+            items = items,
+        )
     }
 
     override suspend fun exportClothesOrderCsv(orderId: Long): String {
