@@ -33,7 +33,7 @@ data class ContactsUiState(
 
 data class CarsUiState(
     val query: String = "",
-    val showServiceOnly: Boolean = false,
+    val serviceFilter: CarsServiceFilter = CarsServiceFilter.All,
     val items: List<CarListItem> = emptyList(),
     val editor: CarDraft = CarDraft(),
     val driverSuggestions: List<String> = emptyList(),
@@ -43,6 +43,12 @@ data class CarsUiState(
     val actionInFlightId: Long? = null,
     val actionMessage: String? = null,
 )
+
+enum class CarsServiceFilter {
+    All,
+    DueSoon,
+    Urgent,
+}
 
 data class VehicleReportUiState(
     val draft: VehicleReportDraft = VehicleReportDraft(),

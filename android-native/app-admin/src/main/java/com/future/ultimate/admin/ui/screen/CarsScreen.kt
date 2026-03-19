@@ -18,12 +18,16 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.future.ultimate.admin.AdminApp
 import com.future.ultimate.admin.ui.viewmodel.AdminViewModelFactory
 import com.future.ultimate.admin.ui.viewmodel.CarsViewModel
+import com.future.ultimate.core.common.ui.CarsServiceFilter
 
 @Composable
 fun CarsScreen() {
     val app = LocalContext.current.applicationContext as AdminApp
     val viewModel: CarsViewModel = viewModel(factory = AdminViewModelFactory(app.container.repository))
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val urgentCars = uiState.items.count { it.remainingToService <= 0 }
+    val dueSoonCars = uiState.items.count { it.remainingToService in 1..3000 }
+    val okCars = uiState.items.count { it.remainingToService > 3000 }
 
     ScreenColumn("Samochody", "Flota pojazdów • szybkie akcje") {
         item {
@@ -34,8 +38,19 @@ fun CarsScreen() {
                     label = { Text("Szukaj: nazwa / rejestracja / kierowca") },
                     modifier = Modifier.fillMaxWidth(),
                 )
-                Button(onClick = viewModel::toggleServiceFilter, modifier = Modifier.fillMaxWidth()) {
-                    Text(if (uiState.showServiceOnly) "Pokaż całą flotę" else "Pokaż tylko auta do serwisu")
+                Card(modifier = Modifier.fillMaxWidth()) {
+                    Column(modifier = Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Text("Serwis — pilne: $urgentCars • wkrótce: $dueSoonCars • OK: $okCars")
+                        Button(onClick = viewModel::cycleServiceFilter, modifier = Modifier.fillMaxWidth()) {
+                            Text(
+                                when (uiState.serviceFilter) {
+                                    CarsServiceFilter.All -> "Filtr serwisu: wszystkie auta"
+                                    CarsServiceFilter.DueSoon -> "Filtr serwisu: do serwisu wkrótce"
+                                    CarsServiceFilter.Urgent -> "Filtr serwisu: tylko pilne"
+                                },
+                            )
+                        }
+                    }
                 }
                 OutlinedTextField(
                     value = uiState.editor.name,
@@ -86,7 +101,11 @@ fun CarsScreen() {
             .filter {
                 val blob = "${it.name} ${it.registration} ${it.driver}".lowercase()
                 val matchesQuery = uiState.query.isBlank() || uiState.query.lowercase() in blob
-                val matchesService = !uiState.showServiceOnly || carNeedsService(it.remainingToService)
+                val matchesService = when (uiState.serviceFilter) {
+                    CarsServiceFilter.All -> true
+                    CarsServiceFilter.DueSoon -> carNeedsService(it.remainingToService)
+                    CarsServiceFilter.Urgent -> it.remainingToService <= 0
+                }
                 matchesQuery && matchesService
             }
             .forEach { car ->

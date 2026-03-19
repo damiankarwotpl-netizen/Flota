@@ -22,6 +22,7 @@ import com.future.ultimate.core.common.ui.ClothesOrdersUiState
 import com.future.ultimate.core.common.ui.ClothesReportsUiState
 import com.future.ultimate.core.common.ui.ClothesSizesUiState
 import com.future.ultimate.core.common.ui.ContactsUiState
+import com.future.ultimate.core.common.ui.CarsServiceFilter
 import com.future.ultimate.core.common.ui.PayrollUiState
 import com.future.ultimate.core.common.ui.PlantsUiState
 import com.future.ultimate.core.common.ui.ReportsUiState
@@ -87,7 +88,14 @@ class CarsViewModel(private val repository: AdminRepository) : ViewModel() {
     }
 
     fun updateQuery(value: String) { _uiState.value = _uiState.value.copy(query = value, actionMessage = null) }
-    fun toggleServiceFilter() { _uiState.value = _uiState.value.copy(showServiceOnly = !_uiState.value.showServiceOnly, actionMessage = null) }
+    fun cycleServiceFilter() {
+        val nextFilter = when (_uiState.value.serviceFilter) {
+            CarsServiceFilter.All -> CarsServiceFilter.DueSoon
+            CarsServiceFilter.DueSoon -> CarsServiceFilter.Urgent
+            CarsServiceFilter.Urgent -> CarsServiceFilter.All
+        }
+        _uiState.value = _uiState.value.copy(serviceFilter = nextFilter, actionMessage = null)
+    }
     fun updateEditor(draft: CarDraft) { _uiState.value = _uiState.value.copy(editor = draft, actionMessage = null) }
     fun applyEditorDriverSuggestion(driver: String) { _uiState.value = _uiState.value.copy(editor = _uiState.value.editor.copy(driver = driver), actionMessage = null) }
 
