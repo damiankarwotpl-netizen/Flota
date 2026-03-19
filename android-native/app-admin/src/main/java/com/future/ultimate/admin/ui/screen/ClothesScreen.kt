@@ -166,10 +166,37 @@ fun ClothesScreen() {
                 val visibleWorkers = ordersUiState.availableWorkers.filter { worker ->
                     workerFilter.isBlank() || listOf(worker.name, worker.surname, worker.plant).joinToString(" ").lowercase().contains(workerFilter)
                 }
+                val visibleWorkerIds = visibleWorkers.map { it.id }.toSet()
+                val selectedVisibleCount = visibleWorkers.count { it.id in ordersUiState.selectedWorkerIds }
+                val starterItemTemplates = listOf(
+                    ordersUiState.shirtQty.toIntOrNull()?.coerceAtLeast(0) ?: 0,
+                    ordersUiState.hoodieQty.toIntOrNull()?.coerceAtLeast(0) ?: 0,
+                    ordersUiState.pantsQty.toIntOrNull()?.coerceAtLeast(0) ?: 0,
+                    ordersUiState.jacketQty.toIntOrNull()?.coerceAtLeast(0) ?: 0,
+                    ordersUiState.shoesQty.toIntOrNull()?.coerceAtLeast(0) ?: 0,
+                ).count { it > 0 }
+                val estimatedItemCount = ordersUiState.selectedWorkerIds.size * starterItemTemplates
                 item {
                     Card(modifier = Modifier.fillMaxWidth()) {
                         Column(modifier = Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                             Text("Pracownicy do zestawu startowego: ${ordersUiState.selectedWorkerIds.size} / ${visibleWorkers.size}")
+                            Text("Zaznaczeni w bieżącym filtrze: $selectedVisibleCount • Szacowane pozycje: $estimatedItemCount")
+                            Row(modifier = Modifier.fillMaxWidth()) {
+                                Button(
+                                    onClick = { ordersViewModel.selectWorkers(visibleWorkerIds) },
+                                    modifier = Modifier.weight(1f),
+                                    enabled = visibleWorkerIds.isNotEmpty(),
+                                ) {
+                                    Text("Zaznacz filtr")
+                                }
+                                Button(
+                                    onClick = { ordersViewModel.unselectWorkers(visibleWorkerIds) },
+                                    modifier = Modifier.weight(1f),
+                                    enabled = visibleWorkerIds.isNotEmpty(),
+                                ) {
+                                    Text("Odznacz filtr")
+                                }
+                            }
                             if (visibleWorkers.isEmpty()) {
                                 Text("Brak pracowników pasujących do filtra.")
                             } else {
