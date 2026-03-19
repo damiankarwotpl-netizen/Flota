@@ -142,6 +142,18 @@ fun CarsScreen() {
                             Text("Kierowca: ${car.driver.ifBlank { "nieprzypisany" }}")
                             Text("Przebieg: ${car.mileage} km • ${serviceDistanceLabel(car.remainingToService)}")
                             Text("Status serwisu: $serviceStatus")
+                            Text(
+                                buildString {
+                                    append("Sync przebiegu: ")
+                                    append(car.lastMileageSyncStatus.ifBlank { "brak danych" })
+                                    if (car.pendingMileageSync) {
+                                        append(" • w kolejce: ${car.queuedMileage ?: "-"} km")
+                                    }
+                                },
+                            )
+                            if (car.lastMileageSyncAt.isNotBlank()) {
+                                Text("Ostatnia synchronizacja przebiegu: ${car.lastMileageSyncAt}")
+                            }
                             Button(onClick = { viewModel.editCar(car) }, modifier = Modifier.fillMaxWidth()) {
                                 Text("Edytuj samochód")
                             }

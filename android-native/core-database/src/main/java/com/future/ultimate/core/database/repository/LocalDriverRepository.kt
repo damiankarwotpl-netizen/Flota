@@ -3,6 +3,7 @@ package com.future.ultimate.core.database.repository
 import android.content.Context
 import com.future.ultimate.core.common.model.VehicleReportDraft
 import com.future.ultimate.core.common.pdf.VehicleReportPdfExporter
+import com.future.ultimate.core.common.repository.DriverMileageSyncState
 import com.future.ultimate.core.common.repository.DriverRepository
 import com.future.ultimate.core.common.repository.DriverSession
 import com.future.ultimate.core.database.dao.AppDao
@@ -10,6 +11,7 @@ import com.future.ultimate.core.database.entity.SettingEntity
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 
 class LocalDriverRepository(
     private val dao: AppDao,
@@ -18,6 +20,13 @@ class LocalDriverRepository(
     private val session = MutableStateFlow<DriverSession?>(null)
 
     override fun observeSession(): Flow<DriverSession?> = session.asStateFlow()
+    override fun observeMileageSyncState(): Flow<DriverMileageSyncState> =
+        session.combine(dao.observeSettings()) { currentSession, settings ->
+            DriverMileageSyncCoordinator.buildState(
+                settings = settings.associateBy({ it.key }, { it.valText }),
+                registration = currentSession?.registration,
+            )
+        }
 
     override suspend fun login(login: String, password: String): DriverSession {
         val account = dao.getDriverAccount(login.trim(), password)
@@ -51,9 +60,12 @@ class LocalDriverRepository(
     override suspend fun saveMileage(login: String, registration: String, mileage: Int) {
         val current = session.value ?: throw IllegalStateException("Brak aktywnej sesji kierowcy")
         val targetRegistration = registration.trim().ifBlank { current.registration }.uppercase()
-        dao.updateMileageByRegistration(targetRegistration, mileage.coerceAtLeast(0))
-        dao.upsertSetting(SettingEntity(key = "driver_last_mileage_${targetRegistration}", valText = mileage.coerceAtLeast(0).toString()))
+        DriverMileageSyncCoordinator.queueMileage(dao, targetRegistration, mileage.coerceAtLeast(0))
+        DriverMileageSyncCoordinator.flushPending(dao, targetRegistration)
     }
+
+    override suspend fun flushPendingMileageSync(): DriverMileageSyncState =
+        DriverMileageSyncCoordinator.flushPending(dao, session.value?.registration)
 
     override suspend fun saveVehicleReportDraft(draft: VehicleReportDraft) {
         val current = session.value ?: throw IllegalStateException("Brak aktywnej sesji kierowcy")

@@ -139,24 +139,38 @@ class LocalAdminRepository(
         dao.deleteClothesSizeByName(name, surname)
     }
 
-    override fun observeCars(): Flow<List<CarListItem>> = dao.observeCars().combine(dao.observeDriverAccounts()) { items, accounts ->
-        val accountsByRegistration = accounts.associateBy { it.registration.uppercase() }
-        items.map {
-            val driverAccount = accountsByRegistration[it.registration.uppercase()]
-            CarListItem(
-                id = it.id,
-                name = it.name,
-                registration = it.registration,
-                driver = it.driver,
-                mileage = it.mileage,
-                serviceInterval = it.serviceInterval,
-                lastService = it.lastService,
-                driverLogin = driverAccount?.login.orEmpty(),
-                driverPassword = driverAccount?.password.orEmpty(),
-                changePasswordRequired = driverAccount?.changePassword == 1,
-            )
-        }
-    }
+    override fun observeCars(): Flow<List<CarListItem>> =
+        dao.observeCars()
+            .combine(dao.observeDriverAccounts()) { items, accounts -> items to accounts }
+            .combine(dao.observeSettings()) { (items, accounts), settings ->
+                Triple(items, accounts, settings.associateBy({ it.key }, { it.valText }))
+            }
+            .map { (items, accounts, settings) ->
+                val accountsByRegistration = accounts.associateBy { it.registration.uppercase() }
+                items.map {
+                    val registrationKey = it.registration.uppercase()
+                    val driverAccount = accountsByRegistration[registrationKey]
+                    val queuedMileage = settings["driver_mileage_sync_pending_$registrationKey"]
+                        ?.substringBefore("|")
+                        ?.toIntOrNull()
+                    CarListItem(
+                        id = it.id,
+                        name = it.name,
+                        registration = it.registration,
+                        driver = it.driver,
+                        mileage = it.mileage,
+                        serviceInterval = it.serviceInterval,
+                        lastService = it.lastService,
+                        driverLogin = driverAccount?.login.orEmpty(),
+                        driverPassword = driverAccount?.password.orEmpty(),
+                        changePasswordRequired = driverAccount?.changePassword == 1,
+                        pendingMileageSync = queuedMileage != null,
+                        queuedMileage = queuedMileage,
+                        lastMileageSyncAt = settings["driver_mileage_sync_at_$registrationKey"].orEmpty(),
+                        lastMileageSyncStatus = settings["driver_mileage_sync_status_$registrationKey"].orEmpty(),
+                    )
+                }
+            }
 
     override suspend fun saveCar(draft: CarDraft) {
         val serviceInterval = draft.serviceInterval.toIntOrNull()?.coerceAtLeast(1) ?: 15000

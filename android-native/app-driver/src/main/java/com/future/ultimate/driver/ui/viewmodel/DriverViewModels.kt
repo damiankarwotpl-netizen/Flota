@@ -57,6 +57,16 @@ class DriverMileageViewModel(
                 )
             }
         }.launchIn(viewModelScope)
+        repository.observeMileageSyncState().onEach { syncState ->
+            _uiState.value = _uiState.value.copy(
+                pendingSyncCount = syncState.pendingCount,
+                queuedMileage = syncState.queuedMileage?.toString().orEmpty(),
+                lastAttemptAt = syncState.lastAttemptAt,
+                lastSyncedAt = syncState.lastSyncedAt,
+                syncStatus = syncState.status,
+                syncError = syncState.error,
+            )
+        }.launchIn(viewModelScope)
     }
 
     fun setRegistration(value: String) { _uiState.value = _uiState.value.copy(registration = value) }
@@ -72,11 +82,38 @@ class DriverMileageViewModel(
                     mileage = _uiState.value.mileage.toIntOrNull() ?: 0,
                 )
             }.onSuccess {
-                _uiState.value = _uiState.value.copy(isSaving = false, mileage = "", status = "Przebieg zapisany")
+                _uiState.value = _uiState.value.copy(
+                    isSaving = false,
+                    mileage = "",
+                    status = "Przebieg zapisany lokalnie i przekazany do kolejki synchronizacji",
+                )
             }.onFailure { error ->
                 _uiState.value = _uiState.value.copy(
                     isSaving = false,
                     status = error.message ?: "Nie udało się zapisać przebiegu",
+                )
+            }
+        }
+    }
+
+    fun flushSyncNow() {
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isSaving = true, status = "Trwa ręczna synchronizacja przebiegu...")
+            runCatching {
+                repository.flushPendingMileageSync()
+            }.onSuccess { state ->
+                _uiState.value = _uiState.value.copy(
+                    isSaving = false,
+                    status = if (state.pendingCount > 0) {
+                        "Kolejka nadal oczekuje: ${state.status}"
+                    } else {
+                        "Synchronizacja zakończona: ${state.status}"
+                    },
+                )
+            }.onFailure { error ->
+                _uiState.value = _uiState.value.copy(
+                    isSaving = false,
+                    status = error.message ?: "Ręczna synchronizacja nie powiodła się",
                 )
             }
         }
