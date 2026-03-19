@@ -26,6 +26,7 @@ import com.future.ultimate.core.common.repository.ContactListItem
 import com.future.ultimate.core.common.repository.DashboardStats
 import com.future.ultimate.core.common.repository.DriverAccountCredentials
 import com.future.ultimate.core.common.repository.EmailTemplateData
+import com.future.ultimate.core.common.repository.MailDispatchResult
 import com.future.ultimate.core.common.repository.PlantListItem
 import com.future.ultimate.core.common.repository.PayrollWorkbookRow
 import com.future.ultimate.core.common.repository.SessionReportListItem
@@ -40,19 +41,34 @@ import com.future.ultimate.core.database.entity.ClothesSizeEntity
 import com.future.ultimate.core.database.entity.ContactEntity
 import com.future.ultimate.core.database.entity.DriverAccountEntity
 import com.future.ultimate.core.database.entity.PlantEntity
+import com.future.ultimate.core.database.entity.ReportEntity
 import com.future.ultimate.core.database.entity.SettingEntity
 import com.future.ultimate.core.database.entity.WorkerEntity
 import java.io.File
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
+import java.util.Properties
 import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
 import kotlin.random.Random
+import javax.activation.DataHandler
+import javax.activation.FileDataSource
+import javax.mail.Message
+import javax.mail.Multipart
+import javax.mail.PasswordAuthentication
+import javax.mail.Session
+import javax.mail.Transport
+import javax.mail.internet.InternetAddress
+import javax.mail.internet.MimeBodyPart
+import javax.mail.internet.MimeMessage
+import javax.mail.internet.MimeMultipart
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.Dispatchers
 
 class LocalAdminRepository(
     private val dao: AppDao,
@@ -761,6 +777,18 @@ class LocalAdminRepository(
         dao.upsertSetting(SettingEntity(key = "smtp_password", valText = settings.password))
     }
 
+    override suspend fun validateSmtpConnection(settings: SmtpSettingsData) {
+        withContext(Dispatchers.IO) {
+            val normalized = settings.normalized()
+            val transport = buildMailSession(normalized).getTransport("smtp")
+            try {
+                transport.connect(normalized.host, normalized.port.toInt(), normalized.user, normalized.password)
+            } finally {
+                transport.close()
+            }
+        }
+    }
+
     override fun observeEmailTemplate(): Flow<EmailTemplateData> = dao.observeSettings().map { settings ->
         val map = settings.associateBy({ it.key }, { it.valText })
         EmailTemplateData(
@@ -772,6 +800,84 @@ class LocalAdminRepository(
     override suspend fun saveEmailTemplate(template: EmailTemplateData) {
         dao.upsertSetting(SettingEntity(key = "t_sub", valText = template.subject.trim()))
         dao.upsertSetting(SettingEntity(key = "t_body", valText = template.body.trim()))
+    }
+
+    override suspend fun sendSinglePreviewMail(attachmentPaths: List<String>): String {
+        return withContext(Dispatchers.IO) {
+            val settings = loadSavedSmtpSettings().normalized()
+            val template = loadSavedEmailTemplate().validated()
+            val today = LocalDate.now()
+            sendMail(
+                settings = settings,
+                recipient = settings.user,
+                subject = renderTemplate(template.subject, "Podgląd SMTP", today),
+                body = buildString {
+                    appendLine(renderTemplate(template.body, "Podgląd SMTP", today))
+                    appendLine()
+                    append("To jest testowa wiadomość podglądowa wysłana z natywnego modułu Android.")
+                },
+                attachments = sanitizeAttachments(attachmentPaths),
+            )
+            settings.user
+        }
+    }
+
+    override suspend fun sendMassMailing(attachmentPaths: List<String>, autoMode: Boolean): MailDispatchResult {
+        return withContext(Dispatchers.IO) {
+            val settings = loadSavedSmtpSettings().normalized()
+            val template = loadSavedEmailTemplate().validated()
+            val attachments = sanitizeAttachments(attachmentPaths)
+            val contacts = dao.observeContacts().first()
+            val today = LocalDate.now()
+            var ok = 0
+            var fail = 0
+            var skip = 0
+            val details = mutableListOf<String>()
+
+            contacts.forEach { contact ->
+                val email = contact.email.trim()
+                val fullName = listOf(contact.name, contact.surname).joinToString(" ").trim()
+                if (email.isBlank()) {
+                    skip += 1
+                    details += "SKIP: ${fullName.ifBlank { "Bez nazwy" }} — brak email"
+                    return@forEach
+                }
+
+                runCatching {
+                    sendMail(
+                        settings = settings,
+                        recipient = email,
+                        subject = renderTemplate(template.subject, contact.name.ifBlank { fullName }, today),
+                        body = renderTemplate(template.body, contact.name.ifBlank { fullName }, today),
+                        attachments = attachments,
+                    )
+                }.onSuccess {
+                    ok += 1
+                    details += "OK: ${fullName.ifBlank { email }} <$email>"
+                }.onFailure { error ->
+                    fail += 1
+                    details += "FAIL: ${fullName.ifBlank { email }} <$email> — ${error.message.orEmpty().ifBlank { "nieznany błąd" }}"
+                }
+            }
+
+            val result = MailDispatchResult(
+                ok = ok,
+                fail = fail,
+                skip = skip,
+                details = details.joinToString("\n"),
+            )
+            dao.insertReport(
+                ReportEntity(
+                    date = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")),
+                    ok = ok,
+                    fail = fail,
+                    skip = skip,
+                    auto = if (autoMode) 1 else 0,
+                    details = result.details,
+                ),
+            )
+            result
+        }
     }
 
     override fun observeSessionReports(): Flow<List<SessionReportListItem>> = dao.observeReports().map { items ->
@@ -998,6 +1104,105 @@ class LocalAdminRepository(
         }
         return outputFile.absolutePath
     }
+
+    private suspend fun loadSavedSmtpSettings(): SmtpSettingsData {
+        val settings = dao.observeSettings().first().associateBy({ it.key }, { it.valText })
+        return SmtpSettingsData(
+            host = settings["smtp_host"].orEmpty(),
+            port = settings["smtp_port"].orEmpty().ifBlank { "587" },
+            user = settings["smtp_user"].orEmpty(),
+            password = settings["smtp_password"].orEmpty(),
+        )
+    }
+
+    private suspend fun loadSavedEmailTemplate(): EmailTemplateData {
+        val settings = dao.observeSettings().first().associateBy({ it.key }, { it.valText })
+        return EmailTemplateData(
+            subject = settings["t_sub"].orEmpty(),
+            body = settings["t_body"].orEmpty(),
+        )
+    }
+
+    private fun SmtpSettingsData.normalized(): SmtpSettingsData {
+        val normalizedPort = port.trim().ifBlank { "587" }
+        require(host.trim().isNotBlank()) { "Brak hosta SMTP" }
+        require(user.trim().isNotBlank()) { "Brak loginu SMTP" }
+        require(password.isNotBlank()) { "Brak hasła SMTP" }
+        require(normalizedPort.toIntOrNull() != null) { "Port SMTP musi być liczbą" }
+        return copy(host = host.trim(), port = normalizedPort, user = user.trim())
+    }
+
+    private fun EmailTemplateData.validated(): EmailTemplateData {
+        require(subject.trim().isNotBlank()) { "Brak tematu email" }
+        require(body.trim().isNotBlank()) { "Brak treści email" }
+        return copy(subject = subject.trim(), body = body.trim())
+    }
+
+    private fun sanitizeAttachments(attachmentPaths: List<String>): List<File> =
+        attachmentPaths
+            .map { it.trim() }
+            .filter { it.isNotBlank() }
+            .distinct()
+            .map(::File)
+            .filter { it.exists() && it.isFile }
+
+    private fun renderTemplate(template: String, name: String, date: LocalDate): String =
+        template
+            .replace("{Imię}", name.ifBlank { "Pracownik" })
+            .replace("{Data}", date.format(DateTimeFormatter.ofPattern("dd.MM.yyyy")))
+
+    private fun buildMailSession(settings: SmtpSettingsData): Session {
+        val props = Properties().apply {
+            put("mail.smtp.host", settings.host)
+            put("mail.smtp.port", settings.port)
+            put("mail.smtp.auth", "true")
+            put("mail.smtp.starttls.enable", "true")
+            put("mail.smtp.connectiontimeout", "25000")
+            put("mail.smtp.timeout", "25000")
+            put("mail.smtp.writetimeout", "25000")
+        }
+        return Session.getInstance(
+            props,
+            object : javax.mail.Authenticator() {
+                override fun getPasswordAuthentication(): PasswordAuthentication =
+                    PasswordAuthentication(settings.user, settings.password)
+            },
+        )
+    }
+
+    private fun sendMail(
+        settings: SmtpSettingsData,
+        recipient: String,
+        subject: String,
+        body: String,
+        attachments: List<File>,
+    ) {
+        val message = MimeMessage(buildMailSession(settings)).apply {
+            setFrom(InternetAddress(settings.user))
+            setRecipients(Message.RecipientType.TO, InternetAddress.parse(recipient))
+            setSubject(subject, Charsets.UTF_8.name())
+            setContent(buildMultipartBody(body, attachments))
+            sentDate = java.util.Date()
+        }
+        Transport.send(message)
+    }
+
+    private fun buildMultipartBody(body: String, attachments: List<File>): Multipart =
+        MimeMultipart().apply {
+            addBodyPart(
+                MimeBodyPart().apply {
+                    setText(body, Charsets.UTF_8.name())
+                },
+            )
+            attachments.forEach { file ->
+                addBodyPart(
+                    MimeBodyPart().apply {
+                        dataHandler = DataHandler(FileDataSource(file))
+                        fileName = file.name
+                    },
+                )
+            }
+        }
 
     private suspend fun syncDriverAccount(
         driverName: String,

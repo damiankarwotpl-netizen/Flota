@@ -129,6 +129,13 @@ data class SessionReportListItem(
     val details: String,
 )
 
+data class MailDispatchResult(
+    val ok: Int,
+    val fail: Int,
+    val skip: Int,
+    val details: String,
+)
+
 data class DashboardStats(
     val contactCount: Int = 0,
     val workerCount: Int = 0,
@@ -218,9 +225,12 @@ interface AdminRepository {
 
     fun observeSmtpSettings(): Flow<SmtpSettingsData>
     suspend fun saveSmtpSettings(settings: SmtpSettingsData)
+    suspend fun validateSmtpConnection(settings: SmtpSettingsData)
 
     fun observeEmailTemplate(): Flow<EmailTemplateData>
     suspend fun saveEmailTemplate(template: EmailTemplateData)
+    suspend fun sendSinglePreviewMail(attachmentPaths: List<String>): String
+    suspend fun sendMassMailing(attachmentPaths: List<String>, autoMode: Boolean): MailDispatchResult
 
     fun observeSessionReports(): Flow<List<SessionReportListItem>>
     fun observeDashboardStats(): Flow<DashboardStats>

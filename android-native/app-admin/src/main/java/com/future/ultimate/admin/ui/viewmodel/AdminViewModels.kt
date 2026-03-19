@@ -344,37 +344,80 @@ class PayrollViewModel(private val repository: AdminRepository) : ViewModel() {
     }
 
     fun sendSingle() {
-        val latest = _uiState.value.attachmentPaths.lastOrNull()
-        _uiState.value = _uiState.value.copy(
-            actionMessage = if (latest == null) {
-                "Najpierw dołącz lokalny eksport jako załącznik"
-            } else {
-                PatchLoader.fallbackMailMessage(totalRecipients = 1, attachmentCount = 1) +
-                    " Pakiet: ${latest.substringAfterLast('/')}"
-            },
-            progressLabel = if (latest == null) "Brak załączników" else "Pakiet pojedynczej wysyłki przygotowany",
-        )
+        val attachments = _uiState.value.attachmentPaths
+        if (attachments.isEmpty()) {
+            _uiState.value = _uiState.value.copy(
+                actionMessage = "Najpierw dołącz lokalny eksport jako załącznik",
+                progressLabel = "Brak załączników",
+            )
+            return
+        }
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isMailingRunning = true, actionMessage = null, progressLabel = "Wysyłanie podglądu...")
+            runCatching {
+                repository.sendSinglePreviewMail(attachments)
+            }.onSuccess { mailbox ->
+                _uiState.value = _uiState.value.copy(
+                    isMailingRunning = false,
+                    actionMessage = "Wysłano testowy podgląd na skrzynkę SMTP: $mailbox",
+                    progressLabel = "Podgląd wysłany",
+                )
+            }.onFailure { error ->
+                _uiState.value = _uiState.value.copy(
+                    isMailingRunning = false,
+                    actionMessage = error.message ?: "Nie udało się wysłać podglądu",
+                    progressLabel = "Błąd wysyłki podglądu",
+                )
+            }
+        }
     }
 
     fun startMassMailing() {
         val hasRecipients = _uiState.value.totalRecipients > 0
         val hasAttachments = _uiState.value.attachmentPaths.isNotEmpty()
-        _uiState.value = _uiState.value.copy(
-            isMailingRunning = hasRecipients && hasAttachments,
-            progressLabel = when {
-                !hasRecipients -> "Brak odbiorców w kontaktach"
-                !hasAttachments -> "Brak załączników do masowej wysyłki"
-                else -> "Kolejka przygotowana dla ${_uiState.value.totalRecipients} odbiorców"
-            },
-            actionMessage = when {
-                !hasRecipients -> "Dodaj kontakty przed uruchomieniem wysyłki"
-                !hasAttachments -> "Dołącz co najmniej jeden lokalny eksport"
-                else -> PatchLoader.fallbackMailMessage(
-                    totalRecipients = _uiState.value.totalRecipients,
-                    attachmentCount = _uiState.value.attachmentCount,
+        if (!hasRecipients || !hasAttachments) {
+            _uiState.value = _uiState.value.copy(
+                isMailingRunning = false,
+                progressLabel = when {
+                    !hasRecipients -> "Brak odbiorców w kontaktach"
+                    else -> "Brak załączników do masowej wysyłki"
+                },
+                actionMessage = when {
+                    !hasRecipients -> "Dodaj kontakty przed uruchomieniem wysyłki"
+                    else -> "Dołącz co najmniej jeden lokalny eksport"
+                },
+            )
+            return
+        }
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(
+                isMailingRunning = true,
+                actionMessage = null,
+                progressLabel = "Trwa realna wysyłka do ${_uiState.value.totalRecipients} kontaktów...",
+            )
+            runCatching {
+                repository.sendMassMailing(
+                    attachmentPaths = _uiState.value.attachmentPaths,
+                    autoMode = _uiState.value.autoSend,
                 )
-            },
-        )
+            }.onSuccess { result ->
+                _uiState.value = _uiState.value.copy(
+                    isMailingRunning = false,
+                    progressLabel = "Sesja zakończona: OK ${result.ok} / Błędy ${result.fail} / Skip ${result.skip}",
+                    actionMessage = if (result.details.isBlank()) {
+                        "Brak szczegółów sesji"
+                    } else {
+                        result.details.lineSequence().take(4).joinToString("\n")
+                    },
+                )
+            }.onFailure { error ->
+                _uiState.value = _uiState.value.copy(
+                    isMailingRunning = false,
+                    progressLabel = "Masowa wysyłka przerwana",
+                    actionMessage = error.message ?: "Nie udało się uruchomić masowej wysyłki",
+                )
+            }
+        }
     }
 
     fun togglePauseMailing() {
@@ -1070,14 +1113,16 @@ class SmtpViewModel(private val repository: AdminRepository) : ViewModel() {
         _uiState.value = _uiState.value.copy(isSaving = false, message = "Ustawienia SMTP zapisane")
     }
 
-    fun validate() {
+    fun validate() = viewModelScope.launch {
         val current = _uiState.value.settings
-        val message = when {
-            current.host.isBlank() || current.user.isBlank() || current.password.isBlank() -> "Uzupełnij host, login i hasło"
-            current.port.toIntOrNull() == null -> "Port SMTP musi być liczbą"
-            else -> "Konfiguracja wygląda poprawnie. Realny test połączenia wróci w etapie SMTP pipeline."
+        _uiState.value = _uiState.value.copy(message = "Trwa test połączenia SMTP...")
+        runCatching {
+            repository.validateSmtpConnection(current)
+        }.onSuccess {
+            _uiState.value = _uiState.value.copy(message = "Połączenie SMTP zakończone powodzeniem")
+        }.onFailure { error ->
+            _uiState.value = _uiState.value.copy(message = error.message ?: "Test SMTP nie powiódł się")
         }
-        _uiState.value = _uiState.value.copy(message = message)
     }
 }
 
