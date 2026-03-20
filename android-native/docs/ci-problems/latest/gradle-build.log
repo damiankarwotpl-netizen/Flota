@@ -13,8 +13,8 @@ Daemon will be stopped at the end of the build
 > Task :core-database:preBuild UP-TO-DATE
 > Task :core-database:preDebugBuild UP-TO-DATE
 > Task :app-admin:generateDebugResValues
-> Task :core-database:writeDebugAarMetadata
 > Task :core-common:writeDebugAarMetadata
+> Task :core-database:writeDebugAarMetadata
 > Task :core-common:generateDebugResValues
 > Task :app-admin:checkDebugAarMetadata
 > Task :core-common:generateDebugResources
@@ -34,15 +34,15 @@ Daemon will be stopped at the end of the build
 > Task :core-common:compileDebugLibraryResources
 > Task :core-common:parseDebugLocalResources
 > Task :core-database:compileDebugLibraryResources
-> Task :core-database:parseDebugLocalResources
 > Task :core-common:processDebugManifest
 > Task :core-common:checkKotlinGradlePluginConfigurationErrors SKIPPED
 > Task :core-database:processDebugManifest
+> Task :core-database:parseDebugLocalResources
 > Task :core-common:javaPreCompileDebug
-> Task :core-database:generateDebugRFile
 > Task :core-common:generateDebugRFile
 > Task :app-admin:processDebugMainManifest
 > Task :app-admin:processDebugManifest
+> Task :core-database:generateDebugRFile
 > Task :core-database:checkKotlinGradlePluginConfigurationErrors SKIPPED
 > Task :app-admin:processDebugManifestForPackage
 > Task :core-database:javaPreCompileDebug
@@ -67,19 +67,19 @@ Daemon will be stopped at the end of the build
 > Task :core-common:copyDebugJniLibsProjectOnly
 > Task :core-database:mergeDebugJniLibFolders
 > Task :core-database:mergeDebugNativeLibs NO-SOURCE
-> Task :core-database:copyDebugJniLibsProjectOnly
 > Task :app-admin:checkDebugDuplicateClasses
-> Task :app-admin:mergeDebugNativeLibs
+> Task :core-database:copyDebugJniLibsProjectOnly
 > Task :app-admin:processDebugResources
-
-> Task :app-admin:stripDebugDebugSymbols
-Unable to strip the following libraries, packaging them as they are: libandroidx.graphics.path.so.
-
+> Task :app-admin:mergeDebugNativeLibs
 > Task :app-admin:validateSigningDebug
 > Task :app-admin:writeDebugAppMetadata
 > Task :app-admin:writeDebugSigningConfigVersions
 > Task :app-driver:preBuild UP-TO-DATE
 > Task :app-driver:preDebugBuild UP-TO-DATE
+
+> Task :app-admin:stripDebugDebugSymbols
+Unable to strip the following libraries, packaging them as they are: libandroidx.graphics.path.so.
+
 > Task :app-driver:mergeDebugNativeDebugMetadata NO-SOURCE
 > Task :app-driver:checkKotlinGradlePluginConfigurationErrors SKIPPED
 > Task :app-driver:generateDebugResValues
@@ -93,8 +93,8 @@ Unable to strip the following libraries, packaging them as they are: libandroidx
 > Task :app-driver:mergeDebugResources
 > Task :app-driver:processDebugMainManifest
 > Task :app-driver:processDebugManifest
-> Task :app-driver:javaPreCompileDebug
 > Task :app-driver:processDebugManifestForPackage
+> Task :app-driver:javaPreCompileDebug
 > Task :app-driver:mergeDebugShaders
 > Task :app-driver:compileDebugShaders NO-SOURCE
 > Task :app-driver:generateDebugAssets UP-TO-DATE
@@ -102,8 +102,8 @@ Unable to strip the following libraries, packaging them as they are: libandroidx
 > Task :app-driver:compressDebugAssets
 > Task :app-driver:desugarDebugFileDependencies
 > Task :app-driver:processDebugResources
-> Task :app-driver:mergeDebugJniLibFolders
 > Task :app-driver:checkDebugDuplicateClasses
+> Task :app-driver:mergeDebugJniLibFolders
 > Task :app-driver:mergeDebugNativeLibs
 
 > Task :app-driver:stripDebugDebugSymbols
@@ -123,23 +123,22 @@ Unable to strip the following libraries, packaging them as they are: libandroidx
 > Task :core-database:kspDebugKotlin
 > Task :core-database:compileDebugKotlin
 > Task :core-database:compileDebugJavaWithJavac
+> Task :core-database:bundleLibCompileToJarDebug
 > Task :core-database:processDebugJavaRes
 > Task :core-database:bundleLibRuntimeToJarDebug
-> Task :core-database:bundleLibCompileToJarDebug
 > Task :core-database:bundleLibRuntimeToDirDebug
 > Task :app-driver:mergeLibDexDebug
 > Task :app-admin:mergeLibDexDebug
 
 > Task :app-admin:compileDebugKotlin FAILED
-e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/HomeScreen.kt:14:43 Cannot access 'val RowColumnParentData?.weight: Float': it is internal in file.
-e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/HomeScreen.kt:127:28 Unresolved reference 'TextOverflow'.
+e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/HomeScreen.kt:125:28 Unresolved reference 'TextOverflow'.
 
 > Task :app-driver:compileDebugKotlin
 w: file:///home/runner/work/Flota/Flota/android-native/app-driver/src/main/java/com/future/ultimate/driver/ui/viewmodel/DriverViewModels.kt:216:107 Unchecked cast of 'com.future.ultimate.driver.ui.viewmodel.DriverLoginViewModel' to 'T'.
 w: file:///home/runner/work/Flota/Flota/android-native/app-driver/src/main/java/com/future/ultimate/driver/ui/viewmodel/DriverViewModels.kt:217:111 Unchecked cast of 'com.future.ultimate.driver.ui.viewmodel.DriverMileageViewModel' to 'T'.
 w: file:///home/runner/work/Flota/Flota/android-native/app-driver/src/main/java/com/future/ultimate/driver/ui/viewmodel/DriverViewModels.kt:218:123 Unchecked cast of 'com.future.ultimate.driver.ui.viewmodel.DriverVehicleReportViewModel' to 'T'.
 w: file:///home/runner/work/Flota/Flota/android-native/app-driver/src/main/java/com/future/ultimate/driver/ui/viewmodel/DriverViewModels.kt:219:125 Unchecked cast of 'com.future.ultimate.driver.ui.viewmodel.DriverChangePasswordViewModel' to 'T'.
-gradle/actions: Writing build results to /home/runner/work/_temp/.gradle-actions/build-results/__run_2-1774038628139.json
+gradle/actions: Writing build results to /home/runner/work/_temp/.gradle-actions/build-results/__run_2-1774039320936.json
 
 [Incubating] Problems report is available at: file:///home/runner/work/Flota/Flota/android-native/build/reports/problems/problems-report.html
 
@@ -411,5 +410,5 @@ You can use '--warning-mode all' to show the individual deprecation warnings and
 
 For more on this, please refer to https://docs.gradle.org/8.14.3/userguide/command_line_interface.html#sec:command_line_warnings in the Gradle documentation.
 
-BUILD FAILED in 1m 10s
+BUILD FAILED in 1m 3s
 100 actionable tasks: 96 executed, 4 up-to-date
