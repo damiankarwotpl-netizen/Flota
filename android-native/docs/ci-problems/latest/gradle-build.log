@@ -12,12 +12,12 @@ Daemon will be stopped at the end of the build
 > Task :core-common:preDebugBuild UP-TO-DATE
 > Task :core-database:preBuild UP-TO-DATE
 > Task :core-database:preDebugBuild UP-TO-DATE
+> Task :core-common:writeDebugAarMetadata
 > Task :app-admin:generateDebugResValues
 > Task :core-database:writeDebugAarMetadata
-> Task :core-common:writeDebugAarMetadata
 > Task :core-common:generateDebugResValues
-> Task :app-admin:checkDebugAarMetadata
 > Task :core-common:generateDebugResources
+> Task :app-admin:checkDebugAarMetadata
 > Task :core-common:packageDebugResources
 > Task :core-database:generateDebugResValues
 > Task :core-database:generateDebugResources
@@ -25,15 +25,15 @@ Daemon will be stopped at the end of the build
 > Task :app-admin:mapDebugSourceSetPaths
 > Task :app-admin:generateDebugResources
 > Task :app-admin:packageDebugResources
-> Task :app-admin:mergeDebugResources
 > Task :app-admin:createDebugCompatibleScreenManifests
 > Task :app-admin:extractDeepLinksDebug
 > Task :core-common:extractDeepLinksDebug
-> Task :core-database:extractDeepLinksDebug
 > Task :app-admin:parseDebugLocalResources
+> Task :app-admin:mergeDebugResources
+> Task :core-database:extractDeepLinksDebug
 > Task :core-common:compileDebugLibraryResources
-> Task :core-database:compileDebugLibraryResources
 > Task :core-common:parseDebugLocalResources
+> Task :core-database:compileDebugLibraryResources
 > Task :core-database:parseDebugLocalResources
 
 > Task :core-common:processDebugManifest
@@ -41,20 +41,19 @@ package="com.future.ultimate.core.common" found in source AndroidManifest.xml: /
 Setting the namespace via the package attribute in the source AndroidManifest.xml is no longer supported, and the value is ignored.
 Recommendation: remove package="com.future.ultimate.core.common" from the source AndroidManifest.xml: /home/runner/work/Flota/Flota/android-native/core-common/src/main/AndroidManifest.xml.
 
-> Task :core-common:checkKotlinGradlePluginConfigurationErrors SKIPPED
-
 > Task :core-database:processDebugManifest
 package="com.future.ultimate.core.database" found in source AndroidManifest.xml: /home/runner/work/Flota/Flota/android-native/core-database/src/main/AndroidManifest.xml.
 Setting the namespace via the package attribute in the source AndroidManifest.xml is no longer supported, and the value is ignored.
 Recommendation: remove package="com.future.ultimate.core.database" from the source AndroidManifest.xml: /home/runner/work/Flota/Flota/android-native/core-database/src/main/AndroidManifest.xml.
 
-> Task :core-common:javaPreCompileDebug
 > Task :core-common:generateDebugRFile
 > Task :core-database:generateDebugRFile
 > Task :app-admin:processDebugMainManifest
 > Task :app-admin:processDebugManifest
-> Task :core-database:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :core-common:checkKotlinGradlePluginConfigurationErrors SKIPPED
 > Task :app-admin:processDebugManifestForPackage
+> Task :core-common:javaPreCompileDebug
+> Task :core-database:checkKotlinGradlePluginConfigurationErrors SKIPPED
 > Task :core-database:javaPreCompileDebug
 > Task :app-admin:javaPreCompileDebug
 > Task :app-admin:mergeDebugShaders
@@ -77,23 +76,23 @@ Recommendation: remove package="com.future.ultimate.core.database" from the sour
 > Task :core-common:copyDebugJniLibsProjectOnly
 > Task :core-database:mergeDebugJniLibFolders
 > Task :core-database:mergeDebugNativeLibs NO-SOURCE
-> Task :core-database:copyDebugJniLibsProjectOnly
 > Task :app-admin:checkDebugDuplicateClasses
-> Task :app-admin:mergeDebugNativeLibs
+> Task :core-database:copyDebugJniLibsProjectOnly
 > Task :app-admin:processDebugResources
+> Task :app-admin:mergeDebugNativeLibs
+> Task :app-admin:validateSigningDebug
+> Task :app-admin:writeDebugAppMetadata
 
 > Task :app-admin:stripDebugDebugSymbols
 Unable to strip the following libraries, packaging them as they are: libandroidx.graphics.path.so.
 
-> Task :app-admin:validateSigningDebug
-> Task :app-admin:writeDebugAppMetadata
 > Task :app-admin:writeDebugSigningConfigVersions
 > Task :app-driver:preBuild UP-TO-DATE
 > Task :app-driver:preDebugBuild UP-TO-DATE
 > Task :app-driver:mergeDebugNativeDebugMetadata NO-SOURCE
 > Task :app-driver:checkKotlinGradlePluginConfigurationErrors SKIPPED
-> Task :app-driver:generateDebugResValues
 > Task :app-driver:checkDebugAarMetadata
+> Task :app-driver:generateDebugResValues
 > Task :app-driver:mapDebugSourceSetPaths
 > Task :app-driver:generateDebugResources
 > Task :app-driver:packageDebugResources
@@ -103,8 +102,8 @@ Unable to strip the following libraries, packaging them as they are: libandroidx
 > Task :app-driver:mergeDebugResources
 > Task :app-driver:processDebugMainManifest
 > Task :app-driver:processDebugManifest
-> Task :app-driver:processDebugManifestForPackage
 > Task :app-driver:javaPreCompileDebug
+> Task :app-driver:processDebugManifestForPackage
 > Task :app-driver:mergeDebugShaders
 > Task :app-driver:compileDebugShaders NO-SOURCE
 > Task :app-driver:generateDebugAssets UP-TO-DATE
@@ -115,7 +114,7 @@ Unable to strip the following libraries, packaging them as they are: libandroidx
 > Task :app-driver:checkDebugDuplicateClasses
 > Task :app-driver:mergeDebugJniLibFolders
 
-> Task :core-common:compileDebugKotlin
+> Task :core-common:compileDebugKotlin FAILED
 e: file:///home/runner/work/Flota/Flota/android-native/core-common/src/main/java/com/future/ultimate/core/common/ui/theme/FlotaTheme.kt:3:17 Unresolved reference 'compose'.
 e: file:///home/runner/work/Flota/Flota/android-native/core-common/src/main/java/com/future/ultimate/core/common/ui/theme/FlotaTheme.kt:4:17 Unresolved reference 'compose'.
 e: file:///home/runner/work/Flota/Flota/android-native/core-common/src/main/java/com/future/ultimate/core/common/ui/theme/FlotaTheme.kt:5:17 Unresolved reference 'compose'.
@@ -241,11 +240,14 @@ e: file:///home/runner/work/Flota/Flota/android-native/core-common/src/main/java
 e: file:///home/runner/work/Flota/Flota/android-native/core-common/src/main/java/com/future/ultimate/core/common/ui/theme/FlotaTheme.kt:116:41 Unresolved reference 'Color'.
 e: file:///home/runner/work/Flota/Flota/android-native/core-common/src/main/java/com/future/ultimate/core/common/ui/theme/FlotaTheme.kt:116:49 Unresolved reference 'surfaceVariant'.
 
-> Task :core-common:compileDebugKotlin FAILED
 > Task :app-driver:mergeDebugNativeLibs
+
+> Task :app-driver:stripDebugDebugSymbols
+Unable to strip the following libraries, packaging them as they are: libandroidx.graphics.path.so.
+
 > Task :app-driver:mergeExtDexDebug
 > Task :app-admin:mergeExtDexDebug
-gradle/actions: Writing build results to /home/runner/work/_temp/.gradle-actions/build-results/__run_2-1774026385779.json
+gradle/actions: Writing build results to /home/runner/work/_temp/.gradle-actions/build-results/__run_2-1774026926632.json
 
 [Incubating] Problems report is available at: file:///home/runner/work/Flota/Flota/android-native/build/reports/problems/problems-report.html
 
@@ -517,5 +519,5 @@ You can use '--warning-mode all' to show the individual deprecation warnings and
 
 For more on this, please refer to https://docs.gradle.org/8.14.3/userguide/command_line_interface.html#sec:command_line_warnings in the Gradle documentation.
 
-BUILD FAILED in 40s
-81 actionable tasks: 77 executed, 4 up-to-date
+BUILD FAILED in 39s
+82 actionable tasks: 78 executed, 4 up-to-date
