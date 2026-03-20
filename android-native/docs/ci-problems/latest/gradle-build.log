@@ -13,11 +13,11 @@ Daemon will be stopped at the end of the build
 > Task :core-database:preBuild UP-TO-DATE
 > Task :core-database:preDebugBuild UP-TO-DATE
 > Task :app-admin:generateDebugResValues
-> Task :core-common:writeDebugAarMetadata
 > Task :core-database:writeDebugAarMetadata
+> Task :core-common:writeDebugAarMetadata
 > Task :core-common:generateDebugResValues
-> Task :app-admin:checkDebugAarMetadata
 > Task :core-common:generateDebugResources
+> Task :app-admin:checkDebugAarMetadata
 > Task :core-common:packageDebugResources
 > Task :core-database:generateDebugResValues
 > Task :core-database:generateDebugResources
@@ -25,27 +25,27 @@ Daemon will be stopped at the end of the build
 > Task :app-admin:mapDebugSourceSetPaths
 > Task :app-admin:generateDebugResources
 > Task :app-admin:packageDebugResources
-> Task :app-admin:mergeDebugResources
 > Task :app-admin:createDebugCompatibleScreenManifests
 > Task :app-admin:extractDeepLinksDebug
 > Task :core-common:extractDeepLinksDebug
 > Task :core-database:extractDeepLinksDebug
 > Task :app-admin:parseDebugLocalResources
 > Task :core-common:compileDebugLibraryResources
+> Task :core-database:processDebugManifest
 > Task :core-common:parseDebugLocalResources
 > Task :core-database:compileDebugLibraryResources
 > Task :core-common:processDebugManifest
-> Task :core-common:checkKotlinGradlePluginConfigurationErrors SKIPPED
-> Task :core-database:processDebugManifest
 > Task :core-database:parseDebugLocalResources
-> Task :core-common:javaPreCompileDebug
+> Task :app-admin:mergeDebugResources
 > Task :core-common:generateDebugRFile
 > Task :app-admin:processDebugMainManifest
 > Task :app-admin:processDebugManifest
+> Task :core-common:checkKotlinGradlePluginConfigurationErrors SKIPPED
 > Task :core-database:generateDebugRFile
 > Task :core-database:checkKotlinGradlePluginConfigurationErrors SKIPPED
-> Task :app-admin:processDebugManifestForPackage
+> Task :core-common:javaPreCompileDebug
 > Task :core-database:javaPreCompileDebug
+> Task :app-admin:processDebugManifestForPackage
 > Task :app-admin:javaPreCompileDebug
 > Task :app-admin:mergeDebugShaders
 > Task :app-admin:compileDebugShaders NO-SOURCE
@@ -76,12 +76,12 @@ Daemon will be stopped at the end of the build
 > Task :app-admin:writeDebugSigningConfigVersions
 > Task :app-driver:preBuild UP-TO-DATE
 > Task :app-driver:preDebugBuild UP-TO-DATE
+> Task :app-driver:mergeDebugNativeDebugMetadata NO-SOURCE
+> Task :app-driver:checkKotlinGradlePluginConfigurationErrors SKIPPED
 
 > Task :app-admin:stripDebugDebugSymbols
 Unable to strip the following libraries, packaging them as they are: libandroidx.graphics.path.so.
 
-> Task :app-driver:mergeDebugNativeDebugMetadata NO-SOURCE
-> Task :app-driver:checkKotlinGradlePluginConfigurationErrors SKIPPED
 > Task :app-driver:generateDebugResValues
 > Task :app-driver:checkDebugAarMetadata
 > Task :app-driver:mapDebugSourceSetPaths
@@ -102,8 +102,8 @@ Unable to strip the following libraries, packaging them as they are: libandroidx
 > Task :app-driver:compressDebugAssets
 > Task :app-driver:desugarDebugFileDependencies
 > Task :app-driver:processDebugResources
-> Task :app-driver:checkDebugDuplicateClasses
 > Task :app-driver:mergeDebugJniLibFolders
+> Task :app-driver:checkDebugDuplicateClasses
 > Task :app-driver:mergeDebugNativeLibs
 
 > Task :app-driver:stripDebugDebugSymbols
@@ -116,29 +116,25 @@ Unable to strip the following libraries, packaging them as they are: libandroidx
 > Task :app-admin:mergeExtDexDebug
 > Task :core-common:compileDebugKotlin
 > Task :core-common:compileDebugJavaWithJavac NO-SOURCE
-> Task :core-common:processDebugJavaRes
 > Task :core-common:bundleLibRuntimeToJarDebug
 > Task :core-common:bundleLibCompileToJarDebug
+> Task :core-common:processDebugJavaRes
 > Task :core-common:bundleLibRuntimeToDirDebug
 > Task :core-database:kspDebugKotlin
 > Task :core-database:compileDebugKotlin
 > Task :core-database:compileDebugJavaWithJavac
-> Task :core-database:bundleLibCompileToJarDebug
 > Task :core-database:processDebugJavaRes
+> Task :core-database:bundleLibCompileToJarDebug
 > Task :core-database:bundleLibRuntimeToJarDebug
 > Task :core-database:bundleLibRuntimeToDirDebug
-> Task :app-driver:mergeLibDexDebug
 > Task :app-admin:mergeLibDexDebug
+> Task :app-driver:mergeLibDexDebug
 
 > Task :app-admin:compileDebugKotlin FAILED
 e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/HomeScreen.kt:125:28 Unresolved reference 'TextOverflow'.
 
 > Task :app-driver:compileDebugKotlin
-w: file:///home/runner/work/Flota/Flota/android-native/app-driver/src/main/java/com/future/ultimate/driver/ui/viewmodel/DriverViewModels.kt:216:107 Unchecked cast of 'com.future.ultimate.driver.ui.viewmodel.DriverLoginViewModel' to 'T'.
-w: file:///home/runner/work/Flota/Flota/android-native/app-driver/src/main/java/com/future/ultimate/driver/ui/viewmodel/DriverViewModels.kt:217:111 Unchecked cast of 'com.future.ultimate.driver.ui.viewmodel.DriverMileageViewModel' to 'T'.
-w: file:///home/runner/work/Flota/Flota/android-native/app-driver/src/main/java/com/future/ultimate/driver/ui/viewmodel/DriverViewModels.kt:218:123 Unchecked cast of 'com.future.ultimate.driver.ui.viewmodel.DriverVehicleReportViewModel' to 'T'.
-w: file:///home/runner/work/Flota/Flota/android-native/app-driver/src/main/java/com/future/ultimate/driver/ui/viewmodel/DriverViewModels.kt:219:125 Unchecked cast of 'com.future.ultimate.driver.ui.viewmodel.DriverChangePasswordViewModel' to 'T'.
-gradle/actions: Writing build results to /home/runner/work/_temp/.gradle-actions/build-results/__run_2-1774039320936.json
+gradle/actions: Writing build results to /home/runner/work/_temp/.gradle-actions/build-results/__run_2-1774040125641.json
 
 [Incubating] Problems report is available at: file:///home/runner/work/Flota/Flota/android-native/build/reports/problems/problems-report.html
 
@@ -410,5 +406,5 @@ You can use '--warning-mode all' to show the individual deprecation warnings and
 
 For more on this, please refer to https://docs.gradle.org/8.14.3/userguide/command_line_interface.html#sec:command_line_warnings in the Gradle documentation.
 
-BUILD FAILED in 1m 3s
+BUILD FAILED in 1m
 100 actionable tasks: 96 executed, 4 up-to-date
