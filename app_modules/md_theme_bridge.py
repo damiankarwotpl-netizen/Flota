@@ -9,7 +9,9 @@ def apply_md_theme(app, app_theme_mode):
     if not hasattr(app, "theme_cls"):
         return
 
-    app.theme_cls.theme_style = "Dark" if app_theme_mode == "dark" else "Light"
-    app.theme_cls.primary_palette = "Blue"
+    is_dark = app_theme_mode == "dark"
+    app.theme_cls.theme_style = "Dark" if is_dark else "Light"
+    app.theme_cls.primary_palette = "Green"
     app.theme_cls.primary_hue = "500"
-    app.theme_cls.accent_palette = "LightBlue"
+    app.theme_cls.accent_palette = "Teal" if not is_dark else "LightGreen"
+    app.theme_cls.accent_hue = "400"

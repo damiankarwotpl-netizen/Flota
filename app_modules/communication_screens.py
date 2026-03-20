@@ -16,19 +16,19 @@ except Exception:
 
 def setup_email_screen(app, AppLayout, AppActionBar, Card, SecondaryButton, PrimaryButton, DangerButton):
     app.sc_ref["email"].clear_widgets()
-    shell = AppLayout(title="Moduł Email")
+    shell = AppLayout(title="Czat i wysyłka")
     shell.nav_tabs.add_action(SecondaryButton(text="Wróć", on_press=lambda x: setattr(app.sm, 'current', 'home')))
     shell.nav_tabs.add_action(SecondaryButton(text="SMTP", on_press=lambda x: setattr(app.sm, 'current', 'smtp')))
 
     body = BoxLayout(orientation="vertical", spacing=dp(12), padding=[dp(4), dp(2), dp(4), dp(4)])
     title_cls = MDLabel if MDLabel is not None else Label
-    body.add_widget(title_cls(text="Wysyłka i komunikacja", size_hint_y=None, height=dp(24), color=(0.72, 0.80, 0.92, 1), bold=True))
+    body.add_widget(title_cls(text="Wysyłka w stylu komunikatora", size_hint_y=None, height=dp(24), color=(0.72, 0.92, 0.80, 1), bold=True))
     auto_card = Card(orientation="horizontal", size_hint_y=None, height=dp(54), spacing=dp(10))
     app.cb_auto = CheckBox(size_hint_x=None, width=dp(45))
     app.cb_auto.active = app.auto_send_mode
     app.cb_auto.bind(active=app.on_auto_checkbox_changed)
     auto_card.add_widget(app.cb_auto)
-    auto_card.add_widget(Label(text="AUTOMATYCZNA WYSYŁKA", bold=True))
+    auto_card.add_widget(Label(text="Tryb szybkiej wysyłki", bold=True))
     body.add_widget(auto_card)
 
     app.lbl_stats = Label(text="Baza: 0", size_hint_y=None, height=dp(34))
@@ -139,33 +139,21 @@ def setup_template_screen(app, AppLayout, AppActionBar, SecondaryButton, Primary
 
 def setup_contacts_screen(app, AppLayout, SecondaryButton, PrimaryButton, ModernInput):
     app.sc_ref["contacts"].clear_widgets()
-    shell = AppLayout(title="Kontakty")
-    shell.nav_tabs.add_action(SecondaryButton(text="Wróć", on_press=lambda x: setattr(app.sm, 'current', 'home')))
-    shell.nav_tabs.add_action(PrimaryButton(text="Dodaj", on_press=lambda x: app.form_contact(), size_hint_x=None, width=dp(150)))
+    shell = AppLayout(title="Czaty i kontakty")
 
     body = BoxLayout(orientation="vertical", spacing=dp(10), padding=[dp(4), dp(2), dp(4), dp(4)])
-    title_cls = MDLabel if MDLabel is not None else Label
-    body.add_widget(title_cls(text="Kontakty i filtry", size_hint_y=None, height=dp(24), color=(0.72, 0.80, 0.92, 1), bold=True))
-    search_row = BoxLayout(size_hint_y=None, height=dp(54), spacing=dp(8))
-    app.ti_cs = ModernInput(hint_text="Szukaj po imieniu, nazwisku, email, telefonie...")
+    body.add_widget(Label(text="Lista kontaktów jak czaty", size_hint_y=None, height=dp(22), color=(0.72, 0.92, 0.80, 1), bold=True))
+    app.ti_cs = ModernInput(hint_text="Szukaj czatu po nazwie lub zakładzie")
     app.ti_cs.bind(text=app.refresh_contacts_list)
-    search_row.add_widget(app.ti_cs)
-
-    filter_row = BoxLayout(size_hint_y=None, height=dp(54), spacing=dp(8))
-    app.ti_cs_workplace = ModernInput(hint_text="Filtr zakład pracy")
-    app.ti_cs_workplace.bind(text=app.refresh_contacts_list)
-    app.ti_cs_city = ModernInput(hint_text="Filtr adres / mieszkanie")
-    app.ti_cs_city.bind(text=app.refresh_contacts_list)
-    filter_row.add_widget(app.ti_cs_workplace)
-    filter_row.add_widget(app.ti_cs_city)
+    app.ti_cs_workplace = ModernInput(text="")
+    app.ti_cs_city = ModernInput(text="")
 
     app.c_ls = GridLayout(cols=1, size_hint_y=None, spacing=dp(10), padding=[dp(2), dp(2)])
     app.c_ls.bind(minimum_height=app.c_ls.setter('height'))
     sc = ScrollView()
     sc.add_widget(app.c_ls)
 
-    body.add_widget(search_row)
-    body.add_widget(filter_row)
+    body.add_widget(app.ti_cs)
     body.add_widget(sc)
     shell.set_content(body)
     shell.set_fab(lambda x: app.form_contact())

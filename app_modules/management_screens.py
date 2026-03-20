@@ -78,11 +78,20 @@ def setup_plants_screen(app, AppLayout, SecondaryButton, PrimaryButton, ModernIn
 
 def setup_settings_screen(app, AppLayout, SecondaryButton, PrimaryButton):
     app.sc_ref["settings"].clear_widgets()
-    shell = AppLayout(title="Ustawienia i narzędzia")
+    shell = AppLayout(title="Ustawienia komunikatora")
     shell.nav_tabs.add_action(SecondaryButton(text="Powrót", on_press=lambda x: setattr(app.sm, 'current', 'home')))
 
     body = BoxLayout(orientation="vertical", spacing=dp(12), padding=[dp(4), dp(4), dp(4), dp(6)])
-    body.add_widget(Label(text="Ustawienia i narzędzia systemowe", size_hint_y=None, height=dp(24), color=(0.72, 0.80, 0.92, 1), bold=True))
+    body.add_widget(Label(text="Ustawienia komunikatora", size_hint_y=None, height=dp(24), color=(0.72, 0.92, 0.80, 1), bold=True))
+
+    theme_card = BoxLayout(orientation="vertical", spacing=dp(8), size_hint_y=None, height=dp(124), padding=[dp(8), dp(8), dp(8), dp(8)])
+    theme_card.add_widget(Label(text="Motyw czatu", size_hint_y=None, height=dp(26), color=(0.86, 0.98, 0.90, 1), bold=True))
+    theme_actions = GridLayout(cols=2, spacing=dp(8), size_hint_y=None, height=dp(56))
+    theme_actions.add_widget(SecondaryButton(text="☀ Jasny", on_press=lambda x: app.switch_theme("light"), size_hint_y=None, height=dp(56)))
+    theme_actions.add_widget(PrimaryButton(text="🌙 Ciemny", on_press=lambda x: app.switch_theme("dark"), size_hint_y=None, height=dp(56)))
+    theme_card.add_widget(theme_actions)
+    body.add_widget(theme_card)
+
     try:
         contacts_count = app.conn.execute("SELECT COUNT(*) FROM contacts").fetchone()[0]
         workers_count = app.conn.execute("SELECT COUNT(*) FROM workers").fetchone()[0]
@@ -99,6 +108,7 @@ def setup_settings_screen(app, AppLayout, SecondaryButton, PrimaryButton):
     except Exception:
         pass
 
+    body.add_widget(Label(text="Narzędzia i dane", size_hint_y=None, height=dp(24), color=(0.72, 0.92, 0.80, 1), bold=True))
     actions = ScrollView()
     action_grid = GridLayout(cols=1, spacing=dp(10), size_hint_y=None, padding=[dp(2), dp(2)])
     action_grid.bind(minimum_height=action_grid.setter('height'))
