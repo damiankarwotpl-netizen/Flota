@@ -10,6 +10,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
@@ -29,17 +31,20 @@ import com.future.ultimate.core.common.ui.theme.FlotaThemeDefaults
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun HomeScreen(navController: NavController) {
+    val scrollState = rememberScrollState()
+
     Box(
         modifier = Modifier
             .fillMaxSize()
             .padding(horizontal = 16.dp)
             .padding(top = 18.dp, bottom = 24.dp),
-        contentAlignment = Alignment.Center,
+        contentAlignment = Alignment.TopCenter,
     ) {
         FlowRow(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 4.dp),
+                .padding(horizontal = 4.dp)
+                .verticalScroll(scrollState),
             horizontalArrangement = Arrangement.spacedBy(14.dp, Alignment.CenterHorizontally),
             verticalArrangement = Arrangement.spacedBy(14.dp),
             maxItemsInEachRow = 3,
@@ -56,7 +61,6 @@ fun HomeScreen(navController: NavController) {
     }
 }
 
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun HomeShortcutTile(
     label: String,
@@ -115,15 +119,6 @@ private fun HomeShortcutTile(
                     )
                 }
             }
-            Text(
-                text = label,
-                style = MaterialTheme.typography.labelLarge,
-                fontWeight = FontWeight.Bold,
-                textAlign = TextAlign.Center,
-                color = MaterialTheme.colorScheme.onSurface,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-            )
         }
     }
 }
