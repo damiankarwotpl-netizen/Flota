@@ -21,7 +21,7 @@ fun VehicleReportScreen() {
     val viewModel: VehicleReportViewModel = viewModel(factory = AdminViewModelFactory(app.container.repository))
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
-    ScreenColumn("Raport stanu samochodu", "Formularz raportu stanu pojazdu") {
+    ScreenColumn("Raport samochody", "Formularz raportu stanu pojazdu") {
         item {
             Column {
                 val draft = uiState.draft
