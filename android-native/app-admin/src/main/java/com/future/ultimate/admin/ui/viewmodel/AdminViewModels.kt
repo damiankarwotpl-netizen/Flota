@@ -1532,6 +1532,7 @@ class SettingsViewModel(private val repository: AdminRepository) : ViewModel() {
 }
 
 class AdminViewModelFactory(private val repository: AdminRepository) : ViewModelProvider.Factory {
+    @Suppress("UNCHECKED_CAST")
     override fun <T : ViewModel> create(modelClass: Class<T>): T = when {
         modelClass.isAssignableFrom(ContactsViewModel::class.java) -> ContactsViewModel(repository) as T
         modelClass.isAssignableFrom(CarsViewModel::class.java) -> CarsViewModel(repository) as T
