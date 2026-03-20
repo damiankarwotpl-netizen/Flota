@@ -1,10 +1,9 @@
 package com.future.ultimate.admin.ui.screen
 
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -12,35 +11,52 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.future.ultimate.core.common.model.AdminRoute
 
+private data class HomeShortcut(
+    val label: String,
+    val description: String,
+    val route: AdminRoute,
+)
+
 @Composable
 fun HomeScreen(navController: NavController) {
+    val shortcuts = listOf(
+        HomeShortcut("Kontakty", "Szybki dostęp do kontaktów i numerów alarmowych.", AdminRoute.Contacts),
+        HomeShortcut("Samochody", "Lista pojazdów i ich aktualnych danych.", AdminRoute.Cars),
+        HomeShortcut("Raport stanu auta", "Weryfikacja stanu pojazdu i eksport raportu.", AdminRoute.VehicleReport),
+        HomeShortcut("Ubranie robocze", "Rozmiary, zamówienia i historia wydań.", AdminRoute.Clothes),
+        HomeShortcut("Paski", "Eksport oraz podgląd pasków wynagrodzeń.", AdminRoute.Payroll),
+        HomeShortcut("Pracownicy", "Dane osobowe i przypisania pracowników.", AdminRoute.Workers),
+        HomeShortcut("Zakłady", "Zarządzanie lokalizacjami i jednostkami.", AdminRoute.Plants),
+        HomeShortcut("Ustawienia", "Integracje, SMTP oraz narzędzia serwisowe.", AdminRoute.Settings),
+    )
+
     ScreenColumn(
         title = "Panel główny aplikacji",
-        subtitle = "Wybierz moduł, aby kontynuować",
+        subtitle = "Najważniejsze moduły i skróty w jednym miejscu.",
     ) {
         item {
-            Card {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Text("Nowy wygląd UI • Funkcje bez zmian")
-                }
+            SectionCard(
+                title = "Co się zmieniło?",
+                subtitle = "Układ jest bardziej czytelny i nastawiony na szybkie wejście do modułów.",
+            ) {
+                Text("Funkcje pozostały bez zmian — poprawiliśmy przede wszystkim nawigację i prezentację treści.")
             }
         }
-        listOf(
-            "Kontakty" to AdminRoute.Contacts,
-            "Samochody" to AdminRoute.Cars,
-            "Raport stanu auta" to AdminRoute.VehicleReport,
-            "Ubranie robocze" to AdminRoute.Clothes,
-            "Paski" to AdminRoute.Payroll,
-            "Pracownicy" to AdminRoute.Workers,
-            "Zakłady" to AdminRoute.Plants,
-            "Ustawienia" to AdminRoute.Settings,
-        ).forEach { (label, route) ->
+
+        shortcuts.forEach { shortcut ->
             item {
-                Button(
-                    onClick = { navController.navigate(route.route) },
-                    modifier = Modifier.fillMaxWidth(),
+                SectionCard(
+                    title = shortcut.label,
+                    subtitle = shortcut.description,
                 ) {
-                    Text(label)
+                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Button(
+                            onClick = { navController.navigate(shortcut.route.route) },
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            Text("Otwórz moduł")
+                        }
+                    }
                 }
             }
         }

@@ -1,7 +1,7 @@
 package com.future.ultimate.core.common.model
 
 sealed class AdminRoute(val route: String, val title: String) {
-    data object Home : AdminRoute("home", "FUTURE ULTIMATE v20")
+    data object Home : AdminRoute("home", "Panel główny")
     data object Contacts : AdminRoute("contacts", "Kontakty")
     data object Cars : AdminRoute("cars", "Samochody")
     data object VehicleReport : AdminRoute("vehicle_report", "Raport stanu samochodu")
