@@ -6,6 +6,17 @@ plugins {
     id("org.jetbrains.kotlin.plugin.compose")
 }
 
+val sharedMetaInfResources = setOf(
+    "META-INF/NOTICE.md",
+    "META-INF/LICENSE.md",
+    "META-INF/NOTICE*",
+    "META-INF/LICENSE*",
+    "/META-INF/NOTICE.md",
+    "/META-INF/LICENSE.md",
+    "/META-INF/NOTICE*",
+    "/META-INF/LICENSE*",
+)
+
 fun Project.optionalConfig(name: String): String? =
     (findProperty(name) as String?)?.takeIf { it.isNotBlank() }
         ?: System.getenv(name)?.takeIf { it.isNotBlank() }
@@ -52,14 +63,7 @@ android {
 
     packaging {
         resources {
-            val duplicateMetaInf = setOf(
-                "META-INF/NOTICE.md",
-                "META-INF/LICENSE.md",
-                "/META-INF/NOTICE.md",
-                "/META-INF/LICENSE.md",
-            )
-            excludes += duplicateMetaInf
-            pickFirsts += duplicateMetaInf
+            excludes += sharedMetaInfResources
         }
     }
 
