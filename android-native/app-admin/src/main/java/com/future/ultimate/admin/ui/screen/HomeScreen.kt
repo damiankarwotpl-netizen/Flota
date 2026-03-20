@@ -1,11 +1,11 @@
 package com.future.ultimate.admin.ui.screen
 
-import android.app.Activity
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -18,20 +18,18 @@ import androidx.compose.material.icons.rounded.DirectionsCar
 import androidx.compose.material.icons.rounded.Factory
 import androidx.compose.material.icons.rounded.ReceiptLong
 import androidx.compose.material.icons.rounded.Settings
-import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.future.ultimate.core.common.model.AdminRoute
@@ -45,64 +43,39 @@ private data class HomeShortcut(
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun HomeScreen(
-    navController: NavController,
-    onEnableDarkTheme: () -> Unit,
-    onEnableLightTheme: () -> Unit,
-) {
-    val activity = LocalContext.current as? Activity
+fun HomeScreen(navController: NavController) {
     val shortcuts = listOf(
-        HomeShortcut("Kontakty", Icons.Rounded.Call, AdminRoute.Contacts),
-        HomeShortcut("Samochody", Icons.Rounded.DirectionsCar, AdminRoute.Cars),
-        HomeShortcut("Raport auta", Icons.Rounded.Description, AdminRoute.VehicleReport),
+        HomeShortcut("Kontakt", Icons.Rounded.Call, AdminRoute.Contacts),
+        HomeShortcut("Auta", Icons.Rounded.DirectionsCar, AdminRoute.Cars),
+        HomeShortcut("Raport", Icons.Rounded.Description, AdminRoute.VehicleReport),
         HomeShortcut("Odzież", Icons.Rounded.Checkroom, AdminRoute.Clothes),
         HomeShortcut("Paski", Icons.Rounded.ReceiptLong, AdminRoute.Payroll),
-        HomeShortcut("Pracownicy", Icons.Rounded.Badge, AdminRoute.Workers),
+        HomeShortcut("Kadry", Icons.Rounded.Badge, AdminRoute.Workers),
         HomeShortcut("Zakłady", Icons.Rounded.Factory, AdminRoute.Plants),
-        HomeShortcut("Ustawienia", Icons.Rounded.Settings, AdminRoute.Settings),
+        HomeShortcut("Opcje", Icons.Rounded.Settings, AdminRoute.Settings),
     )
 
-    ScreenColumn(
-        title = "Panel główny aplikacji",
-        subtitle = "Najważniejsze moduły i skróty w jednym miejscu.",
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(horizontal = 16.dp)
+            .padding(top = 18.dp, bottom = 24.dp),
+        contentAlignment = Alignment.Center,
     ) {
-        item {
-            SectionCard(
-                title = "Moduły",
-                subtitle = "Dotknij ikonę, aby od razu przejść do wybranego modułu.",
-            ) {
-                FlowRow(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
-                    maxItemsInEachRow = 4,
-                ) {
-                    shortcuts.forEach { shortcut ->
-                        HomeShortcutTile(
-                            label = shortcut.label,
-                            icon = shortcut.icon,
-                            onClick = { navController.navigate(shortcut.route.route) },
-                        )
-                    }
-                }
-            }
-        }
-        item {
-            SectionCard(
-                title = "Sterowanie aplikacją",
-                subtitle = "Szybka zmiana motywu i zamknięcie aplikacji.",
-            ) {
-                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    OutlinedButton(onClick = onEnableDarkTheme, modifier = Modifier.fillMaxWidth()) {
-                        Text("Dark")
-                    }
-                    OutlinedButton(onClick = onEnableLightTheme, modifier = Modifier.fillMaxWidth()) {
-                        Text("Light")
-                    }
-                    Button(onClick = { activity?.finish() }, modifier = Modifier.fillMaxWidth()) {
-                        Text("Wyjście")
-                    }
-                }
+        FlowRow(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 4.dp),
+            horizontalArrangement = Arrangement.spacedBy(14.dp, Alignment.CenterHorizontally),
+            verticalArrangement = Arrangement.spacedBy(14.dp),
+            maxItemsInEachRow = 4,
+        ) {
+            shortcuts.forEach { shortcut ->
+                HomeShortcutTile(
+                    label = shortcut.label,
+                    icon = shortcut.icon,
+                    onClick = { navController.navigate(shortcut.route.route) },
+                )
             }
         }
     }
@@ -116,31 +89,48 @@ private fun HomeShortcutTile(
 ) {
     Card(
         modifier = Modifier
-            .size(width = 78.dp, height = 94.dp)
+            .size(width = 86.dp, height = 108.dp)
             .clickable(onClick = onClick),
         shape = FlotaThemeDefaults.cardShape,
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.75f)),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.8f),
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 3.dp),
     ) {
-        Column(
+        Box(
             modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 8.dp, vertical = 12.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterVertically),
+                .fillMaxSize()
+                .padding(10.dp),
+            contentAlignment = Alignment.Center,
         ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = label,
-                modifier = Modifier.size(28.dp),
-                tint = MaterialTheme.colorScheme.primary,
-            )
+            Card(
+                modifier = Modifier.size(58.dp),
+                shape = FlotaThemeDefaults.pillShape,
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.65f),
+                ),
+            ) {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Icon(
+                        imageVector = icon,
+                        contentDescription = label,
+                        modifier = Modifier.size(34.dp),
+                        tint = MaterialTheme.colorScheme.primary,
+                    )
+                }
+            }
             Text(
                 text = label,
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(bottom = 2.dp),
                 style = MaterialTheme.typography.labelLarge,
-                fontWeight = FontWeight.SemiBold,
+                fontWeight = FontWeight.Bold,
                 textAlign = TextAlign.Center,
                 color = MaterialTheme.colorScheme.onSurface,
+                maxLines = 1,
+                softWrap = false,
+                overflow = TextOverflow.Ellipsis,
             )
         }
     }

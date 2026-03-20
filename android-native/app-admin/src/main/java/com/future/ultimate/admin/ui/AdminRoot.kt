@@ -61,11 +61,11 @@ private data class AdminNavItem(
 
 private val bottomRoutes = listOf(
     AdminNavItem(AdminRoute.Home, Icons.Rounded.Home, "Start"),
-    AdminNavItem(AdminRoute.Contacts, Icons.Rounded.Call, "Kontakty"),
+    AdminNavItem(AdminRoute.Contacts, Icons.Rounded.Call, "Kontakt"),
     AdminNavItem(AdminRoute.Cars, Icons.Rounded.DirectionsCar, "Auta"),
     AdminNavItem(AdminRoute.Clothes, Icons.Rounded.Checkroom, "Odzież"),
     AdminNavItem(AdminRoute.Payroll, Icons.Rounded.ReceiptLong, "Paski"),
-    AdminNavItem(AdminRoute.Settings, Icons.Rounded.Settings, "Ustawienia"),
+    AdminNavItem(AdminRoute.Settings, Icons.Rounded.Settings, "Opcje"),
 )
 
 private val allRoutes = listOf(
@@ -144,7 +144,13 @@ fun AdminRoot() {
                                     overflow = TextOverflow.Ellipsis,
                                 )
                             },
-                            icon = { Icon(item.icon, contentDescription = item.route.title) },
+                            icon = {
+                                Icon(
+                                    imageVector = item.icon,
+                                    contentDescription = item.route.title,
+                                    modifier = Modifier.size(28.dp),
+                                )
+                            },
                         )
                     }
                 }
@@ -156,11 +162,7 @@ fun AdminRoot() {
                 modifier = Modifier.padding(padding),
             ) {
                 composable(AdminRoute.Home.route) {
-                    HomeScreen(
-                        navController = navController,
-                        onEnableDarkTheme = { useDarkTheme = true },
-                        onEnableLightTheme = { useDarkTheme = false },
-                    )
+                    HomeScreen(navController = navController)
                 }
                 composable(AdminRoute.Contacts.route) { ContactsScreen() }
                 composable(AdminRoute.Cars.route) { CarsScreen() }
@@ -174,7 +176,13 @@ fun AdminRoot() {
                 composable(AdminRoute.Reports.route) { ReportsScreen() }
                 composable(AdminRoute.Workers.route) { WorkersScreen() }
                 composable(AdminRoute.Plants.route) { PlantsScreen() }
-                composable(AdminRoute.Settings.route) { SettingsScreen(navController) }
+                composable(AdminRoute.Settings.route) {
+                    SettingsScreen(
+                        navController = navController,
+                        onEnableDarkTheme = { useDarkTheme = true },
+                        onEnableLightTheme = { useDarkTheme = false },
+                    )
+                }
             }
         }
     }
