@@ -1,11 +1,10 @@
 # Native build failure summary
 
-- Run: https://github.com/damiankarwotpl-netizen/Flota/actions/runs/23337632187
+- Run: https://github.com/damiankarwotpl-netizen/Flota/actions/runs/23338311506
 - Workflow: `Build Native Android APKs`
 - Build type: `debug`
 
 ## Kotlin/Gradle error lines
-e: The daemon has terminated unexpectedly on startup attempt #1 with error code: 0. The daemon process output:
 e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/ClothesScreen.kt:8:43 Cannot access 'val RowColumnParentData?.weight: Float': it is internal in file.
 e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/EmailScreen.kt:7:43 Cannot access 'val RowColumnParentData?.weight: Float': it is internal in file.
 e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/PayrollScreen.kt:8:43 Cannot access 'val RowColumnParentData?.weight: Float': it is internal in file.
