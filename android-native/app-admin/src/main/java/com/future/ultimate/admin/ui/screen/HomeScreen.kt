@@ -56,6 +56,7 @@ fun HomeScreen(navController: NavController) {
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun HomeShortcutTile(
     label: String,
@@ -114,6 +115,15 @@ private fun HomeShortcutTile(
                     )
                 }
             }
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.Bold,
+                textAlign = TextAlign.Center,
+                color = MaterialTheme.colorScheme.onSurface,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
         }
     }
 }
