@@ -45,6 +45,8 @@ fun SettingsScreen(navController: NavController) {
                 subtitle = "Skonfiguruj endpoint synchronizacji i sprawdź połączenie.",
             ) {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    // TODO(main.py parity): legacy `show_logs` opened the app log buffer/file.
+                    // Native admin currently exposes session reports, but there is no repository-backed application-log source here yet.
                     OutlinedTextField(
                         value = uiState.remoteSettings.apiUrl,
                         onValueChange = viewModel::updateDriverRemoteApiUrl,
@@ -67,6 +69,8 @@ fun SettingsScreen(navController: NavController) {
                 subtitle = "Najczęściej używane akcje serwisowe i przejścia do modułów pobocznych.",
             ) {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    // TODO(main.py parity): legacy `show_logs` opened the app log buffer/file.
+                    // Native admin currently exposes session reports, but there is no repository-backed application-log source here yet.
                     Button(onClick = { navController.navigate(AdminRoute.Reports.route) }, modifier = Modifier.fillMaxWidth()) {
                         Text("Pokaż raporty sesji")
                     }
