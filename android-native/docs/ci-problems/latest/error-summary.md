@@ -1,10 +1,11 @@
 # Native build failure summary
 
-- Run: https://github.com/damiankarwotpl-netizen/Flota/actions/runs/23331399581
+- Run: https://github.com/damiankarwotpl-netizen/Flota/actions/runs/23333668516
 - Workflow: `Build Native Android APKs`
 - Build type: `debug`
 
 ## Kotlin/Gradle error lines
+e: The daemon has terminated unexpectedly on startup attempt #1 with error code: 0. The daemon process output:
 w: file:///home/runner/work/Flota/Flota/android-native/app-driver/src/main/java/com/future/ultimate/driver/ui/viewmodel/DriverViewModels.kt:216:107 Unchecked cast of 'com.future.ultimate.driver.ui.viewmodel.DriverLoginViewModel' to 'T'.
 w: file:///home/runner/work/Flota/Flota/android-native/app-driver/src/main/java/com/future/ultimate/driver/ui/viewmodel/DriverViewModels.kt:217:111 Unchecked cast of 'com.future.ultimate.driver.ui.viewmodel.DriverMileageViewModel' to 'T'.
 w: file:///home/runner/work/Flota/Flota/android-native/app-driver/src/main/java/com/future/ultimate/driver/ui/viewmodel/DriverViewModels.kt:218:123 Unchecked cast of 'com.future.ultimate.driver.ui.viewmodel.DriverVehicleReportViewModel' to 'T'.
