@@ -17,6 +17,7 @@ import com.future.ultimate.core.common.repository.ClothesOrderItemListItem
 import com.future.ultimate.core.common.repository.ClothesOrderImportRow
 import com.future.ultimate.core.common.repository.ClothesOrderListItem
 import com.future.ultimate.core.common.repository.ClothesSizeListItem
+import com.future.ultimate.core.common.repository.CarListItem
 import com.future.ultimate.core.common.repository.EmailTemplateData
 import com.future.ultimate.core.common.repository.ContactListItem
 import com.future.ultimate.core.common.repository.MailApprovalRequest

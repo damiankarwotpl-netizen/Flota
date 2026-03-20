@@ -184,14 +184,13 @@ private fun editableFields(draft: VehicleReportDraft, onDraftChange: (VehicleRep
                         "Lewy przedni" -> draft.copy(lp = newValue)
                         "Prawy przedni" -> draft.copy(pp = newValue)
                         "Lewy tylny" -> draft.copy(lt = newValue)
-                        else -> draft.copy(
-                            pt = if (label == "Prawy tylny") newValue else draft.pt,
-                            uszkodzenia = if (label == "Nowe uszkodzenia") newValue else draft.uszkodzenia,
-                            odKiedy = if (label == "Od kiedy?") newValue else draft.odKiedy,
-                            serwis = if (label == "Przegląd / Service") newValue else draft.serwis,
-                            przeglad = if (label == "Przegląd techniczny") newValue else draft.przeglad,
-                            uwagi = if (label == "Uwagi") newValue else draft.uwagi,
-                        ),
+                        "Prawy tylny" -> draft.copy(pt = newValue)
+                        "Nowe uszkodzenia" -> draft.copy(uszkodzenia = newValue)
+                        "Od kiedy?" -> draft.copy(odKiedy = newValue)
+                        "Przegląd / Service" -> draft.copy(serwis = newValue)
+                        "Przegląd techniczny" -> draft.copy(przeglad = newValue)
+                        "Uwagi" -> draft.copy(uwagi = newValue)
+                        else -> draft
                     },
                 )
             },

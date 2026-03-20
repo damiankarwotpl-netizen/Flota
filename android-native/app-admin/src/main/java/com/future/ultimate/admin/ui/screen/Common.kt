@@ -22,7 +22,7 @@ import androidx.compose.ui.unit.dp
 fun ScreenColumn(
     title: String,
     subtitle: String? = null,
-    content: @Composable ColumnScopeLike.() -> Unit,
+    content: ColumnScopeLike.() -> Unit,
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
