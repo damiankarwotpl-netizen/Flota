@@ -13,3 +13,7 @@ Current latest report paths:
 - `latest/problems-report.html` (if Gradle generated the Problems Report)
 - `latest/gradle-build.log` (raw build log from assemble step)
 - `latest/error-summary.md` (filtered key error lines for quick triage)
+
+Additionally, on failure the workflow writes a condensed error block to the
+GitHub job summary (`$GITHUB_STEP_SUMMARY`) so root cause lines are visible
+without downloading artifacts.

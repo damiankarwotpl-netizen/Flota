@@ -109,6 +109,26 @@ jobs:
             native-gradle-build.log
           if-no-files-found: warn
 
+      - name: Publish failure summary to GitHub job summary
+        if: failure()
+        run: |
+          {
+            echo "## Native build failure summary"
+            echo
+            if [[ -f ../native-gradle-build.log ]]; then
+              echo "### Extracted error lines"
+              echo '```text'
+              if grep -E "^[we]: |^FAILURE:|^\\* What went wrong:|^Execution failed for task" ../native-gradle-build.log >/dev/null; then
+                grep -E "^[we]: |^FAILURE:|^\\* What went wrong:|^Execution failed for task" ../native-gradle-build.log | sed -n '1,200p'
+              else
+                echo "No Kotlin/Gradle error markers matched; inspect full native-gradle-build.log artifact."
+              fi
+              echo '```'
+            else
+              echo "No native-gradle-build.log found."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
       - name: Persist latest problem report in repository
         if: ${{ failure() && (github.event_name != 'workflow_dispatch' || github.event.inputs.persist_problem_report == 'true') }}
         working-directory: .
