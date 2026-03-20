@@ -39,7 +39,7 @@ fun ClothesScreen() {
     val reportsViewModel: ClothesReportsViewModel = viewModel(factory = AdminViewModelFactory(app.container.repository))
     val reportsUiState by reportsViewModel.uiState.collectAsStateWithLifecycle()
 
-    ScreenColumn("Ubranie robocze", "Moduły odzieżowe 1:1") {
+    ScreenColumn("Ubrania robocze", "Moduły odzieżowe 1:1") {
         item {
             Column {
                 TabRow(selectedTabIndex = selected.intValue) {
