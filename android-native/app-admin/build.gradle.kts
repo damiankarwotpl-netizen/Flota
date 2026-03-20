@@ -6,6 +6,17 @@ plugins {
     id("org.jetbrains.kotlin.plugin.compose")
 }
 
+val sharedMetaInfResources = setOf(
+    "META-INF/NOTICE.md",
+    "META-INF/LICENSE.md",
+    "META-INF/NOTICE*",
+    "META-INF/LICENSE*",
+    "/META-INF/NOTICE.md",
+    "/META-INF/LICENSE.md",
+    "/META-INF/NOTICE*",
+    "/META-INF/LICENSE*",
+)
+
 fun Project.optionalConfig(name: String): String? =
     (findProperty(name) as String?)?.takeIf { it.isNotBlank() }
         ?: System.getenv(name)?.takeIf { it.isNotBlank() }
@@ -50,6 +61,12 @@ android {
         compose = true
     }
 
+    packaging {
+        resources {
+            excludes += sharedMetaInfResources
+        }
+    }
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
@@ -65,9 +82,12 @@ dependencies {
     implementation(project(":core-database"))
     implementation(platform("androidx.compose:compose-bom:2024.10.01"))
     implementation("androidx.activity:activity-compose:1.9.3")
+    implementation("androidx.compose.foundation:foundation")
     implementation("androidx.compose.material3:material3")
     implementation("androidx.compose.material:material-icons-extended")
     implementation("androidx.navigation:navigation-compose:2.8.3")
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.8.7")
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.7")
+    implementation("com.sun.mail:android-mail:1.6.7")
+    implementation("com.sun.mail:android-activation:1.6.7")
 }

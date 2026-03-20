@@ -212,6 +212,7 @@ class DriverChangePasswordViewModel(
 class DriverViewModelFactory(
     private val repository: DriverRepository,
 ) : ViewModelProvider.Factory {
+    @Suppress("UNCHECKED_CAST")
     override fun <T : ViewModel> create(modelClass: Class<T>): T = when {
         modelClass.isAssignableFrom(DriverLoginViewModel::class.java) -> DriverLoginViewModel(repository) as T
         modelClass.isAssignableFrom(DriverMileageViewModel::class.java) -> DriverMileageViewModel(repository) as T
