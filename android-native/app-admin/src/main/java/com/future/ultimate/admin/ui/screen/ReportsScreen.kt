@@ -1,10 +1,10 @@
 package com.future.ultimate.admin.ui.screen
 
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -34,19 +34,32 @@ fun ReportsScreen() {
     val totalFail = filteredItems.sumOf { it.fail }
     val totalSkip = filteredItems.sumOf { it.skip }
 
-    ScreenColumn("Historia sesji", "Historia sesji i raporty z wysyłek") {
+    ScreenColumn("Historia sesji", "Wyszukiwanie, eksport i szybki podgląd wyników wysyłek") {
         item {
-            Column {
-                Button(onClick = viewModel::exportCsv, modifier = Modifier.fillMaxWidth()) {
-                    Text(if (uiState.isExporting) "Eksportowanie..." else "Eksport CSV raportów")
+            SectionCard(
+                title = "Filtry i eksport",
+                subtitle = "Wyszukaj konkretną sesję albo pobierz dane w CSV.",
+            ) {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Button(onClick = viewModel::exportCsv, modifier = Modifier.fillMaxWidth()) {
+                        Text(if (uiState.isExporting) "Eksportowanie..." else "Eksport CSV raportów")
+                    }
+                    uiState.exportMessage?.let { Text(it) }
+                    OutlinedTextField(
+                        value = query.value,
+                        onValueChange = { query.value = it },
+                        label = { Text("Filtruj po dacie lub logach") },
+                        modifier = Modifier.fillMaxWidth(),
+                    )
                 }
-                uiState.exportMessage?.let { Text(it) }
-                OutlinedTextField(query.value, { query.value = it }, label = { Text("Filtruj po dacie lub logach") }, modifier = Modifier.fillMaxWidth())
             }
         }
         item {
-            Card(modifier = Modifier.fillMaxWidth()) {
-                Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
+            SectionCard(
+                title = "Podsumowanie",
+                subtitle = "Agregacja aktualnie przefiltrowanych wyników.",
+            ) {
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     Text("Sesje: ${filteredItems.size}")
                     Text("Łącznie OK: $totalOk • Błędy: $totalFail • Pominięte: $totalSkip")
                     Text(filteredItems.firstOrNull()?.let { "Najnowsza sesja: ${it.date}" } ?: "Najnowsza sesja: brak")
@@ -54,12 +67,24 @@ fun ReportsScreen() {
             }
         }
         if (filteredItems.isEmpty()) {
-            item { Text("Brak zapisanych raportów sesji.") }
+            item {
+                SectionCard(
+                    title = "Brak wyników",
+                    subtitle = "Nie znaleziono sesji pasujących do bieżącego filtra.",
+                ) {
+                    Text("Wyczyść filtr lub wykonaj nową synchronizację, aby zapełnić listę raportów.")
+                }
+            }
         }
         filteredItems.forEach { itemData ->
             item {
-                Card(modifier = Modifier.fillMaxWidth()) {
-                    Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
+                SectionCard {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(0.dp),
+                        verticalArrangement = Arrangement.spacedBy(6.dp),
+                    ) {
                         Text("Sesja: ${itemData.date}")
                         Text("OK: ${itemData.ok} • Błędy: ${itemData.fail} • Pominięte: ${itemData.skip}")
                         Text(if (itemData.details.isBlank()) "Brak logów" else itemData.details)
