@@ -61,10 +61,14 @@ android {
 
     packaging {
         resources {
-            excludes += setOf(
+            val sharedMetaInfFiles = setOf(
                 "META-INF/NOTICE.md",
+                "/META-INF/NOTICE.md",
                 "META-INF/LICENSE.md",
+                "/META-INF/LICENSE.md",
             )
+            excludes += sharedMetaInfFiles
+            pickFirsts += sharedMetaInfFiles
         }
     }
 }
