@@ -1,90 +1,110 @@
 package com.future.ultimate.admin.ui.screen
 
-import android.app.Activity
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.material3.Button
-import androidx.compose.material3.OutlinedButton
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
-import com.future.ultimate.core.common.model.AdminRoute
+import com.future.ultimate.admin.ui.adminModuleMenuItems
+import com.future.ultimate.core.common.ui.theme.FlotaThemeDefaults
 
-private data class HomeShortcut(
-    val label: String,
-    val description: String,
-    val route: AdminRoute,
-)
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+fun HomeScreen(navController: NavController) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(horizontal = 16.dp)
+            .padding(top = 18.dp, bottom = 24.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        FlowRow(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 4.dp),
+            horizontalArrangement = Arrangement.spacedBy(14.dp, Alignment.CenterHorizontally),
+            verticalArrangement = Arrangement.spacedBy(14.dp),
+            maxItemsInEachRow = 3,
+        ) {
+            adminModuleMenuItems.forEach { item ->
+                HomeShortcutTile(
+                    label = item.label,
+                    contentDescription = item.label.replace('\n', ' '),
+                    icon = item.icon,
+                    onClick = { navController.navigate(item.route.route) },
+                )
+            }
+        }
+    }
+}
 
 @Composable
-fun HomeScreen(
-    navController: NavController,
-    onEnableDarkTheme: () -> Unit,
-    onEnableLightTheme: () -> Unit,
+private fun HomeShortcutTile(
+    label: String,
+    contentDescription: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    onClick: () -> Unit,
 ) {
-    val activity = LocalContext.current as? Activity
-    val shortcuts = listOf(
-        HomeShortcut("Kontakty", "Szybki dostęp do kontaktów i numerów alarmowych.", AdminRoute.Contacts),
-        HomeShortcut("Samochody", "Lista pojazdów i ich aktualnych danych.", AdminRoute.Cars),
-        HomeShortcut("Raport stanu auta", "Weryfikacja stanu pojazdu i eksport raportu.", AdminRoute.VehicleReport),
-        HomeShortcut("Ubranie robocze", "Rozmiary, zamówienia i historia wydań.", AdminRoute.Clothes),
-        HomeShortcut("Paski", "Eksport oraz podgląd pasków wynagrodzeń.", AdminRoute.Payroll),
-        HomeShortcut("Pracownicy", "Dane osobowe i przypisania pracowników.", AdminRoute.Workers),
-        HomeShortcut("Zakłady", "Zarządzanie lokalizacjami i jednostkami.", AdminRoute.Plants),
-        HomeShortcut("Ustawienia", "Integracje, SMTP oraz narzędzia serwisowe.", AdminRoute.Settings),
-    )
-
-    ScreenColumn(
-        title = "Panel główny aplikacji",
-        subtitle = "Najważniejsze moduły i skróty w jednym miejscu.",
+    Card(
+        modifier = Modifier
+            .size(width = 104.dp, height = 132.dp)
+            .clickable(onClick = onClick),
+        shape = FlotaThemeDefaults.cardShape,
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.8f),
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 3.dp),
     ) {
-        item {
-            SectionCard(
-                title = "Sterowanie aplikacją",
-                subtitle = "Parzystość z legacy home: szybka zmiana motywu i zamknięcie aplikacji.",
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 10.dp, vertical = 12.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterVertically),
+        ) {
+            Card(
+                modifier = Modifier.size(64.dp),
+                shape = FlotaThemeDefaults.pillShape,
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.65f),
+                ),
             ) {
-                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    OutlinedButton(onClick = onEnableDarkTheme, modifier = Modifier.fillMaxWidth()) {
-                        Text("Dark")
-                    }
-                    OutlinedButton(onClick = onEnableLightTheme, modifier = Modifier.fillMaxWidth()) {
-                        Text("Light")
-                    }
-                    Button(onClick = { activity?.finish() }, modifier = Modifier.fillMaxWidth()) {
-                        Text("Wyjście")
-                    }
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Icon(
+                        imageVector = icon,
+                        contentDescription = contentDescription,
+                        modifier = Modifier.size(38.dp),
+                        tint = MaterialTheme.colorScheme.primary,
+                    )
                 }
             }
-        }
-        item {
-            SectionCard(
-                title = "Co się zmieniło?",
-                subtitle = "Układ jest bardziej czytelny i nastawiony na szybkie wejście do modułów.",
-            ) {
-                Text("Funkcje pozostały bez zmian — poprawiliśmy przede wszystkim nawigację i prezentację treści.")
-            }
-        }
-
-        shortcuts.forEach { shortcut ->
-            item {
-                SectionCard(
-                    title = shortcut.label,
-                    subtitle = shortcut.description,
-                ) {
-                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                        Button(
-                            onClick = { navController.navigate(shortcut.route.route) },
-                            modifier = Modifier.fillMaxWidth(),
-                        ) {
-                            Text("Otwórz moduł")
-                        }
-                    }
-                }
-            }
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.Bold,
+                textAlign = TextAlign.Center,
+                color = MaterialTheme.colorScheme.onSurface,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
         }
     }
 }

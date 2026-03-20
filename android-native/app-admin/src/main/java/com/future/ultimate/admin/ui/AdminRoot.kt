@@ -1,29 +1,29 @@
 package com.future.ultimate.admin.ui
 
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Call
-import androidx.compose.material.icons.outlined.Checkroom
-import androidx.compose.material.icons.outlined.DirectionsCar
-import androidx.compose.material.icons.outlined.Home
-import androidx.compose.material.icons.outlined.ReceiptLong
-import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.darkColorScheme
-import androidx.compose.material3.lightColorScheme
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
 import androidx.navigation.NavDestination
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
@@ -36,6 +36,7 @@ import com.future.ultimate.admin.ui.screen.ClothesScreen
 import com.future.ultimate.admin.ui.screen.ContactsScreen
 import com.future.ultimate.admin.ui.screen.EmailScreen
 import com.future.ultimate.admin.ui.screen.HomeScreen
+import com.future.ultimate.admin.ui.screen.HousingScreen
 import com.future.ultimate.admin.ui.screen.PayrollScreen
 import com.future.ultimate.admin.ui.screen.PlantsScreen
 import com.future.ultimate.admin.ui.screen.ReportsScreen
@@ -46,21 +47,9 @@ import com.future.ultimate.admin.ui.screen.TemplateScreen
 import com.future.ultimate.admin.ui.screen.VehicleReportScreen
 import com.future.ultimate.admin.ui.screen.WorkersScreen
 import com.future.ultimate.core.common.model.AdminRoute
-
-private data class AdminNavItem(
-    val route: AdminRoute,
-    val icon: ImageVector,
-    val shortLabel: String,
-)
-
-private val bottomRoutes = listOf(
-    AdminNavItem(AdminRoute.Home, Icons.Outlined.Home, "Start"),
-    AdminNavItem(AdminRoute.Contacts, Icons.Outlined.Call, "Kontakty"),
-    AdminNavItem(AdminRoute.Cars, Icons.Outlined.DirectionsCar, "Auta"),
-    AdminNavItem(AdminRoute.Clothes, Icons.Outlined.Checkroom, "Odzież"),
-    AdminNavItem(AdminRoute.Payroll, Icons.Outlined.ReceiptLong, "Paski"),
-    AdminNavItem(AdminRoute.Settings, Icons.Outlined.Settings, "Ustawienia"),
-)
+import com.future.ultimate.core.common.ui.theme.FlotaTheme
+import com.future.ultimate.core.common.ui.theme.FlotaThemeMode
+import com.future.ultimate.core.common.ui.theme.topBarContainerColor
 
 private val allRoutes = listOf(
     AdminRoute.Home,
@@ -69,6 +58,7 @@ private val allRoutes = listOf(
     AdminRoute.VehicleReport,
     AdminRoute.Clothes,
     AdminRoute.Payroll,
+    AdminRoute.Housing,
     AdminRoute.Table,
     AdminRoute.Email,
     AdminRoute.Smtp,
@@ -82,38 +72,64 @@ private val allRoutes = listOf(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AdminRoot() {
-    var useDarkTheme by rememberSaveable { androidx.compose.runtime.mutableStateOf(true) }
+    var themeMode by rememberSaveable { mutableStateOf(FlotaThemeMode.Dark) }
 
-    MaterialTheme(colorScheme = if (useDarkTheme) darkColorScheme() else lightColorScheme()) {
+    FlotaTheme(mode = themeMode) {
         val navController = rememberNavController()
         val backStack by navController.currentBackStackEntryAsState()
         val currentRoute = backStack?.destination.currentAdminRoute()
 
         Scaffold(
+            containerColor = MaterialTheme.colorScheme.background,
             topBar = {
                 TopAppBar(
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = MaterialTheme.colorScheme.topBarContainerColor(),
+                        titleContentColor = MaterialTheme.colorScheme.onSurface,
+                    ),
                     title = {
-                        Text(currentRoute?.title ?: "Future Ultimate Admin")
+                        Text(
+                            text = currentRoute?.title ?: "Future Ultimate Admin",
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold,
+                        )
                     },
                 )
             },
             bottomBar = {
-                NavigationBar {
-                    bottomRoutes.forEach { item ->
-                        NavigationBarItem(
-                            selected = backStack?.destination?.route == item.route.route,
-                            onClick = {
-                                navController.navigate(item.route.route) {
-                                    popUpTo(navController.graph.findStartDestination().id) {
-                                        saveState = true
+                Surface(
+                    color = MaterialTheme.colorScheme.surface,
+                    tonalElevation = 10.dp,
+                ) {
+                    LazyRow(
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 10.dp),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    ) {
+                        items(adminBottomMenuItems, key = { item -> item.route.route }) { item ->
+                            val selected = backStack?.destination?.route == item.route.route
+                            IconButton(
+                                onClick = {
+                                    navController.navigate(item.route.route) {
+                                        popUpTo(navController.graph.findStartDestination().id) {
+                                            saveState = true
+                                        }
+                                        launchSingleTop = true
+                                        restoreState = true
                                     }
-                                    launchSingleTop = true
-                                    restoreState = true
-                                }
-                            },
-                            label = { Text(item.shortLabel) },
-                            icon = { Icon(item.icon, contentDescription = item.route.title) },
-                        )
+                                },
+                                colors = IconButtonDefaults.iconButtonColors(
+                                    containerColor = if (selected) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f),
+                                    contentColor = if (selected) MaterialTheme.colorScheme.onSecondary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                ),
+                                modifier = Modifier.size(52.dp),
+                            ) {
+                                Icon(
+                                    imageVector = item.icon,
+                                    contentDescription = item.label.replace('\n', ' '),
+                                    modifier = Modifier.size(26.dp),
+                                )
+                            }
+                        }
                     }
                 }
             },
@@ -123,18 +139,13 @@ fun AdminRoot() {
                 startDestination = AdminRoute.Home.route,
                 modifier = Modifier.padding(padding),
             ) {
-                composable(AdminRoute.Home.route) {
-                    HomeScreen(
-                        navController = navController,
-                        onEnableDarkTheme = { useDarkTheme = true },
-                        onEnableLightTheme = { useDarkTheme = false },
-                    )
-                }
+                composable(AdminRoute.Home.route) { HomeScreen(navController = navController) }
                 composable(AdminRoute.Contacts.route) { ContactsScreen() }
                 composable(AdminRoute.Cars.route) { CarsScreen() }
                 composable(AdminRoute.VehicleReport.route) { VehicleReportScreen() }
                 composable(AdminRoute.Clothes.route) { ClothesScreen() }
                 composable(AdminRoute.Payroll.route) { PayrollScreen(navController) }
+                composable(AdminRoute.Housing.route) { HousingScreen() }
                 composable(AdminRoute.Table.route) { TableScreen() }
                 composable(AdminRoute.Email.route) { EmailScreen(navController) }
                 composable(AdminRoute.Smtp.route) { SmtpScreen() }
@@ -142,7 +153,14 @@ fun AdminRoot() {
                 composable(AdminRoute.Reports.route) { ReportsScreen() }
                 composable(AdminRoute.Workers.route) { WorkersScreen() }
                 composable(AdminRoute.Plants.route) { PlantsScreen() }
-                composable(AdminRoute.Settings.route) { SettingsScreen(navController) }
+                composable(AdminRoute.Settings.route) {
+                    SettingsScreen(
+                        navController = navController,
+                        onEnableDarkTheme = { themeMode = FlotaThemeMode.Dark },
+                        onEnableLightTheme = { themeMode = FlotaThemeMode.Light },
+                        onEnablePinkTheme = { themeMode = FlotaThemeMode.Pink },
+                    )
+                }
             }
         }
     }
