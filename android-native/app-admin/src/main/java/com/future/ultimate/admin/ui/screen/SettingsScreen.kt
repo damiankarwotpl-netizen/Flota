@@ -4,13 +4,14 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material3.Button
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
@@ -20,12 +21,35 @@ import com.future.ultimate.admin.ui.viewmodel.SettingsViewModel
 import com.future.ultimate.core.common.model.AdminRoute
 
 @Composable
-fun SettingsScreen(navController: NavController) {
+fun SettingsScreen(
+    navController: NavController,
+    onEnableDarkTheme: () -> Unit,
+    onEnableLightTheme: () -> Unit,
+    onEnablePinkTheme: () -> Unit,
+) {
     val app = LocalContext.current.applicationContext as AdminApp
     val viewModel: SettingsViewModel = viewModel(factory = AdminViewModelFactory(app.container.repository))
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
     ScreenColumn("Ustawienia", "Integracje, snapshoty i podstawowe statystyki systemu") {
+        item {
+            SectionCard(
+                title = "Wygląd aplikacji",
+                subtitle = "Tutaj zmienisz motyw interfejsu.",
+            ) {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    OutlinedButton(onClick = onEnableDarkTheme, modifier = Modifier.fillMaxWidth()) {
+                        Text("Dark mode")
+                    }
+                    OutlinedButton(onClick = onEnableLightTheme, modifier = Modifier.fillMaxWidth()) {
+                        Text("Light mode")
+                    }
+                    OutlinedButton(onClick = onEnablePinkTheme, modifier = Modifier.fillMaxWidth()) {
+                        Text("Pink mode • neon")
+                    }
+                }
+            }
+        }
         item {
             SectionCard(
                 title = "Stan danych lokalnych",
@@ -75,7 +99,7 @@ fun SettingsScreen(navController: NavController) {
                         Text("Pokaż raporty sesji")
                     }
                     Button(onClick = { navController.navigate(AdminRoute.Payroll.route) }, modifier = Modifier.fillMaxWidth()) {
-                        Text("Przejdź do modułu płac")
+                        Text("Przejdź do modułu wypłat")
                     }
                     Button(onClick = viewModel::exportDatabaseSnapshot, modifier = Modifier.fillMaxWidth()) {
                         Text(if (uiState.isExportingDatabase) "Eksportowanie bazy..." else "Eksportuj snapshot bazy")
