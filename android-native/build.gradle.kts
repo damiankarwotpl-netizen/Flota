@@ -13,22 +13,24 @@ plugins {
 val sharedMetaInfResources = setOf(
     "META-INF/NOTICE.md",
     "META-INF/LICENSE.md",
+    "META-INF/NOTICE*",
+    "META-INF/LICENSE*",
     "/META-INF/NOTICE.md",
     "/META-INF/LICENSE.md",
+    "/META-INF/NOTICE*",
+    "/META-INF/LICENSE*",
 )
 
 fun Project.configureSharedPackagingResources() {
     pluginManager.withPlugin("com.android.application") {
         extensions.configure(ApplicationExtension::class.java) {
             packaging.resources.excludes.addAll(sharedMetaInfResources)
-            packaging.resources.pickFirsts.addAll(sharedMetaInfResources)
         }
     }
 
     pluginManager.withPlugin("com.android.library") {
         extensions.configure(LibraryExtension::class.java) {
             packaging.resources.excludes.addAll(sharedMetaInfResources)
-            packaging.resources.pickFirsts.addAll(sharedMetaInfResources)
         }
     }
 }
