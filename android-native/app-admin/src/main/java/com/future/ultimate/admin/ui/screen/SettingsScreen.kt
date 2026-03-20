@@ -25,6 +25,7 @@ fun SettingsScreen(
     navController: NavController,
     onEnableDarkTheme: () -> Unit,
     onEnableLightTheme: () -> Unit,
+    onEnablePinkTheme: () -> Unit,
 ) {
     val app = LocalContext.current.applicationContext as AdminApp
     val viewModel: SettingsViewModel = viewModel(factory = AdminViewModelFactory(app.container.repository))
@@ -42,6 +43,9 @@ fun SettingsScreen(
                     }
                     OutlinedButton(onClick = onEnableLightTheme, modifier = Modifier.fillMaxWidth()) {
                         Text("Light mode")
+                    }
+                    OutlinedButton(onClick = onEnablePinkTheme, modifier = Modifier.fillMaxWidth()) {
+                        Text("Pink mode • neon")
                     }
                 }
             }
@@ -95,7 +99,7 @@ fun SettingsScreen(
                         Text("Pokaż raporty sesji")
                     }
                     Button(onClick = { navController.navigate(AdminRoute.Payroll.route) }, modifier = Modifier.fillMaxWidth()) {
-                        Text("Przejdź do modułu płac")
+                        Text("Przejdź do modułu wypłat")
                     }
                     Button(onClick = viewModel::exportDatabaseSnapshot, modifier = Modifier.fillMaxWidth()) {
                         Text(if (uiState.isExportingDatabase) "Eksportowanie bazy..." else "Eksportuj snapshot bazy")

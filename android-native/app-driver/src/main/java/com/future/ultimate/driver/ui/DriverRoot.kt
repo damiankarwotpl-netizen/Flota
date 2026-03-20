@@ -22,6 +22,7 @@ import androidx.navigation.compose.rememberNavController
 import androidx.compose.ui.platform.LocalContext
 import com.future.ultimate.core.common.model.DriverRoute
 import com.future.ultimate.core.common.ui.theme.FlotaTheme
+import com.future.ultimate.core.common.ui.theme.FlotaThemeMode
 import com.future.ultimate.core.common.ui.theme.topBarContainerColor
 import com.future.ultimate.driver.DriverApp
 import com.future.ultimate.driver.ui.screen.DriverChangePasswordScreen
@@ -39,7 +40,7 @@ private val driverRoutes = listOf(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DriverRoot() {
-    FlotaTheme(darkTheme = true) {
+    FlotaTheme(mode = FlotaThemeMode.Dark) {
         val app = LocalContext.current.applicationContext as DriverApp
         val session by app.container.repository.observeSession().collectAsStateWithLifecycle(initialValue = null)
         val navController = rememberNavController()

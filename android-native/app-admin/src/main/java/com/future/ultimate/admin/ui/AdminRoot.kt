@@ -41,6 +41,7 @@ import com.future.ultimate.admin.ui.screen.ClothesScreen
 import com.future.ultimate.admin.ui.screen.ContactsScreen
 import com.future.ultimate.admin.ui.screen.EmailScreen
 import com.future.ultimate.admin.ui.screen.HomeScreen
+import com.future.ultimate.admin.ui.screen.HousingScreen
 import com.future.ultimate.admin.ui.screen.PayrollScreen
 import com.future.ultimate.admin.ui.screen.PlantsScreen
 import com.future.ultimate.admin.ui.screen.ReportsScreen
@@ -52,6 +53,7 @@ import com.future.ultimate.admin.ui.screen.VehicleReportScreen
 import com.future.ultimate.admin.ui.screen.WorkersScreen
 import com.future.ultimate.core.common.model.AdminRoute
 import com.future.ultimate.core.common.ui.theme.FlotaTheme
+import com.future.ultimate.core.common.ui.theme.FlotaThemeMode
 import com.future.ultimate.core.common.ui.theme.topBarContainerColor
 
 private data class AdminNavItem(
@@ -62,11 +64,11 @@ private data class AdminNavItem(
 
 private val bottomRoutes = listOf(
     AdminNavItem(AdminRoute.Home, Icons.Rounded.Home, "Start"),
-    AdminNavItem(AdminRoute.Contacts, Icons.Rounded.Call, "Kontakt"),
-    AdminNavItem(AdminRoute.Cars, Icons.Rounded.DirectionsCar, "Auta"),
-    AdminNavItem(AdminRoute.Clothes, Icons.Rounded.Checkroom, "Odzież"),
-    AdminNavItem(AdminRoute.Payroll, Icons.Rounded.ReceiptLong, "Paski"),
-    AdminNavItem(AdminRoute.Settings, Icons.Rounded.Settings, "Opcje"),
+    AdminNavItem(AdminRoute.Contacts, Icons.Rounded.Call, "Kontakty"),
+    AdminNavItem(AdminRoute.Cars, Icons.Rounded.DirectionsCar, "Samochody"),
+    AdminNavItem(AdminRoute.Clothes, Icons.Rounded.Checkroom, "Ubrania"),
+    AdminNavItem(AdminRoute.Payroll, Icons.Rounded.ReceiptLong, "Wypłaty"),
+    AdminNavItem(AdminRoute.Settings, Icons.Rounded.Settings, "Ustawienia"),
 )
 
 private val allRoutes = listOf(
@@ -76,6 +78,7 @@ private val allRoutes = listOf(
     AdminRoute.VehicleReport,
     AdminRoute.Clothes,
     AdminRoute.Payroll,
+    AdminRoute.Housing,
     AdminRoute.Table,
     AdminRoute.Email,
     AdminRoute.Smtp,
@@ -89,9 +92,9 @@ private val allRoutes = listOf(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AdminRoot() {
-    var useDarkTheme by rememberSaveable { mutableStateOf(true) }
+    var themeMode by rememberSaveable { mutableStateOf(FlotaThemeMode.Dark) }
 
-    FlotaTheme(darkTheme = useDarkTheme) {
+    FlotaTheme(mode = themeMode) {
         val navController = rememberNavController()
         val backStack by navController.currentBackStackEntryAsState()
         val currentRoute = backStack?.destination.currentAdminRoute()
@@ -140,6 +143,7 @@ fun AdminRoot() {
                             label = {
                                 Text(
                                     text = item.shortLabel,
+                                    style = MaterialTheme.typography.labelSmall,
                                     maxLines = 1,
                                     softWrap = false,
                                     overflow = TextOverflow.Ellipsis,
@@ -149,7 +153,7 @@ fun AdminRoot() {
                                 Icon(
                                     imageVector = item.icon,
                                     contentDescription = item.route.title,
-                                    modifier = Modifier.size(28.dp),
+                                    modifier = Modifier.size(26.dp),
                                 )
                             },
                         )
@@ -170,6 +174,7 @@ fun AdminRoot() {
                 composable(AdminRoute.VehicleReport.route) { VehicleReportScreen() }
                 composable(AdminRoute.Clothes.route) { ClothesScreen() }
                 composable(AdminRoute.Payroll.route) { PayrollScreen(navController) }
+                composable(AdminRoute.Housing.route) { HousingScreen() }
                 composable(AdminRoute.Table.route) { TableScreen() }
                 composable(AdminRoute.Email.route) { EmailScreen(navController) }
                 composable(AdminRoute.Smtp.route) { SmtpScreen() }
@@ -180,8 +185,9 @@ fun AdminRoot() {
                 composable(AdminRoute.Settings.route) {
                     SettingsScreen(
                         navController = navController,
-                        onEnableDarkTheme = { useDarkTheme = true },
-                        onEnableLightTheme = { useDarkTheme = false },
+                        onEnableDarkTheme = { themeMode = FlotaThemeMode.Dark },
+                        onEnableLightTheme = { themeMode = FlotaThemeMode.Light },
+                        onEnablePinkTheme = { themeMode = FlotaThemeMode.Pink },
                     )
                 }
             }
