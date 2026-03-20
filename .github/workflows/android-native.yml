@@ -1,0 +1,189 @@
+name: Build Native Android APKs
+
+on:
+  workflow_dispatch:
+    inputs:
+      build_type:
+        description: Build variant
+        required: true
+        default: debug
+        type: choice
+        options:
+          - debug
+          - release
+      persist_problem_report:
+        description: Commit latest Gradle problem report to repository (only on failure)
+        required: true
+        default: "true"
+        type: choice
+        options:
+          - "true"
+          - "false"
+  push:
+    paths:
+      - 'android-native/**'
+      - '.github/workflows/android-native.yml'
+  pull_request:
+    paths:
+      - 'android-native/**'
+      - '.github/workflows/android-native.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  build-native:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: android-native
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android SDK packages
+        run: |
+          yes | sdkmanager --licenses
+          sdkmanager \
+            "platform-tools" \
+            "platforms;android-35" \
+            "build-tools;35.0.0"
+
+      - name: Set up Gradle cache
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: 8.14.3
+
+      - name: Build debug APKs
+        if: ${{ github.event.inputs.build_type != 'release' }}
+        run: |
+          set -o pipefail
+          gradle clean :app-admin:assembleDebug :app-driver:assembleDebug --stacktrace --no-daemon --console=plain 2>&1 | tee ../native-gradle-build.log
+
+      - name: Build release APKs
+        if: ${{ github.event.inputs.build_type == 'release' }}
+        env:
+          FLOTA_RELEASE_STORE_FILE: ${{ secrets.FLOTA_RELEASE_STORE_FILE }}
+          FLOTA_RELEASE_STORE_PASSWORD: ${{ secrets.FLOTA_RELEASE_STORE_PASSWORD }}
+          FLOTA_RELEASE_KEY_ALIAS: ${{ secrets.FLOTA_RELEASE_KEY_ALIAS }}
+          FLOTA_RELEASE_KEY_PASSWORD: ${{ secrets.FLOTA_RELEASE_KEY_PASSWORD }}
+        run: |
+          set -o pipefail
+          gradle clean :app-admin:assembleRelease :app-driver:assembleRelease --stacktrace --no-daemon --console=plain 2>&1 | tee ../native-gradle-build.log
+
+      - name: Upload admin APKs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-admin-apk-${{ github.event.inputs.build_type || 'debug' }}
+          path: android-native/app-admin/build/outputs/apk/**/*.apk
+          if-no-files-found: warn
+
+      - name: Upload driver APKs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-driver-apk-${{ github.event.inputs.build_type || 'debug' }}
+          path: android-native/app-driver/build/outputs/apk/**/*.apk
+          if-no-files-found: warn
+
+      - name: Upload Gradle problem reports
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-gradle-problem-reports
+          path: |
+            android-native/build/reports/problems/**
+            android-native/**/build/reports/**
+            native-gradle-build.log
+          if-no-files-found: warn
+
+      - name: Publish failure summary to GitHub job summary
+        if: failure()
+        run: |
+          {
+            echo "## Native build failure summary"
+            echo
+            if [[ -f ../native-gradle-build.log ]]; then
+              echo "### Extracted error lines"
+              echo '```text'
+              if grep -E "^[we]: |^FAILURE:|^\\* What went wrong:|^Execution failed for task" ../native-gradle-build.log >/dev/null; then
+                grep -E "^[we]: |^FAILURE:|^\\* What went wrong:|^Execution failed for task" ../native-gradle-build.log | sed -n '1,200p'
+              else
+                echo "No Kotlin/Gradle error markers matched; inspect full native-gradle-build.log artifact."
+              fi
+              echo '```'
+            else
+              echo "No native-gradle-build.log found."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Persist latest problem report in repository
+        if: ${{ failure() && (github.event_name != 'workflow_dispatch' || github.event.inputs.persist_problem_report == 'true') }}
+        working-directory: .
+        run: |
+          set -euo pipefail
+          REPORT_DIR="android-native/build/reports/problems"
+          REPORT_FILE="$REPORT_DIR/problems-report.html"
+
+          TARGET_DIR="android-native/docs/ci-problems/latest"
+          mkdir -p "$TARGET_DIR"
+          if [[ -f "$REPORT_FILE" ]]; then
+            cp "$REPORT_FILE" "$TARGET_DIR/problems-report.html"
+          fi
+          if [[ -f "native-gradle-build.log" ]]; then
+            cp "native-gradle-build.log" "$TARGET_DIR/gradle-build.log"
+          fi
+
+          SUMMARY_FILE="$TARGET_DIR/error-summary.md"
+          {
+            echo "# Native build failure summary"
+            echo
+            echo "- Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            echo "- Workflow: \`${{ github.workflow }}\`"
+            echo "- Build type: \`${{ github.event.inputs.build_type || 'debug' }}\`"
+            echo
+            echo "## Kotlin/Gradle error lines"
+            if [[ -f "native-gradle-build.log" ]]; then
+              if grep -E "^[we]: |^FAILURE:|^\\* What went wrong:|^Execution failed for task" "native-gradle-build.log" >/dev/null; then
+                grep -E "^[we]: |^FAILURE:|^\\* What went wrong:|^Execution failed for task" "native-gradle-build.log" | sed -n '1,200p'
+              else
+                echo "_No explicit Kotlin error markers found in log._"
+              fi
+            else
+              echo "_No gradle-build.log available._"
+            fi
+          } > "$SUMMARY_FILE"
+
+          cat > "$TARGET_DIR/README.md" <<EOF
+          # Latest native build problems report
+
+          - Generated by workflow run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          - Workflow: \`${{ github.workflow }}\`
+          - Build type: \`${{ github.event.inputs.build_type || 'debug' }}\`
+          - Included files:
+            - \`problems-report.html\` (when Gradle generated it)
+            - \`gradle-build.log\` (raw console output from assemble step)
+            - \`error-summary.md\` (extracted key failure lines)
+          EOF
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add "$TARGET_DIR"
+          if git diff --staged --quiet; then
+            echo "Problem report unchanged; nothing to commit."
+            exit 0
+          fi
+          git commit -m "ci(native): update latest problems report (run ${{ github.run_id }})"
+          git push || echo "Push skipped (likely read-only token/fork PR). Artifacts still contain diagnostics."
