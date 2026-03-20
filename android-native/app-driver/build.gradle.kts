@@ -52,12 +52,14 @@ android {
 
     packaging {
         resources {
-            excludes += setOf(
+            val duplicateMetaInf = setOf(
                 "META-INF/NOTICE.md",
                 "META-INF/LICENSE.md",
                 "/META-INF/NOTICE.md",
                 "/META-INF/LICENSE.md",
             )
+            excludes += duplicateMetaInf
+            pickFirsts += duplicateMetaInf
         }
     }
 
