@@ -50,6 +50,17 @@ android {
         compose = true
     }
 
+    packaging {
+        resources {
+            excludes += setOf(
+                "META-INF/NOTICE.md",
+                "META-INF/LICENSE.md",
+                "/META-INF/NOTICE.md",
+                "/META-INF/LICENSE.md",
+            )
+        }
+    }
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
