@@ -1,5 +1,6 @@
 package com.future.ultimate.admin.ui.screen
 
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material3.Button
@@ -8,6 +9,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -23,33 +25,68 @@ fun SettingsScreen(navController: NavController) {
     val viewModel: SettingsViewModel = viewModel(factory = AdminViewModelFactory(app.container.repository))
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
-    ScreenColumn("Ustawienia", "Ustawienia i narzędzia systemowe") {
+    ScreenColumn("Ustawienia", "Integracje, snapshoty i podstawowe statystyki systemu") {
         item {
-            Column {
-                Text("Kontakty: ${uiState.stats.contactCount}   Pracownicy: ${uiState.stats.workerCount}")
-                Text("Auta: ${uiState.stats.carCount}   Zakłady: ${uiState.stats.plantCount}")
-                Text("Rozmiary odzieży: ${uiState.stats.clothesSizeCount}   Zamówienia: ${uiState.stats.clothesOrderCount}")
-                Text("Historia wydań odzieży: ${uiState.stats.clothesHistoryCount}")
-                OutlinedTextField(
-                    value = uiState.remoteSettings.apiUrl,
-                    onValueChange = viewModel::updateDriverRemoteApiUrl,
-                    label = { Text("Endpoint zdalnego syncu kierowców") },
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                Button(onClick = viewModel::saveDriverRemoteSettings, modifier = Modifier.fillMaxWidth()) {
-                    Text(if (uiState.isSavingRemoteSettings) "Zapisywanie integracji..." else "Zapisz ustawienia integracji")
+            SectionCard(
+                title = "Stan danych lokalnych",
+                subtitle = "Szybki przegląd rekordów zapisanych w bazie urządzenia.",
+            ) {
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text("Kontakty: ${uiState.stats.contactCount} • Pracownicy: ${uiState.stats.workerCount}")
+                    Text("Auta: ${uiState.stats.carCount} • Zakłady: ${uiState.stats.plantCount}")
+                    Text("Rozmiary odzieży: ${uiState.stats.clothesSizeCount} • Zamówienia: ${uiState.stats.clothesOrderCount}")
+                    Text("Historia wydań odzieży: ${uiState.stats.clothesHistoryCount}")
                 }
-                Button(onClick = viewModel::validateDriverRemoteSettings, modifier = Modifier.fillMaxWidth()) {
-                    Text(if (uiState.isValidatingRemoteSettings) "Sprawdzanie endpointu..." else "Sprawdź endpoint kierowców")
+            }
+        }
+        item {
+            SectionCard(
+                title = "Integracja kierowców",
+                subtitle = "Skonfiguruj endpoint synchronizacji i sprawdź połączenie.",
+            ) {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    // TODO(main.py parity): legacy `show_logs` opened the app log buffer/file.
+                    // Native admin currently exposes session reports, but there is no repository-backed application-log source here yet.
+                    OutlinedTextField(
+                        value = uiState.remoteSettings.apiUrl,
+                        onValueChange = viewModel::updateDriverRemoteApiUrl,
+                        label = { Text("Endpoint zdalnego syncu kierowców") },
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    Button(onClick = viewModel::saveDriverRemoteSettings, modifier = Modifier.fillMaxWidth()) {
+                        Text(if (uiState.isSavingRemoteSettings) "Zapisywanie integracji..." else "Zapisz ustawienia integracji")
+                    }
+                    Button(onClick = viewModel::validateDriverRemoteSettings, modifier = Modifier.fillMaxWidth()) {
+                        Text(if (uiState.isValidatingRemoteSettings) "Sprawdzanie endpointu..." else "Sprawdź endpoint kierowców")
+                    }
+                    uiState.actionMessage?.let { Text(it) }
                 }
-                Button(onClick = { navController.navigate(AdminRoute.Reports.route) }, modifier = Modifier.fillMaxWidth()) { Text("Pokaż raporty sesji") }
-                Button(onClick = { navController.navigate(AdminRoute.Payroll.route) }, modifier = Modifier.fillMaxWidth()) { Text("Przejdź do modułu płac") }
-                Button(onClick = viewModel::exportDatabaseSnapshot, modifier = Modifier.fillMaxWidth()) {
-                    Text(if (uiState.isExportingDatabase) "Eksportowanie bazy..." else "Eksportuj snapshot bazy")
+            }
+        }
+        item {
+            SectionCard(
+                title = "Narzędzia administracyjne",
+                subtitle = "Najczęściej używane akcje serwisowe i przejścia do modułów pobocznych.",
+            ) {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    // TODO(main.py parity): legacy `show_logs` opened the app log buffer/file.
+                    // Native admin currently exposes session reports, but there is no repository-backed application-log source here yet.
+                    Button(onClick = { navController.navigate(AdminRoute.Reports.route) }, modifier = Modifier.fillMaxWidth()) {
+                        Text("Pokaż raporty sesji")
+                    }
+                    Button(onClick = { navController.navigate(AdminRoute.Payroll.route) }, modifier = Modifier.fillMaxWidth()) {
+                        Text("Przejdź do modułu płac")
+                    }
+                    Button(onClick = viewModel::exportDatabaseSnapshot, modifier = Modifier.fillMaxWidth()) {
+                        Text(if (uiState.isExportingDatabase) "Eksportowanie bazy..." else "Eksportuj snapshot bazy")
+                    }
+                    Button(onClick = { navController.navigate(AdminRoute.Smtp.route) }, modifier = Modifier.fillMaxWidth()) {
+                        Text("Ustawienia SMTP")
+                    }
+                    Button(onClick = { navController.navigate(AdminRoute.Template.route) }, modifier = Modifier.fillMaxWidth()) {
+                        Text("Edytuj szablon email")
+                    }
                 }
-                uiState.actionMessage?.let { Text(it) }
-                Button(onClick = { navController.navigate(AdminRoute.Smtp.route) }, modifier = Modifier.fillMaxWidth()) { Text("Ustawienia SMTP") }
-                Button(onClick = { navController.navigate(AdminRoute.Template.route) }, modifier = Modifier.fillMaxWidth()) { Text("Edytuj szablon email") }
             }
         }
     }
