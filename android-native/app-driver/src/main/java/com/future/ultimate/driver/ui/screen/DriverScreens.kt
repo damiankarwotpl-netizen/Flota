@@ -1,5 +1,6 @@
 package com.future.ultimate.driver.ui.screen
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
@@ -10,27 +11,33 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
-import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.future.ultimate.core.common.model.DriverRoute
 import com.future.ultimate.core.common.model.VehicleReportDraft
+import com.future.ultimate.core.common.ui.theme.FlotaThemeDefaults
 import com.future.ultimate.driver.DriverApp
 import com.future.ultimate.driver.ui.viewmodel.DriverChangePasswordViewModel
 import com.future.ultimate.driver.ui.viewmodel.DriverLoginViewModel
@@ -40,16 +47,21 @@ import com.future.ultimate.driver.ui.viewmodel.DriverViewModelFactory
 
 private fun LazyListScope.screenHeader(title: String, subtitle: String? = null) {
     item {
-        Card(modifier = Modifier.fillMaxWidth()) {
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = FlotaThemeDefaults.screenShape,
+            colors = FlotaThemeDefaults.mutedCardColors(),
+            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        ) {
             Column(
-                modifier = Modifier.padding(20.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.padding(horizontal = 22.dp, vertical = 24.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
-                Text(title, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.SemiBold)
+                Text(title, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
                 subtitle?.let {
                     Text(
                         text = it,
-                        style = MaterialTheme.typography.bodyMedium,
+                        style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
@@ -64,13 +76,18 @@ private fun DriverSectionCard(
     subtitle: String? = null,
     content: @Composable ColumnScope.() -> Unit,
 ) {
-    Card(modifier = Modifier.fillMaxWidth()) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = FlotaThemeDefaults.cardShape,
+        colors = FlotaThemeDefaults.elevatedCardColors(),
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
+    ) {
         Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
+            modifier = Modifier.padding(18.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             title?.let {
-                Text(it, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                Text(it, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
             }
             subtitle?.let {
                 Text(
@@ -93,9 +110,17 @@ private fun DriverScreen(
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
+            .background(
+                brush = Brush.verticalGradient(
+                    colors = listOf(
+                        MaterialTheme.colorScheme.background,
+                        MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f),
+                    ),
+                ),
+            )
             .padding(horizontal = 16.dp),
-        contentPadding = PaddingValues(vertical = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+        contentPadding = PaddingValues(vertical = 18.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
         screenHeader(title, subtitle)
         content()
@@ -112,6 +137,58 @@ private fun StatusMessage(message: String, emphasis: Boolean = false) {
 }
 
 @Composable
+private fun DriverActionButton(
+    text: String,
+    onClick: () -> Unit,
+    enabled: Boolean = true,
+    secondary: Boolean = false,
+) {
+    Button(
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth(),
+        enabled = enabled,
+        shape = FlotaThemeDefaults.pillShape,
+        colors = ButtonDefaults.buttonColors(
+            containerColor = if (secondary) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.primary,
+            contentColor = if (secondary) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onPrimary,
+        ),
+        contentPadding = PaddingValues(vertical = 14.dp),
+    ) {
+        Text(text)
+    }
+}
+
+@Composable
+private fun DriverInputField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    label: String,
+    enabled: Boolean = true,
+    singleLine: Boolean = true,
+    keyboardType: KeyboardType = KeyboardType.Text,
+    visualTransformation: VisualTransformation = VisualTransformation.None,
+) {
+    OutlinedTextField(
+        value = value,
+        onValueChange = onValueChange,
+        label = { Text(label) },
+        modifier = Modifier.fillMaxWidth(),
+        enabled = enabled,
+        singleLine = singleLine,
+        shape = RoundedCornerShape(18.dp),
+        keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
+        visualTransformation = visualTransformation,
+        colors = OutlinedTextFieldDefaults.colors(
+            focusedBorderColor = MaterialTheme.colorScheme.primary,
+            unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
+            focusedContainerColor = MaterialTheme.colorScheme.surface,
+            unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+            disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
+        ),
+    )
+}
+
+@Composable
 fun DriverLoginScreen(navController: NavController) {
     val app = LocalContext.current.applicationContext as DriverApp
     val viewModel: DriverLoginViewModel = viewModel(factory = DriverViewModelFactory(app.container.repository))
@@ -123,22 +200,19 @@ fun DriverLoginScreen(navController: NavController) {
     ) {
         item {
             DriverSectionCard(title = "Dane logowania") {
-                OutlinedTextField(
+                DriverInputField(
                     value = uiState.login,
                     onValueChange = viewModel::updateLogin,
-                    label = { Text("Login") },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true,
+                    label = "Login",
                 )
-                OutlinedTextField(
+                DriverInputField(
                     value = uiState.password,
                     onValueChange = viewModel::updatePassword,
-                    label = { Text("Hasło") },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true,
+                    label = "Hasło",
                     visualTransformation = PasswordVisualTransformation(),
                 )
-                Button(
+                DriverActionButton(
+                    text = if (uiState.isLoading) "Logowanie..." else "Zaloguj się",
                     onClick = {
                         viewModel.login { requiresPasswordChange ->
                             navController.navigate(
@@ -146,11 +220,8 @@ fun DriverLoginScreen(navController: NavController) {
                             )
                         }
                     },
-                    modifier = Modifier.fillMaxWidth(),
                     enabled = !uiState.isLoading && uiState.login.isNotBlank() && uiState.password.isNotBlank(),
-                ) {
-                    Text(if (uiState.isLoading) "Logowanie..." else "Zaloguj się")
-                }
+                )
                 uiState.error?.let { StatusMessage(it, emphasis = true) }
             }
         }
@@ -169,29 +240,23 @@ fun DriverChangePasswordScreen(navController: NavController) {
     ) {
         item {
             DriverSectionCard(title = "Nowe hasło") {
-                OutlinedTextField(
+                DriverInputField(
                     value = uiState.login,
                     onValueChange = {},
-                    label = { Text("Login") },
-                    modifier = Modifier.fillMaxWidth(),
+                    label = "Login",
                     enabled = false,
-                    singleLine = true,
                 )
-                OutlinedTextField(
+                DriverInputField(
                     value = uiState.password,
                     onValueChange = viewModel::updatePassword,
-                    label = { Text("Nowe hasło") },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true,
+                    label = "Nowe hasło",
                     visualTransformation = PasswordVisualTransformation(),
                 )
-                Button(
+                DriverActionButton(
+                    text = if (uiState.isLoading) "Zapisywanie..." else "Zapisz hasło",
                     onClick = { viewModel.save { navController.navigate(DriverRoute.Mileage.route) } },
-                    modifier = Modifier.fillMaxWidth(),
                     enabled = !uiState.isLoading && uiState.password.isNotBlank(),
-                ) {
-                    Text(if (uiState.isLoading) "Zapisywanie..." else "Zapisz hasło")
-                }
+                )
                 uiState.error?.let { StatusMessage(it, emphasis = true) }
             }
         }
@@ -225,40 +290,38 @@ fun DriverMileageScreen(navController: NavController) {
         }
         item {
             DriverSectionCard(title = "Dodaj przebieg") {
-                OutlinedTextField(
+                DriverInputField(
                     value = uiState.registration,
                     onValueChange = viewModel::setRegistration,
-                    label = { Text("Rejestracja") },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true,
+                    label = "Rejestracja",
                 )
-                OutlinedTextField(
+                DriverInputField(
                     value = uiState.mileage,
                     onValueChange = viewModel::updateMileage,
-                    label = { Text("Przebieg") },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    label = "Przebieg",
+                    keyboardType = KeyboardType.Number,
                 )
-                Button(
+                DriverActionButton(
+                    text = if (uiState.isSaving) "Zapisywanie..." else "Zapisz przebieg",
                     onClick = viewModel::save,
-                    modifier = Modifier.fillMaxWidth(),
                     enabled = !uiState.isSaving && uiState.registration.isNotBlank() && uiState.mileage.isNotBlank(),
-                ) {
-                    Text(if (uiState.isSaving) "Zapisywanie..." else "Zapisz przebieg")
-                }
-                Button(onClick = viewModel::flushSyncNow, modifier = Modifier.fillMaxWidth()) {
-                    Text(if (uiState.isSaving) "Synchronizowanie..." else "Wymuś synchronizację teraz")
-                }
+                )
+                DriverActionButton(
+                    text = if (uiState.isSaving) "Synchronizowanie..." else "Wymuś synchronizację teraz",
+                    onClick = viewModel::flushSyncNow,
+                    secondary = true,
+                )
                 uiState.status?.let { StatusMessage(it, emphasis = true) }
             }
         }
         item {
             DriverSectionCard(title = "Dalsze akcje") {
-                Button(onClick = { navController.navigate(DriverRoute.VehicleReport.route) }, modifier = Modifier.fillMaxWidth()) {
-                    Text("Przejdź do raportu stanu samochodu")
-                }
-                Button(
+                DriverActionButton(
+                    text = "Przejdź do raportu stanu samochodu",
+                    onClick = { navController.navigate(DriverRoute.VehicleReport.route) },
+                )
+                DriverActionButton(
+                    text = "Wyloguj",
                     onClick = {
                         viewModel.logout {
                             navController.navigate(DriverRoute.Login.route) {
@@ -266,10 +329,8 @@ fun DriverMileageScreen(navController: NavController) {
                             }
                         }
                     },
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Text("Wyloguj")
-                }
+                    secondary = true,
+                )
             }
         }
     }
@@ -306,17 +367,18 @@ fun DriverVehicleReportScreen(navController: NavController) {
         }
         item {
             DriverSectionCard(title = "Akcje") {
-                Button(onClick = { navController.navigate(DriverRoute.Mileage.route) }, modifier = Modifier.fillMaxWidth()) {
-                    Text("Wróć do przebiegu")
-                }
-                Button(
+                DriverActionButton(
+                    text = "Wróć do przebiegu",
+                    onClick = { navController.navigate(DriverRoute.Mileage.route) },
+                    secondary = true,
+                )
+                DriverActionButton(
+                    text = if (uiState.isSaving) "Zapisywanie..." else "Zapisz PDF",
                     onClick = viewModel::save,
-                    modifier = Modifier.fillMaxWidth(),
                     enabled = !uiState.isSaving,
-                ) {
-                    Text(if (uiState.isSaving) "Zapisywanie..." else "Zapisz PDF")
-                }
-                Button(
+                )
+                DriverActionButton(
+                    text = "Wyloguj",
                     onClick = {
                         viewModel.logout {
                             navController.navigate(DriverRoute.Login.route) {
@@ -324,10 +386,8 @@ fun DriverVehicleReportScreen(navController: NavController) {
                             }
                         }
                     },
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Text("Wyloguj")
-                }
+                    secondary = true,
+                )
                 uiState.message?.let { StatusMessage(it, emphasis = true) }
             }
         }
@@ -353,7 +413,7 @@ private fun editableFields(draft: VehicleReportDraft, onDraftChange: (VehicleRep
         Triple("Przegląd techniczny", draft.przeglad, KeyboardType.Text),
         Triple("Uwagi", draft.uwagi, KeyboardType.Text),
     ).forEach { (label, value, keyboardType) ->
-        OutlinedTextField(
+        DriverInputField(
             value = value,
             onValueChange = { newValue ->
                 onDraftChange(
@@ -377,10 +437,8 @@ private fun editableFields(draft: VehicleReportDraft, onDraftChange: (VehicleRep
                     },
                 )
             },
-            label = { Text(label) },
-            modifier = Modifier.fillMaxWidth(),
-            keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
-            visualTransformation = VisualTransformation.None,
+            label = label,
+            keyboardType = keyboardType,
         )
     }
 }
@@ -394,25 +452,33 @@ private fun checklist(draft: VehicleReportDraft, onDraftChange: (VehicleReportDr
         "Dowód rejestracyjny" to draft.dowod,
         "Apteczka" to draft.apteczka,
     ).forEach { (label, checked) ->
-        Row(
+        Card(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            shape = RoundedCornerShape(18.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)),
         ) {
-            Checkbox(
-                checked = checked,
-                onCheckedChange = { value ->
-                    onDraftChange(
-                        when (label) {
-                            "Trójkąt" -> draft.copy(trojkat = value)
-                            "Kamizelki" -> draft.copy(kamizelki = value)
-                            "Koło zapasowe" -> draft.copy(kolo = value)
-                            "Dowód rejestracyjny" -> draft.copy(dowod = value)
-                            else -> draft.copy(apteczka = value)
-                        },
-                    )
-                },
-            )
-            Text(label, modifier = Modifier.padding(top = 12.dp))
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 8.dp, vertical = 4.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Checkbox(
+                    checked = checked,
+                    onCheckedChange = { value ->
+                        onDraftChange(
+                            when (label) {
+                                "Trójkąt" -> draft.copy(trojkat = value)
+                                "Kamizelki" -> draft.copy(kamizelki = value)
+                                "Koło zapasowe" -> draft.copy(kolo = value)
+                                "Dowód rejestracyjny" -> draft.copy(dowod = value)
+                                else -> draft.copy(apteczka = value)
+                            },
+                        )
+                    },
+                )
+                Text(label, modifier = Modifier.padding(top = 12.dp), style = MaterialTheme.typography.bodyLarge)
+            }
         }
     }
 }
