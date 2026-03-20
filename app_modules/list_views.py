@@ -9,17 +9,11 @@ from kivy.uix.textinput import TextInput
 
 def refresh_contacts_list_view(app, ButtonContainer, ModernButton, COLOR_CARD):
     app.c_ls.clear_widgets()
-    sv = app.ti_cs.text.lower()
-    sv_workplace = app.ti_cs_workplace.text.lower() if hasattr(app, 'ti_cs_workplace') else ""
-    sv_city = app.ti_cs_city.text.lower() if hasattr(app, 'ti_cs_city') else ""
+    sv = app.ti_cs.text.lower().strip() if hasattr(app, 'ti_cs') else ""
     rows = app.conn.execute("SELECT name, surname, email, pesel, phone, workplace, apartment, notes FROM contacts ORDER BY surname ASC").fetchall()
     for d in rows:
-        searchable = f"{d[0]} {d[1]} {d[2]} {d[4]} {d[5]} {d[6]} {d[7]}".lower()
+        searchable = f"{d[0]} {d[1]} {d[5]}".lower()
         if sv and sv not in searchable:
-            continue
-        if sv_workplace and sv_workplace not in str(d[5]).lower():
-            continue
-        if sv_city and sv_city not in str(d[6]).lower():
             continue
 
         card = BoxLayout(orientation="vertical", size_hint_y=None, height=dp(262), padding=dp(12), spacing=dp(10))
@@ -46,8 +40,8 @@ def refresh_contacts_list_view(app, ButtonContainer, ModernButton, COLOR_CARD):
 
         actions = ButtonContainer(orientation='horizontal', size_hint_y=None, height=dp(62), min_button_width=dp(132), min_button_height=dp(44))
         phone_txt = str(d[4]).strip() if d[4] else ""
-        actions.add_action(ModernButton(text="Zadzwoń", on_press=lambda x, ph=phone_txt: app._call_contact(ph), bg_color=(0.16, 0.6, 0.3, 1)))
-        actions.add_action(ModernButton(text="WhatsApp", on_press=lambda x, ph=phone_txt, nm=d[0]: app._whatsapp_contact(ph, nm), bg_color=(0.06, 0.55, 0.25, 1)))
+        actions.add_action(ModernButton(text="☎ Zadzwoń", on_press=lambda x, ph=phone_txt: app._call_contact(ph), bg_color=(0.16, 0.6, 0.3, 1)))
+        actions.add_action(ModernButton(text="🟢 WhatsApp", on_press=lambda x, ph=phone_txt, nm=d[0]: app._whatsapp_contact(ph, nm), bg_color=(0.06, 0.55, 0.25, 1)))
         actions.add_action(ModernButton(text="Edytuj", on_press=lambda x, data=d: app.form_contact(*data)))
         actions.add_action(ModernButton(text="Usuń", bg_color=(0.8, 0.2, 0.2, 1), on_press=lambda x, n=d[0], sn=d[1]: app.delete_contact(n, sn)))
         card.add_widget(actions)
