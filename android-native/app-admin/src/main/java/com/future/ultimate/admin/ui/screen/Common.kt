@@ -16,6 +16,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 
 @Composable
@@ -25,15 +26,26 @@ fun ScreenColumn(
     content: ColumnScopeLike.() -> Unit,
 ) {
     LazyColumn(
-        modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(horizontal = 16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
         contentPadding = PaddingValues(vertical = 16.dp),
     ) {
         item {
             Card(modifier = Modifier.fillMaxWidth()) {
-                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Text(title, style = MaterialTheme.typography.headlineSmall)
-                    subtitle?.let { Text(it, style = MaterialTheme.typography.bodyMedium) }
+                Column(
+                    modifier = Modifier.padding(20.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Text(title, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.SemiBold)
+                    subtitle?.let {
+                        Text(
+                            text = it,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
                 }
             }
         }
@@ -44,9 +56,36 @@ fun ScreenColumn(
 
 class ColumnScopeLike(private val list: androidx.compose.foundation.lazy.LazyListScope) {
     fun item(content: @Composable () -> Unit) = list.item { content() }
+
     fun items(strings: List<String>) = list.items(strings) { text ->
-        Card(modifier = Modifier.fillMaxWidth()) {
-            Text(text, modifier = Modifier.padding(16.dp))
+        SectionCard {
+            Text(text)
+        }
+    }
+}
+
+@Composable
+fun SectionCard(
+    title: String? = null,
+    subtitle: String? = null,
+    content: @Composable () -> Unit,
+) {
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            title?.let {
+                Text(it, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+            }
+            subtitle?.let {
+                Text(
+                    text = it,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            content()
         }
     }
 }
@@ -61,5 +100,11 @@ fun ActionButtonRow(primary: String, secondary: String? = null) {
 
 @Composable
 fun ReadOnlyField(label: String, value: String = "") {
-    OutlinedTextField(value = value, onValueChange = {}, label = { Text(label) }, modifier = Modifier.fillMaxWidth(), enabled = false)
+    OutlinedTextField(
+        value = value,
+        onValueChange = {},
+        label = { Text(label) },
+        modifier = Modifier.fillMaxWidth(),
+        enabled = false,
+    )
 }

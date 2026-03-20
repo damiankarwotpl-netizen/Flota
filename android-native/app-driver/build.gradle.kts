@@ -58,6 +58,19 @@ android {
     kotlinOptions {
         jvmTarget = "17"
     }
+
+    packaging {
+        resources {
+            val sharedMetaInfFiles = setOf(
+                "META-INF/NOTICE.md",
+                "/META-INF/NOTICE.md",
+                "META-INF/LICENSE.md",
+                "/META-INF/LICENSE.md",
+            )
+            excludes += sharedMetaInfFiles
+            pickFirsts += sharedMetaInfFiles
+        }
+    }
 }
 
 dependencies {
