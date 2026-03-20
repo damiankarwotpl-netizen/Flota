@@ -142,7 +142,8 @@ def setup_contacts_screen(app, AppLayout, SecondaryButton, PrimaryButton, Modern
     shell = AppLayout(title="Kontakty")
 
     body = BoxLayout(orientation="vertical", spacing=dp(10), padding=[dp(4), dp(2), dp(4), dp(4)])
-    app.ti_cs = ModernInput(text="")
+    app.ti_cs = ModernInput(hint_text="Szukaj po nazwie lub zakładzie")
+    app.ti_cs.bind(text=app.refresh_contacts_list)
     app.ti_cs_workplace = ModernInput(text="")
     app.ti_cs_city = ModernInput(text="")
 
@@ -151,6 +152,7 @@ def setup_contacts_screen(app, AppLayout, SecondaryButton, PrimaryButton, Modern
     sc = ScrollView()
     sc.add_widget(app.c_ls)
 
+    body.add_widget(app.ti_cs)
     body.add_widget(sc)
     shell.set_content(body)
     shell.set_fab(lambda x: app.form_contact())
