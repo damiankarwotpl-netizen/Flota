@@ -2,6 +2,7 @@ package com.future.ultimate.admin.ui
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyRow
@@ -98,6 +99,7 @@ fun AdminRoot() {
             },
             bottomBar = {
                 Surface(
+                    modifier = Modifier.navigationBarsPadding(),
                     color = MaterialTheme.colorScheme.surface,
                     tonalElevation = 10.dp,
                 ) {
