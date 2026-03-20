@@ -1,10 +1,11 @@
 # Native build failure summary
 
-- Run: https://github.com/damiankarwotpl-netizen/Flota/actions/runs/23331112996
+- Run: https://github.com/damiankarwotpl-netizen/Flota/actions/runs/23331212902
 - Workflow: `Build Native Android APKs`
 - Build type: `debug`
 
 ## Kotlin/Gradle error lines
+e: The daemon has terminated unexpectedly on startup attempt #1 with error code: 0. The daemon process output:
 e: file:///home/runner/work/Flota/Flota/android-native/app-driver/src/main/java/com/future/ultimate/driver/DriverApp.kt:15:91 Cannot access 'androidx.room.RoomDatabase' which is a supertype of 'com.future.ultimate.core.database.FlotaDatabase'. Check your module classpath for missing or conflicting dependencies.
 e: file:///home/runner/work/Flota/Flota/android-native/app-driver/src/main/java/com/future/ultimate/driver/sync/DriverMileageSyncWorker.kt:22:62 Cannot access 'androidx.room.RoomDatabase' which is a supertype of 'com.future.ultimate.core.database.FlotaDatabase'. Check your module classpath for missing or conflicting dependencies.
 e: file:///home/runner/work/Flota/Flota/android-native/app-driver/src/main/java/com/future/ultimate/driver/ui/screen/DriverScreens.kt:177:21 Argument type mismatch: actual type is 'kotlin.Any', but 'com.future.ultimate.core.common.model.VehicleReportDraft' was expected.
