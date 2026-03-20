@@ -53,11 +53,11 @@ fun PayrollScreen(navController: NavController) {
             .contains(query)
     }
 
-    ScreenColumn("Moduł Paski", "Kompletna logika finansowa, workbook, załączniki i wysyłka jak w legacy main") {
+    ScreenColumn("Wypłaty", "Kompletna logika finansowa, workbook, załączniki i wysyłka jak w legacy main") {
         item {
             SectionCard(
                 title = "Tryb pracy i status",
-                subtitle = "Główne parametry modułu płac oraz stan bieżącej sesji wysyłki.",
+                subtitle = "Główne parametry modułu wypłat oraz stan bieżącej sesji wysyłki.",
             ) {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Row(modifier = Modifier.fillMaxWidth()) {
@@ -154,7 +154,7 @@ fun PayrollScreen(navController: NavController) {
         item {
             SectionCard(
                 title = "Załączniki i eksport",
-                subtitle = "Zbuduj komplet danych do wysyłki jak w starym module Paski.",
+                subtitle = "Zbuduj komplet danych do wysyłki jak w module Wypłaty.",
             ) {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     if (uiState.attachmentPaths.isEmpty()) {

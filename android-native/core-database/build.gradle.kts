@@ -37,7 +37,7 @@ dependencies {
     api("androidx.room:room-runtime:2.6.1")
     api("androidx.room:room-ktx:2.6.1")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.9.0")
-    implementation("com.sun.mail:android-mail:1.6.7")
-    implementation("com.sun.mail:android-activation:1.6.7")
+    compileOnly("com.sun.mail:android-mail:1.6.7")
+    compileOnly("com.sun.mail:android-activation:1.6.7")
     ksp("androidx.room:room-compiler:2.6.1")
 }
