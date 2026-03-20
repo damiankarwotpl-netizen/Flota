@@ -1,6 +1,6 @@
 # Native build failure summary
 
-- Run: https://github.com/damiankarwotpl-netizen/Flota/actions/runs/23362180138
+- Run: https://github.com/damiankarwotpl-netizen/Flota/actions/runs/23362689603
 - Workflow: `Build Native Android APKs`
 - Build type: `debug`
 
