@@ -3,22 +3,13 @@ package com.future.ultimate.admin.ui.screen
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Badge
-import androidx.compose.material.icons.rounded.Call
-import androidx.compose.material.icons.rounded.Checkroom
-import androidx.compose.material.icons.rounded.Description
-import androidx.compose.material.icons.rounded.DirectionsCar
-import androidx.compose.material.icons.rounded.Factory
-import androidx.compose.material.icons.rounded.House
-import androidx.compose.material.icons.rounded.ReceiptLong
-import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
@@ -27,37 +18,17 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
-import com.future.ultimate.core.common.model.AdminRoute
+import com.future.ultimate.admin.ui.adminModuleMenuItems
 import com.future.ultimate.core.common.ui.theme.FlotaThemeDefaults
-
-private data class HomeShortcut(
-    val label: String,
-    val contentDescription: String,
-    val icon: ImageVector,
-    val route: AdminRoute,
-)
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun HomeScreen(navController: NavController) {
-    val shortcuts = listOf(
-        HomeShortcut("Kontakty", "Kontakty", Icons.Rounded.Call, AdminRoute.Contacts),
-        HomeShortcut("Samochody", "Samochody", Icons.Rounded.DirectionsCar, AdminRoute.Cars),
-        HomeShortcut("Raport\nsamochody", "Raport samochody", Icons.Rounded.Description, AdminRoute.VehicleReport),
-        HomeShortcut("Ubrania\nrobocze", "Ubrania robocze", Icons.Rounded.Checkroom, AdminRoute.Clothes),
-        HomeShortcut("Wypłaty", "Wypłaty", Icons.Rounded.ReceiptLong, AdminRoute.Payroll),
-        HomeShortcut("Pracownicy", "Pracownicy", Icons.Rounded.Badge, AdminRoute.Workers),
-        HomeShortcut("Zakłady", "Zakłady", Icons.Rounded.Factory, AdminRoute.Plants),
-        HomeShortcut("Mieszkania", "Mieszkania", Icons.Rounded.House, AdminRoute.Housing),
-        HomeShortcut("Ustawienia", "Ustawienia", Icons.Rounded.Settings, AdminRoute.Settings),
-    )
-
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -73,12 +44,12 @@ fun HomeScreen(navController: NavController) {
             verticalArrangement = Arrangement.spacedBy(14.dp),
             maxItemsInEachRow = 3,
         ) {
-            shortcuts.forEach { shortcut ->
+            adminModuleMenuItems.forEach { item ->
                 HomeShortcutTile(
-                    label = shortcut.label,
-                    contentDescription = shortcut.contentDescription,
-                    icon = shortcut.icon,
-                    onClick = { navController.navigate(shortcut.route.route) },
+                    label = item.label,
+                    contentDescription = item.label.replace('\n', ' '),
+                    icon = item.icon,
+                    onClick = { navController.navigate(item.route.route) },
                 )
             }
         }
@@ -89,12 +60,12 @@ fun HomeScreen(navController: NavController) {
 private fun HomeShortcutTile(
     label: String,
     contentDescription: String,
-    icon: ImageVector,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
     onClick: () -> Unit,
 ) {
     Card(
         modifier = Modifier
-            .size(width = 104.dp, height = 126.dp)
+            .size(width = 104.dp, height = 132.dp)
             .clickable(onClick = onClick),
         shape = FlotaThemeDefaults.cardShape,
         colors = CardDefaults.cardColors(
@@ -102,11 +73,12 @@ private fun HomeShortcutTile(
         ),
         elevation = CardDefaults.cardElevation(defaultElevation = 3.dp),
     ) {
-        Box(
+        Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(10.dp),
-            contentAlignment = Alignment.Center,
+                .padding(horizontal = 10.dp, vertical = 12.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterVertically),
         ) {
             Card(
                 modifier = Modifier.size(64.dp),
@@ -126,9 +98,6 @@ private fun HomeShortcutTile(
             }
             Text(
                 text = label,
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .padding(bottom = 2.dp),
                 style = MaterialTheme.typography.labelLarge,
                 fontWeight = FontWeight.Bold,
                 textAlign = TextAlign.Center,

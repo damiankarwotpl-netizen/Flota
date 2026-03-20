@@ -1,21 +1,18 @@
 package com.future.ultimate.admin.ui
 
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Call
-import androidx.compose.material.icons.rounded.Checkroom
-import androidx.compose.material.icons.rounded.DirectionsCar
-import androidx.compose.material.icons.rounded.Home
-import androidx.compose.material.icons.rounded.ReceiptLong
-import androidx.compose.material.icons.rounded.Settings
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
-import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
@@ -25,10 +22,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.unit.dp
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
 import androidx.navigation.NavDestination
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
@@ -55,21 +50,6 @@ import com.future.ultimate.core.common.model.AdminRoute
 import com.future.ultimate.core.common.ui.theme.FlotaTheme
 import com.future.ultimate.core.common.ui.theme.FlotaThemeMode
 import com.future.ultimate.core.common.ui.theme.topBarContainerColor
-
-private data class AdminNavItem(
-    val route: AdminRoute,
-    val icon: ImageVector,
-    val shortLabel: String,
-)
-
-private val bottomRoutes = listOf(
-    AdminNavItem(AdminRoute.Home, Icons.Rounded.Home, "Start"),
-    AdminNavItem(AdminRoute.Contacts, Icons.Rounded.Call, "Kontakty"),
-    AdminNavItem(AdminRoute.Cars, Icons.Rounded.DirectionsCar, "Samochody"),
-    AdminNavItem(AdminRoute.Clothes, Icons.Rounded.Checkroom, "Ubrania"),
-    AdminNavItem(AdminRoute.Payroll, Icons.Rounded.ReceiptLong, "Wypłaty"),
-    AdminNavItem(AdminRoute.Settings, Icons.Rounded.Settings, "Ustawienia"),
-)
 
 private val allRoutes = listOf(
     AdminRoute.Home,
@@ -117,46 +97,39 @@ fun AdminRoot() {
                 )
             },
             bottomBar = {
-                NavigationBar(
-                    containerColor = MaterialTheme.colorScheme.surface,
+                Surface(
+                    color = MaterialTheme.colorScheme.surface,
                     tonalElevation = 10.dp,
                 ) {
-                    bottomRoutes.forEach { item ->
-                        NavigationBarItem(
-                            selected = backStack?.destination?.route == item.route.route,
-                            onClick = {
-                                navController.navigate(item.route.route) {
-                                    popUpTo(navController.graph.findStartDestination().id) {
-                                        saveState = true
+                    LazyRow(
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 10.dp),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    ) {
+                        items(adminBottomMenuItems, key = { item -> item.route.route }) { item ->
+                            val selected = backStack?.destination?.route == item.route.route
+                            IconButton(
+                                onClick = {
+                                    navController.navigate(item.route.route) {
+                                        popUpTo(navController.graph.findStartDestination().id) {
+                                            saveState = true
+                                        }
+                                        launchSingleTop = true
+                                        restoreState = true
                                     }
-                                    launchSingleTop = true
-                                    restoreState = true
-                                }
-                            },
-                            colors = NavigationBarItemDefaults.colors(
-                                selectedIconColor = MaterialTheme.colorScheme.onSecondary,
-                                selectedTextColor = MaterialTheme.colorScheme.onSurface,
-                                indicatorColor = MaterialTheme.colorScheme.secondary,
-                                unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                                unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                            ),
-                            label = {
-                                Text(
-                                    text = item.shortLabel,
-                                    style = MaterialTheme.typography.labelSmall,
-                                    maxLines = 1,
-                                    softWrap = false,
-                                    overflow = TextOverflow.Ellipsis,
-                                )
-                            },
-                            icon = {
+                                },
+                                colors = IconButtonDefaults.iconButtonColors(
+                                    containerColor = if (selected) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f),
+                                    contentColor = if (selected) MaterialTheme.colorScheme.onSecondary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                ),
+                                modifier = Modifier.size(52.dp),
+                            ) {
                                 Icon(
                                     imageVector = item.icon,
-                                    contentDescription = item.route.title,
+                                    contentDescription = item.label.replace('\n', ' '),
                                     modifier = Modifier.size(26.dp),
                                 )
-                            },
-                        )
+                            }
+                        }
                     }
                 }
             },
@@ -166,9 +139,7 @@ fun AdminRoot() {
                 startDestination = AdminRoute.Home.route,
                 modifier = Modifier.padding(padding),
             ) {
-                composable(AdminRoute.Home.route) {
-                    HomeScreen(navController = navController)
-                }
+                composable(AdminRoute.Home.route) { HomeScreen(navController = navController) }
                 composable(AdminRoute.Contacts.route) { ContactsScreen() }
                 composable(AdminRoute.Cars.route) { CarsScreen() }
                 composable(AdminRoute.VehicleReport.route) { VehicleReportScreen() }
