@@ -1,12 +1,15 @@
 package com.future.ultimate.admin.ui.screen
 
+import android.app.Activity
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material3.Button
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.future.ultimate.core.common.model.AdminRoute
@@ -18,7 +21,12 @@ private data class HomeShortcut(
 )
 
 @Composable
-fun HomeScreen(navController: NavController) {
+fun HomeScreen(
+    navController: NavController,
+    onEnableDarkTheme: () -> Unit,
+    onEnableLightTheme: () -> Unit,
+) {
+    val activity = LocalContext.current as? Activity
     val shortcuts = listOf(
         HomeShortcut("Kontakty", "Szybki dostęp do kontaktów i numerów alarmowych.", AdminRoute.Contacts),
         HomeShortcut("Samochody", "Lista pojazdów i ich aktualnych danych.", AdminRoute.Cars),
@@ -34,6 +42,24 @@ fun HomeScreen(navController: NavController) {
         title = "Panel główny aplikacji",
         subtitle = "Najważniejsze moduły i skróty w jednym miejscu.",
     ) {
+        item {
+            SectionCard(
+                title = "Sterowanie aplikacją",
+                subtitle = "Parzystość z legacy home: szybka zmiana motywu i zamknięcie aplikacji.",
+            ) {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    OutlinedButton(onClick = onEnableDarkTheme, modifier = Modifier.fillMaxWidth()) {
+                        Text("Dark")
+                    }
+                    OutlinedButton(onClick = onEnableLightTheme, modifier = Modifier.fillMaxWidth()) {
+                        Text("Light")
+                    }
+                    Button(onClick = { activity?.finish() }, modifier = Modifier.fillMaxWidth()) {
+                        Text("Wyjście")
+                    }
+                }
+            }
+        }
         item {
             SectionCard(
                 title = "Co się zmieniło?",

@@ -16,8 +16,12 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.darkColorScheme
+import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.navigation.NavDestination
@@ -78,7 +82,9 @@ private val allRoutes = listOf(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AdminRoot() {
-    MaterialTheme {
+    var useDarkTheme by rememberSaveable { androidx.compose.runtime.mutableStateOf(true) }
+
+    MaterialTheme(colorScheme = if (useDarkTheme) darkColorScheme() else lightColorScheme()) {
         val navController = rememberNavController()
         val backStack by navController.currentBackStackEntryAsState()
         val currentRoute = backStack?.destination.currentAdminRoute()
@@ -117,7 +123,13 @@ fun AdminRoot() {
                 startDestination = AdminRoute.Home.route,
                 modifier = Modifier.padding(padding),
             ) {
-                composable(AdminRoute.Home.route) { HomeScreen(navController) }
+                composable(AdminRoute.Home.route) {
+                    HomeScreen(
+                        navController = navController,
+                        onEnableDarkTheme = { useDarkTheme = true },
+                        onEnableLightTheme = { useDarkTheme = false },
+                    )
+                }
                 composable(AdminRoute.Contacts.route) { ContactsScreen() }
                 composable(AdminRoute.Cars.route) { CarsScreen() }
                 composable(AdminRoute.VehicleReport.route) { VehicleReportScreen() }
