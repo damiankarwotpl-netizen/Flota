@@ -67,8 +67,8 @@ android {
                 "META-INF/LICENSE.md",
                 "/META-INF/LICENSE.md",
             )
-            excludes += sharedMetaInfFiles
-            pickFirsts += sharedMetaInfFiles
+            excludes.addAll(sharedMetaInfFiles)
+            pickFirsts.addAll(sharedMetaInfFiles)
         }
     }
 }
