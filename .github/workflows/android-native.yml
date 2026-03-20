@@ -14,11 +14,11 @@ on:
       persist_problem_report:
         description: Commit latest Gradle problem report to repository (only on failure)
         required: true
-        default: "false"
+        default: "true"
         type: choice
         options:
-          - "false"
           - "true"
+          - "false"
   push:
     paths:
       - 'android-native/**'
