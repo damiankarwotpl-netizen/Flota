@@ -40,21 +40,21 @@ package="com.future.ultimate.core.common" found in source AndroidManifest.xml: /
 Setting the namespace via the package attribute in the source AndroidManifest.xml is no longer supported, and the value is ignored.
 Recommendation: remove package="com.future.ultimate.core.common" from the source AndroidManifest.xml: /home/runner/work/Flota/Flota/android-native/core-common/src/main/AndroidManifest.xml.
 
-> Task :core-database:parseDebugLocalResources
-
-> Task :core-database:processDebugManifest
-package="com.future.ultimate.core.database" found in source AndroidManifest.xml: /home/runner/work/Flota/Flota/android-native/core-database/src/main/AndroidManifest.xml.
+> Task :core-common:processDebugManifest
+package="com.future.ultimate.core.common" found in source AndroidManifest.xml: /home/runner/work/Flota/Flota/android-native/core-common/src/main/AndroidManifest.xml.
 Setting the namespace via the package attribute in the source AndroidManifest.xml is no longer supported, and the value is ignored.
 Recommendation: remove package="com.future.ultimate.core.database" from the source AndroidManifest.xml: /home/runner/work/Flota/Flota/android-native/core-database/src/main/AndroidManifest.xml.
 
+> Task :core-database:parseDebugLocalResources
 > Task :core-common:generateDebugRFile
 > Task :app-admin:processDebugMainManifest
 > Task :app-admin:processDebugManifest
+> Task :app-admin:processDebugManifestForPackage
 > Task :core-common:checkKotlinGradlePluginConfigurationErrors SKIPPED
 > Task :core-database:generateDebugRFile
 > Task :core-database:checkKotlinGradlePluginConfigurationErrors SKIPPED
 > Task :core-common:javaPreCompileDebug
-> Task :app-admin:processDebugManifestForPackage
+> Task :core-database:javaPreCompileDebug
 > Task :app-admin:javaPreCompileDebug
 > Task :core-database:javaPreCompileDebug
 > Task :app-admin:mergeDebugShaders
@@ -75,9 +75,9 @@ Recommendation: remove package="com.future.ultimate.core.database" from the sour
 > Task :app-admin:processDebugResources
 > Task :core-common:mergeDebugJniLibFolders
 > Task :core-common:mergeDebugNativeLibs NO-SOURCE
+> Task :core-common:copyDebugJniLibsProjectOnly
 > Task :core-database:mergeDebugJniLibFolders
 > Task :core-database:mergeDebugNativeLibs NO-SOURCE
-> Task :core-common:copyDebugJniLibsProjectOnly
 > Task :app-admin:checkDebugDuplicateClasses
 > Task :core-database:copyDebugJniLibsProjectOnly
 > Task :app-admin:mergeDebugNativeLibs
@@ -127,8 +127,8 @@ Unable to strip the following libraries, packaging them as they are: libandroidx
 > Task :core-common:compileDebugKotlin
 > Task :core-common:compileDebugJavaWithJavac NO-SOURCE
 > Task :core-common:processDebugJavaRes
-> Task :core-common:bundleLibRuntimeToJarDebug
 > Task :core-common:bundleLibCompileToJarDebug
+> Task :core-common:bundleLibRuntimeToJarDebug
 > Task :core-common:bundleLibRuntimeToDirDebug
 > Task :core-database:kspDebugKotlin
 > Task :core-database:compileDebugKotlin
@@ -168,7 +168,7 @@ w: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/c
 w: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/viewmodel/AdminViewModels.kt:1547:101 Unchecked cast of 'com.future.ultimate.admin.ui.viewmodel.TemplateViewModel' to 'T'.
 w: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/viewmodel/AdminViewModels.kt:1548:99 Unchecked cast of 'com.future.ultimate.admin.ui.viewmodel.ReportsViewModel' to 'T'.
 w: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/viewmodel/AdminViewModels.kt:1549:101 Unchecked cast of 'com.future.ultimate.admin.ui.viewmodel.SettingsViewModel' to 'T'.
-gradle/actions: Writing build results to /home/runner/work/_temp/.gradle-actions/build-results/__run_2-1773991950235.json
+gradle/actions: Writing build results to /home/runner/work/_temp/.gradle-actions/build-results/__run_2-1773991922319.json
 
 [Incubating] Problems report is available at: file:///home/runner/work/Flota/Flota/android-native/build/reports/problems/problems-report.html
 
@@ -221,6 +221,35 @@ org.gradle.api.tasks.TaskExecutionException: Execution failed for task ':app-dri
 	at org.gradle.execution.taskgraph.DefaultTaskExecutionGraph$BuildOperationAwareExecutionAction.execute(DefaultTaskExecutionGraph.java:303)
 	at org.gradle.execution.plan.DefaultPlanExecutor$ExecutorWorker.execute(DefaultPlanExecutor.java:459)
 	at org.gradle.execution.plan.DefaultPlanExecutor$ExecutorWorker.run(DefaultPlanExecutor.java:376)
+	at org.gradle.execution.plan.DefaultPlanExecutor.process(DefaultPlanExecutor.java:111)
+	at org.gradle.execution.taskgraph.DefaultTaskExecutionGraph.executeWithServices(DefaultTaskExecutionGraph.java:138)
+	at org.gradle.execution.taskgraph.DefaultTaskExecutionGraph.execute(DefaultTaskExecutionGraph.java:123)
+	at org.gradle.execution.SelectedTaskExecutionAction.execute(SelectedTaskExecutionAction.java:35)
+	at org.gradle.execution.DryRunBuildExecutionAction.execute(DryRunBuildExecutionAction.java:51)
+	at org.gradle.execution.BuildOperationFiringBuildWorkerExecutor$ExecuteTasks.call(BuildOperationFiringBuildWorkerExecutor.java:54)
+	at org.gradle.execution.BuildOperationFiringBuildWorkerExecutor$ExecuteTasks.call(BuildOperationFiringBuildWorkerExecutor.java:43)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner$CallableBuildOperationWorker.execute(DefaultBuildOperationRunner.java:210)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner$CallableBuildOperationWorker.execute(DefaultBuildOperationRunner.java:205)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner$2.execute(DefaultBuildOperationRunner.java:67)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner$2.execute(DefaultBuildOperationRunner.java:60)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner.execute(DefaultBuildOperationRunner.java:167)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner.execute(DefaultBuildOperationRunner.java:60)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner.call(DefaultBuildOperationRunner.java:54)
+	at org.gradle.execution.BuildOperationFiringBuildWorkerExecutor.execute(BuildOperationFiringBuildWorkerExecutor.java:40)
+	at org.gradle.internal.build.DefaultBuildLifecycleController.lambda$executeTasks$10(DefaultBuildLifecycleController.java:313)
+	at org.gradle.internal.model.StateTransitionController.doTransition(StateTransitionController.java:266)
+	at org.gradle.internal.model.StateTransitionController.lambda$tryTransition$8(StateTransitionController.java:177)
+	at org.gradle.internal.work.DefaultSynchronizer.withLock(DefaultSynchronizer.java:46)
+	at org.gradle.internal.model.StateTransitionController.tryTransition(StateTransitionController.java:177)
+	at org.gradle.internal.build.DefaultBuildLifecycleController.executeTasks(DefaultBuildLifecycleController.java:304)
+	at org.gradle.internal.build.DefaultBuildWorkGraphController$DefaultBuildWorkGraph.runWork(DefaultBuildWorkGraphController.java:220)
+	at org.gradle.internal.work.DefaultWorkerLeaseService.withLocks(DefaultWorkerLeaseService.java:263)
+	at org.gradle.internal.work.DefaultWorkerLeaseService.runAsWorkerThread(DefaultWorkerLeaseService.java:127)
+	at org.gradle.composite.internal.DefaultBuildController.doRun(DefaultBuildController.java:181)
+	at org.gradle.composite.internal.DefaultBuildController.access$000(DefaultBuildController.java:50)
+	at org.gradle.composite.internal.DefaultBuildController$BuildOpRunnable.lambda$run$0(DefaultBuildController.java:198)
+	at org.gradle.internal.operations.CurrentBuildOperationRef.with(CurrentBuildOperationRef.java:85)
+	at org.gradle.composite.internal.DefaultBuildController$BuildOpRunnable.run(DefaultBuildController.java:198)
 	at org.gradle.internal.concurrent.ExecutorPolicy$CatchAndRecordFailures.onExecute(ExecutorPolicy.java:64)
 	at org.gradle.internal.concurrent.AbstractManagedExecutor$1.run(AbstractManagedExecutor.java:48)
 Caused by: org.gradle.workers.internal.DefaultWorkerExecutor$WorkExecutionException: A failure occurred while executing com.android.build.gradle.internal.tasks.MergeJavaResWorkAction
@@ -346,6 +375,35 @@ Caused by: org.gradle.workers.internal.DefaultWorkerExecutor$WorkExecutionExcept
 	at org.gradle.execution.taskgraph.DefaultTaskExecutionGraph$BuildOperationAwareExecutionAction.execute(DefaultTaskExecutionGraph.java:303)
 	at org.gradle.execution.plan.DefaultPlanExecutor$ExecutorWorker.execute(DefaultPlanExecutor.java:459)
 	at org.gradle.execution.plan.DefaultPlanExecutor$ExecutorWorker.run(DefaultPlanExecutor.java:376)
+	at org.gradle.execution.plan.DefaultPlanExecutor.process(DefaultPlanExecutor.java:111)
+	at org.gradle.execution.taskgraph.DefaultTaskExecutionGraph.executeWithServices(DefaultTaskExecutionGraph.java:138)
+	at org.gradle.execution.taskgraph.DefaultTaskExecutionGraph.execute(DefaultTaskExecutionGraph.java:123)
+	at org.gradle.execution.SelectedTaskExecutionAction.execute(SelectedTaskExecutionAction.java:35)
+	at org.gradle.execution.DryRunBuildExecutionAction.execute(DryRunBuildExecutionAction.java:51)
+	at org.gradle.execution.BuildOperationFiringBuildWorkerExecutor$ExecuteTasks.call(BuildOperationFiringBuildWorkerExecutor.java:54)
+	at org.gradle.execution.BuildOperationFiringBuildWorkerExecutor$ExecuteTasks.call(BuildOperationFiringBuildWorkerExecutor.java:43)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner$CallableBuildOperationWorker.execute(DefaultBuildOperationRunner.java:210)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner$CallableBuildOperationWorker.execute(DefaultBuildOperationRunner.java:205)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner$2.execute(DefaultBuildOperationRunner.java:67)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner$2.execute(DefaultBuildOperationRunner.java:60)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner.execute(DefaultBuildOperationRunner.java:167)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner.execute(DefaultBuildOperationRunner.java:60)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner.call(DefaultBuildOperationRunner.java:54)
+	at org.gradle.execution.BuildOperationFiringBuildWorkerExecutor.execute(BuildOperationFiringBuildWorkerExecutor.java:40)
+	at org.gradle.internal.build.DefaultBuildLifecycleController.lambda$executeTasks$10(DefaultBuildLifecycleController.java:313)
+	at org.gradle.internal.model.StateTransitionController.doTransition(StateTransitionController.java:266)
+	at org.gradle.internal.model.StateTransitionController.lambda$tryTransition$8(StateTransitionController.java:177)
+	at org.gradle.internal.work.DefaultSynchronizer.withLock(DefaultSynchronizer.java:46)
+	at org.gradle.internal.model.StateTransitionController.tryTransition(StateTransitionController.java:177)
+	at org.gradle.internal.build.DefaultBuildLifecycleController.executeTasks(DefaultBuildLifecycleController.java:304)
+	at org.gradle.internal.build.DefaultBuildWorkGraphController$DefaultBuildWorkGraph.runWork(DefaultBuildWorkGraphController.java:220)
+	at org.gradle.internal.work.DefaultWorkerLeaseService.withLocks(DefaultWorkerLeaseService.java:263)
+	at org.gradle.internal.work.DefaultWorkerLeaseService.runAsWorkerThread(DefaultWorkerLeaseService.java:127)
+	at org.gradle.composite.internal.DefaultBuildController.doRun(DefaultBuildController.java:181)
+	at org.gradle.composite.internal.DefaultBuildController.access$000(DefaultBuildController.java:50)
+	at org.gradle.composite.internal.DefaultBuildController$BuildOpRunnable.lambda$run$0(DefaultBuildController.java:198)
+	at org.gradle.internal.operations.CurrentBuildOperationRef.with(CurrentBuildOperationRef.java:85)
+	at org.gradle.composite.internal.DefaultBuildController$BuildOpRunnable.run(DefaultBuildController.java:198)
 	at org.gradle.internal.concurrent.ExecutorPolicy$CatchAndRecordFailures.onExecute(ExecutorPolicy.java:64)
 	at org.gradle.internal.concurrent.AbstractManagedExecutor$1.run(AbstractManagedExecutor.java:48)
 Caused by: com.android.builder.merge.DuplicateRelativeFileException: 2 files found with path 'META-INF/NOTICE.md' from inputs:
