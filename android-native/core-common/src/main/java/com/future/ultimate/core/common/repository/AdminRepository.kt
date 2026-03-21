@@ -182,6 +182,13 @@ data class PayrollWorkbookRow(
     val amount: String,
 )
 
+data class PayrollPreviewRow(
+    val index: Int,
+    val cells: List<String>,
+    val name: String,
+    val surname: String,
+)
+
 data class ClothesOrderImportRow(
     val name: String,
     val surname: String,
@@ -288,6 +295,13 @@ interface AdminRepository {
     suspend fun exportContactRowXlsx(name: String, surname: String): String
     suspend fun exportPayrollPackage(contacts: List<ContactListItem>): String
     suspend fun exportPayrollWorkbookCsv(rows: List<PayrollWorkbookRow>): String
+    suspend fun exportPayrollRowsXlsx(
+        headers: List<String>,
+        rows: List<List<String>>,
+        filePrefix: String = "PPI",
+        nameHint: String = "",
+        surnameHint: String = "",
+    ): String
     suspend fun exportClothesHistoryCsv(): String
     suspend fun exportSessionReportsCsv(): String
 }
