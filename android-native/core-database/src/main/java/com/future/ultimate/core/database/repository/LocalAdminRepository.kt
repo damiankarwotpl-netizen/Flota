@@ -1139,6 +1139,38 @@ class LocalAdminRepository(
         return outputFile.absolutePath
     }
 
+    override suspend fun exportPayrollRowsXlsx(
+        headers: List<String>,
+        rows: List<List<String>>,
+        filePrefix: String,
+        nameHint: String,
+        surnameHint: String,
+    ): String {
+        if (rows.isEmpty()) return ""
+        val outputDir = PatchLoader.safeExternalDir(context, feature = "payroll_row_xlsx")
+        val safeName = nameHint.trim().ifBlank { "rekord" }.replace("\\s+".toRegex(), "_")
+        val safeSurname = surnameHint.trim().ifBlank { "rekord" }.replace("\\s+".toRegex(), "_")
+        val stamp = DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss").format(LocalDateTime.now())
+        val outputFile = File(outputDir, "${filePrefix}_${safeName}_${safeSurname}_$stamp.xlsx")
+        val maxColumns = maxOf(headers.size, rows.maxOfOrNull { it.size } ?: 0)
+        val normalizedHeaders = (0 until maxColumns).map { index -> headers.getOrElse(index) { "kolumna_${index + 1}" } }
+        val dataRows = rows.map { row ->
+            (0 until maxColumns).map { index ->
+                SimpleXlsxWorkbookWriter.Cell.text(row.getOrElse(index) { "" })
+            }
+        }
+        val allRows = buildList {
+            add(normalizedHeaders.map { SimpleXlsxWorkbookWriter.Cell.text(it) })
+            addAll(dataRows)
+        }
+        SimpleXlsxWorkbookWriter.writeSingleSheet(
+            file = outputFile,
+            sheetName = "Paski",
+            rows = allRows,
+        )
+        return outputFile.absolutePath
+    }
+
     override suspend fun exportClothesHistoryCsv(): String {
         val outputDir = PatchLoader.safeExternalDir(context, feature = "clothes_history_csv")
         val outputFile = File(outputDir, "clothes_history.csv")
