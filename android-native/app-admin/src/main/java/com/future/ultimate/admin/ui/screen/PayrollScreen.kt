@@ -146,34 +146,28 @@ fun PayrollScreen(_navController: NavController) {
             onDismissRequest = { isSpreadsheetDialogOpen = false },
             properties = DialogProperties(usePlatformDefaultWidth = false),
         ) {
-            SectionCard(title = "Tabela arkusza Excel", modifier = Modifier.fillMaxSize()) {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    M3Button(onClick = viewModel::exportSelectedPreviewRows, modifier = Modifier.fillMaxWidth()) {
-                        Text("Eksportuj zaznaczone wiersze")
+            Box(modifier = Modifier.fillMaxSize()) {
+                SectionCard(title = "Tabela arkusza Excel") {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        M3Button(onClick = viewModel::exportSelectedPreviewRows, modifier = Modifier.fillMaxWidth()) {
+                            Text("Eksportuj zaznaczone wiersze")
+                        }
+                        PreviewSpreadsheetTable(
+                            headers = displayHeaders,
+                            rows = uiState.previewRows,
+                            selectedColumns = uiState.selectedPreviewColumnIndexes,
+                            selectedRows = uiState.selectedPreviewRowIndexes,
+                            onToggleRow = viewModel::togglePreviewRowSelection,
+                            onToggleColumn = viewModel::togglePreviewColumnSelection,
+                            onExportRow = { rowIndex -> viewModel.exportSinglePreviewRowToFolder(app, rowIndex) },
+                        )
+                        M3Button(onClick = { isSpreadsheetDialogOpen = false }, modifier = Modifier.fillMaxWidth()) {
+                            Text("Zamknij tabelę")
+                        }
+                        M3Button(onClick = viewModel::selectAllPreviewColumns, modifier = Modifier.fillMaxWidth()) {
+                            Text("Zaznacz kolumny")
+                        }
                     }
-                    PreviewSpreadsheetTable(
-                        headers = displayHeaders,
-                        rows = uiState.previewRows,
-                        selectedColumns = uiState.selectedPreviewColumnIndexes,
-                        selectedRows = uiState.selectedPreviewRowIndexes,
-                        onToggleRow = viewModel::togglePreviewRowSelection,
-                        onToggleColumn = viewModel::togglePreviewColumnSelection,
-                        onExportRow = { rowIndex -> viewModel.exportSinglePreviewRowToFolder(app, rowIndex) },
-                    )
-                    M3Button(onClick = { isSpreadsheetDialogOpen = false }, modifier = Modifier.fillMaxWidth()) {
-                        Text("Zamknij tabelę")
-                    }
-
-                    M3Button(onClick = viewModel::selectAllPreviewColumns, modifier = Modifier.fillMaxWidth()) { Text("Zaznacz kolumny") }
-                    M3Button(
-                        onClick = {
-                            isPreviewDialogOpen = false
-                            isSpreadsheetDialogOpen = true
-                        },
-                        modifier = Modifier.fillMaxWidth(),
-                    ) { Text("Otwórz tabelę w nowym oknie") }
-
-                    M3Button(onClick = { isPreviewDialogOpen = false }, modifier = Modifier.fillMaxWidth()) { Text("Zamknij") }
                 }
                 uiState.actionMessage?.let { Text(it) }
             }
