@@ -1,5 +1,6 @@
 package com.future.ultimate.admin.ui.screen
 
+import android.net.Uri
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -14,6 +15,8 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
@@ -33,6 +36,13 @@ fun PayrollScreen(navController: NavController) {
     val app = LocalContext.current.applicationContext as AdminApp
     val viewModel: PayrollViewModel = viewModel(factory = AdminViewModelFactory(app.container.repository))
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val excelPicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        val rawText = runCatching {
+            app.contentResolver.openInputStream(uri)?.bufferedReader(Charsets.UTF_8)?.use { it.readText() }.orEmpty()
+        }.getOrDefault("")
+        viewModel.loadWorkbookFromText(rawText)
+    }
     val smtpViewModel: SmtpViewModel = viewModel(factory = AdminViewModelFactory(app.container.repository))
     val smtpUiState by smtpViewModel.uiState.collectAsStateWithLifecycle()
     val templateViewModel: TemplateViewModel = viewModel(factory = AdminViewModelFactory(app.container.repository))
@@ -115,9 +125,12 @@ fun PayrollScreen(navController: NavController) {
         item {
             SectionCard(
                 title = "Workbook płac",
-                subtitle = "Wklej CSV/TSV/średnik, przygotuj staging i dołącz eksport workbooka.",
+                subtitle = "Wczytaj Excel/CSV z pamięci telefonu, podejrzyj i eksportuj pojedyncze lub zaznaczone wiersze.",
             ) {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Button(onClick = { excelPicker.launch("*/*") }, modifier = Modifier.fillMaxWidth()) {
+                        Text("Wczytaj Excel")
+                    }
                     OutlinedTextField(
                         value = uiState.workbookImportText,
                         onValueChange = viewModel::updateWorkbookImportText,
@@ -131,10 +144,65 @@ fun PayrollScreen(navController: NavController) {
                     Button(onClick = viewModel::attachStagedWorkbookCsv, modifier = Modifier.fillMaxWidth()) {
                         Text("Dołącz staging workbooka")
                     }
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Button(onClick = viewModel::exportSelectedPreviewRows, modifier = Modifier.weight(1f)) {
+                            Text("Export wybranej tabeli")
+                        }
+                        Button(onClick = viewModel::clearPreviewSelection, modifier = Modifier.weight(1f)) {
+                            Text("Wyczyść wybór")
+                        }
+                    }
                     if (uiState.stagedWorkbookRows.isNotEmpty()) {
+                        val columnCount = maxOf(
+                            uiState.previewHeaders.size,
+                            uiState.previewRows.maxOfOrNull { it.cells.size } ?: 0,
+                        )
+                        val displayHeaders = if (uiState.previewHeaders.isNotEmpty()) {
+                            uiState.previewHeaders
+                        } else {
+                            (0 until columnCount).map { "kolumna_${it + 1}" }
+                        }
                         Text("Staged workbook rows: ${uiState.stagedWorkbookRows.size}")
-                        uiState.stagedWorkbookRows.take(5).forEach { row ->
-                            Text("${row.name} ${row.surname} • ${row.workplace.ifBlank { "-" }} • ${row.amount.ifBlank { "-" }}")
+                        Text("Podgląd/Export")
+                        if (displayHeaders.isNotEmpty()) {
+                            Text("Nagłówki: ${displayHeaders.joinToString(" | ")}")
+                            Text("Wybierz kolumny do eksportu:")
+                            displayHeaders.forEachIndexed { index, header ->
+                                Row(modifier = Modifier.fillMaxWidth()) {
+                                    Checkbox(
+                                        checked = index in uiState.selectedPreviewColumnIndexes,
+                                        onCheckedChange = { viewModel.togglePreviewColumnSelection(index) },
+                                    )
+                                    Text(
+                                        text = header.ifBlank { "kolumna_${index + 1}" },
+                                        modifier = Modifier.padding(top = 12.dp),
+                                    )
+                                }
+                            }
+                            Button(onClick = viewModel::selectAllPreviewColumns, modifier = Modifier.fillMaxWidth()) {
+                                Text("Zaznacz wszystkie kolumny")
+                            }
+                        }
+                        uiState.previewRows.take(30).forEach { row ->
+                            val selected = row.index in uiState.selectedPreviewRowIndexes
+                            Row(
+                                modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            ) {
+                                Checkbox(
+                                    checked = selected,
+                                    onCheckedChange = { viewModel.togglePreviewRowSelection(row.index) },
+                                )
+                                Text(
+                                    text = row.cells.filterIndexed { columnIndex, _ ->
+                                        uiState.selectedPreviewColumnIndexes.isEmpty() || columnIndex in uiState.selectedPreviewColumnIndexes
+                                    }.joinToString(" | "),
+                                    modifier = Modifier.weight(1f).padding(top = 10.dp),
+                                )
+                                Button(onClick = { viewModel.exportSinglePreviewRow(row.index) }) {
+                                    Text("Export wiersza")
+                                }
+                            }
                         }
                         Button(onClick = viewModel::clearWorkbookImport, modifier = Modifier.fillMaxWidth()) {
                             Text("Wyczyść staging workbooka")

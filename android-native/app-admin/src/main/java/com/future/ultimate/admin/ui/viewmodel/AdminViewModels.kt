@@ -28,6 +28,7 @@ import com.future.ultimate.core.common.repository.EmailTemplateData
 import com.future.ultimate.core.common.repository.ContactListItem
 import com.future.ultimate.core.common.repository.MailApprovalRequest
 import com.future.ultimate.core.common.repository.PayrollWorkbookRow
+import com.future.ultimate.core.common.repository.PayrollPreviewRow
 import com.future.ultimate.core.common.repository.SmtpSettingsData
 import com.future.ultimate.core.common.ui.CarsUiState
 import com.future.ultimate.core.common.ui.ClothesOrdersUiState
@@ -309,28 +310,121 @@ class PayrollViewModel(private val repository: AdminRepository) : ViewModel() {
     fun stageWorkbookImport() {
         val payslipData = payslipModule.loadFromDelimitedText(_uiState.value.workbookImportText)
         val rows = PayslipGenerator().toWorkbookRows(payslipData.rows)
+        val previewRows = payslipData.rows.mapIndexed { index, row ->
+            PayrollPreviewRow(
+                index = index,
+                cells = row.raw,
+                name = row.name,
+                surname = row.surname,
+            )
+        }
         if (rows.isEmpty()) {
             _uiState.value = _uiState.value.copy(
                 stagedWorkbookRows = emptyList(),
+                previewHeaders = emptyList(),
+                previewRows = emptyList(),
+                selectedPreviewRowIndexes = emptySet(),
+                selectedPreviewColumnIndexes = emptySet(),
                 actionMessage = "Nie udało się sparsować żadnych wierszy importu",
                 progressLabel = "Brak danych do stagingu",
             )
             return
         }
+        val columnCount = maxOf(
+            payslipData.headers.size,
+            previewRows.maxOfOrNull { it.cells.size } ?: 0,
+        )
         _uiState.value = _uiState.value.copy(
             stagedWorkbookRows = rows,
+            previewHeaders = payslipData.headers,
+            previewRows = previewRows,
+            selectedPreviewRowIndexes = emptySet(),
+            selectedPreviewColumnIndexes = (0 until columnCount).toSet(),
             actionMessage = "Zaimportowano lokalnie ${rows.size} wierszy workbooka do stagingu",
             progressLabel = "Workbook staged: ${rows.size} wierszy",
         )
+    }
+
+    fun loadWorkbookFromText(rawText: String) {
+        _uiState.value = _uiState.value.copy(workbookImportText = rawText)
+        stageWorkbookImport()
     }
 
     fun clearWorkbookImport() {
         _uiState.value = _uiState.value.copy(
             workbookImportText = "",
             stagedWorkbookRows = emptyList(),
+            previewHeaders = emptyList(),
+            previewRows = emptyList(),
+            selectedPreviewRowIndexes = emptySet(),
+            selectedPreviewColumnIndexes = emptySet(),
             actionMessage = "Staging workbooka wyczyszczony",
             progressLabel = "Gotowy",
         )
+    }
+
+    fun togglePreviewRowSelection(index: Int) {
+        val updated = _uiState.value.selectedPreviewRowIndexes.let { current ->
+            if (index in current) current - index else current + index
+        }
+        _uiState.value = _uiState.value.copy(selectedPreviewRowIndexes = updated, actionMessage = null)
+    }
+
+    fun clearPreviewSelection() {
+        _uiState.value = _uiState.value.copy(selectedPreviewRowIndexes = emptySet(), actionMessage = "Wyczyszczono wybór tabeli")
+    }
+
+    fun togglePreviewColumnSelection(index: Int) {
+        val updated = _uiState.value.selectedPreviewColumnIndexes.let { current ->
+            if (index in current) current - index else current + index
+        }
+        _uiState.value = _uiState.value.copy(selectedPreviewColumnIndexes = updated, actionMessage = null)
+    }
+
+    fun selectAllPreviewColumns() {
+        val all = (0 until maxOf(_uiState.value.previewHeaders.size, _uiState.value.previewRows.maxOfOrNull { it.cells.size } ?: 0)).toSet()
+        _uiState.value = _uiState.value.copy(selectedPreviewColumnIndexes = all, actionMessage = "Zaznaczono wszystkie kolumny")
+    }
+
+    fun exportSinglePreviewRow(index: Int) = viewModelScope.launch {
+        val row = _uiState.value.previewRows.firstOrNull { it.index == index } ?: return@launch
+        val selectedColumns = _uiState.value.selectedPreviewColumnIndexes
+        if (selectedColumns.isEmpty()) {
+            _uiState.value = _uiState.value.copy(actionMessage = "Wybierz co najmniej jedną kolumnę do eksportu")
+            return@launch
+        }
+        val filteredHeaders = _uiState.value.previewHeaders.filterIndexed { columnIndex, _ -> columnIndex in selectedColumns }
+        val filteredRow = row.cells.filterIndexed { columnIndex, _ -> columnIndex in selectedColumns }
+        val path = repository.exportPayrollRowsXlsx(
+            headers = filteredHeaders,
+            rows = listOf(filteredRow),
+            filePrefix = "PPI",
+            nameHint = row.name,
+            surnameHint = row.surname,
+        )
+        addAttachment(path, "Wyeksportowano pojedynczy wiersz")
+    }
+
+    fun exportSelectedPreviewRows() = viewModelScope.launch {
+        val selected = _uiState.value.previewRows.filter { it.index in _uiState.value.selectedPreviewRowIndexes }
+        if (selected.isEmpty()) {
+            _uiState.value = _uiState.value.copy(actionMessage = "Wybierz co najmniej jeden wiersz do eksportu tabeli")
+            return@launch
+        }
+        val selectedColumns = _uiState.value.selectedPreviewColumnIndexes
+        if (selectedColumns.isEmpty()) {
+            _uiState.value = _uiState.value.copy(actionMessage = "Wybierz co najmniej jedną kolumnę do eksportu")
+            return@launch
+        }
+        val filteredHeaders = _uiState.value.previewHeaders.filterIndexed { columnIndex, _ -> columnIndex in selectedColumns }
+        val path = repository.exportPayrollRowsXlsx(
+            headers = filteredHeaders,
+            rows = selected.map { row -> row.cells.filterIndexed { columnIndex, _ -> columnIndex in selectedColumns } },
+            filePrefix = "PPI_TABELA",
+            nameHint = "zaznaczone",
+            surnameHint = selected.size.toString(),
+        )
+        addAttachment(path, "Wyeksportowano zaznaczoną tabelę")
     }
 
     fun attachStagedWorkbookCsv() = viewModelScope.launch {

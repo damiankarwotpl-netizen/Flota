@@ -20,6 +20,7 @@ import com.future.ultimate.core.common.repository.DashboardStats
 import com.future.ultimate.core.common.repository.DriverRemoteSettingsData
 import com.future.ultimate.core.common.repository.EmailTemplateData
 import com.future.ultimate.core.common.repository.PlantListItem
+import com.future.ultimate.core.common.repository.PayrollPreviewRow
 import com.future.ultimate.core.common.repository.PayrollWorkbookRow
 import com.future.ultimate.core.common.repository.SessionReportListItem
 import com.future.ultimate.core.common.repository.SmtpSettingsData
@@ -77,6 +78,10 @@ data class PayrollUiState(
     val calculationSummary: String = "Wprowadź kwoty i uruchom kalkulację.",
     val workbookImportText: String = "",
     val stagedWorkbookRows: List<PayrollWorkbookRow> = emptyList(),
+    val previewHeaders: List<String> = emptyList(),
+    val previewRows: List<PayrollPreviewRow> = emptyList(),
+    val selectedPreviewRowIndexes: Set<Int> = emptySet(),
+    val selectedPreviewColumnIndexes: Set<Int> = emptySet(),
     val progressLabel: String = "Gotowy",
     val isMailingRunning: Boolean = false,
     val isMailingPaused: Boolean = false,
