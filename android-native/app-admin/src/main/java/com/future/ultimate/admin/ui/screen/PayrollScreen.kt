@@ -202,7 +202,7 @@ private fun PreviewSpreadsheetTable(
     val verticalState = rememberScrollState()
     val visibleColumns = if (selectedColumns.isEmpty()) headers.indices.toList() else selectedColumns.sorted()
     val headerColor = MaterialTheme.colorScheme.surfaceVariant
-    val gridColor = MaterialTheme.colorScheme.outlineVariant
+    val gridColor = MaterialTheme.colorScheme.outline
     val cellWidth = 140.dp
 
     Box(
@@ -288,6 +288,17 @@ private fun SpreadsheetCell(
             text = text.ifBlank { "-" },
             style = if (isHeader) MaterialTheme.typography.titleSmall else MaterialTheme.typography.bodyMedium,
         )
+    }
+    return null
+}
+
+private fun resolveDisplayName(context: android.content.Context, uri: Uri): String? {
+    val projection = arrayOf(android.provider.OpenableColumns.DISPLAY_NAME)
+    context.contentResolver.query(uri, projection, null, null, null)?.use { cursor ->
+        val columnIndex = cursor.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME)
+        if (columnIndex >= 0 && cursor.moveToFirst()) {
+            return cursor.getString(columnIndex)
+        }
     }
     return null
 }
