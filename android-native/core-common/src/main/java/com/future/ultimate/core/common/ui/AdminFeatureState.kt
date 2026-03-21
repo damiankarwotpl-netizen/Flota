@@ -81,7 +81,6 @@ data class PayrollUiState(
     val previewHeaders: List<String> = emptyList(),
     val previewRows: List<PayrollPreviewRow> = emptyList(),
     val selectedPreviewRowIndexes: Set<Int> = emptySet(),
-    val selectedPreviewColumnIndexes: Set<Int> = emptySet(),
     val progressLabel: String = "Gotowy",
     val isMailingRunning: Boolean = false,
     val isMailingPaused: Boolean = false,
