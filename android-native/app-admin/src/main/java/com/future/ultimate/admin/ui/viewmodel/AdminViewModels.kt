@@ -3,6 +3,12 @@ package com.future.ultimate.admin.ui.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.future.ultimate.admin.payroll.DelimitedExcelParser
+import com.future.ultimate.admin.payroll.ExportService
+import com.future.ultimate.admin.payroll.PayslipFilter
+import com.future.ultimate.admin.payroll.PayslipGenerator
+import com.future.ultimate.admin.payroll.PayslipMapper
+import com.future.ultimate.admin.payroll.PayslipModule
 import com.future.ultimate.core.common.model.CarDraft
 import com.future.ultimate.core.common.model.ClothesOrderDraft
 import com.future.ultimate.core.common.model.ClothesOrderItemDraft
@@ -243,6 +249,15 @@ class PayrollViewModel(private val repository: AdminRepository) : ViewModel() {
     private var templateCache: EmailTemplateData = EmailTemplateData()
     private var mailingJob: Job? = null
     private var pendingApprovalDecision: CompletableDeferred<Boolean>? = null
+    private val payslipModule = PayslipModule(
+        excelParser = DelimitedExcelParser(),
+        mapper = PayslipMapper(),
+        filter = PayslipFilter(),
+        generator = PayslipGenerator(),
+        exportService = object : ExportService {
+            override suspend fun export(rows: List<PayrollWorkbookRow>): String = repository.exportPayrollWorkbookCsv(rows)
+        },
+    )
     @Volatile
     private var mailingPaused: Boolean = false
 
@@ -252,6 +267,7 @@ class PayrollViewModel(private val repository: AdminRepository) : ViewModel() {
             val knownKeys = items.map(::selectionKey).toSet()
             _uiState.value = _uiState.value.copy(
                 contacts = items,
+                filteredRecipients = filterRecipients(items, _uiState.value.recipientQuery),
                 totalRecipients = items.size,
                 selectedRecipientKeys = _uiState.value.selectedRecipientKeys.intersect(knownKeys),
             )
@@ -291,7 +307,8 @@ class PayrollViewModel(private val repository: AdminRepository) : ViewModel() {
     }
 
     fun stageWorkbookImport() {
-        val rows = parseWorkbookRows(_uiState.value.workbookImportText)
+        val payslipData = payslipModule.loadFromDelimitedText(_uiState.value.workbookImportText)
+        val rows = PayslipGenerator().toWorkbookRows(payslipData.rows)
         if (rows.isEmpty()) {
             _uiState.value = _uiState.value.copy(
                 stagedWorkbookRows = emptyList(),
@@ -322,7 +339,18 @@ class PayrollViewModel(private val repository: AdminRepository) : ViewModel() {
             _uiState.value = _uiState.value.copy(actionMessage = PatchLoader.fallbackImportMessage("Płace"))
             return@launch
         }
-        val path = repository.exportPayrollWorkbookCsv(rows)
+        val path = payslipModule.export(
+            rows = rows.map {
+                com.future.ultimate.admin.payroll.PayslipRow(
+                    raw = listOf(it.amount),
+                    name = it.name,
+                    surname = it.surname,
+                    pesel = null,
+                    email = it.email,
+                )
+            },
+            workplace = rows.firstOrNull()?.workplace.orEmpty(),
+        )
         addAttachment(path, "Dołączono staging workbooka")
     }
 
@@ -526,7 +554,11 @@ class PayrollViewModel(private val repository: AdminRepository) : ViewModel() {
     }
 
     fun updateRecipientQuery(value: String) {
-        _uiState.value = _uiState.value.copy(recipientQuery = value, actionMessage = null)
+        _uiState.value = _uiState.value.copy(
+            recipientQuery = value,
+            filteredRecipients = filterRecipients(contactsCache, value),
+            actionMessage = null,
+        )
     }
 
     fun toggleSpecialRecipient(item: ContactListItem) {
@@ -537,8 +569,10 @@ class PayrollViewModel(private val repository: AdminRepository) : ViewModel() {
         _uiState.value = _uiState.value.copy(selectedRecipientKeys = updated, actionMessage = null)
     }
 
+    fun isRecipientSelected(item: ContactListItem): Boolean = selectionKey(item) in _uiState.value.selectedRecipientKeys
+
     fun selectVisibleRecipients() {
-        val visibleKeys = filteredRecipients().map(::selectionKey)
+        val visibleKeys = _uiState.value.filteredRecipients.map(::selectionKey)
         if (visibleKeys.isEmpty()) {
             _uiState.value = _uiState.value.copy(actionMessage = "Brak widocznych odbiorców do zaznaczenia")
             return
@@ -699,17 +733,14 @@ class PayrollViewModel(private val repository: AdminRepository) : ViewModel() {
         }
     }
 
-    private fun filteredRecipients(): List<ContactListItem> {
-        val query = _uiState.value.recipientQuery.trim().lowercase()
-        return contactsCache.filter { item ->
-            if (query.isBlank()) {
-                true
-            } else {
-                listOf(item.name, item.surname, item.email, item.workplace, item.phone)
-                    .joinToString(" ")
-                    .lowercase()
-                    .contains(query)
-            }
+    private fun filterRecipients(items: List<ContactListItem>, query: String): List<ContactListItem> {
+        val normalizedQuery = query.trim().lowercase()
+        if (normalizedQuery.isBlank()) return items
+        return items.filter { item ->
+            listOf(item.name, item.surname, item.email, item.workplace, item.phone)
+                .joinToString(" ")
+                .lowercase()
+                .contains(normalizedQuery)
         }
     }
 
@@ -718,29 +749,6 @@ class PayrollViewModel(private val repository: AdminRepository) : ViewModel() {
 
     private fun formatMoney(value: Double): String = String.format(java.util.Locale.US, "%.2f", value)
 
-    private fun parseWorkbookRows(rawInput: String): List<PayrollWorkbookRow> =
-        rawInput.lineSequence()
-            .map { it.trim() }
-            .filter { it.isNotBlank() }
-            .mapNotNull { line ->
-                val parts = line.split('\t', ';', ',').map { it.trim() }
-                if (parts.size < 2) {
-                    null
-                } else {
-                    PayrollWorkbookRow(
-                        name = parts.getOrElse(0) { "" },
-                        surname = parts.getOrElse(1) { "" },
-                        workplace = parts.getOrElse(2) { "" },
-                        email = parts.getOrElse(3) { "" },
-                        amount = parts.getOrElse(4) { "" },
-                    )
-                }
-            }
-            .filterNot { row ->
-                val firstCell = row.name.lowercase()
-                firstCell.contains("imi") || firstCell.contains("name")
-            }
-            .toList()
 }
 
 class TableViewModel(private val repository: AdminRepository) : ViewModel() {
@@ -818,6 +826,20 @@ class WorkersViewModel(private val repository: AdminRepository) : ViewModel() {
     init { repository.observeWorkers().onEach { _uiState.value = _uiState.value.copy(items = it) }.launchIn(viewModelScope) }
     fun updateQuery(value: String) { _uiState.value = _uiState.value.copy(query = value) }
     fun updateEditor(draft: WorkerDraft) { _uiState.value = _uiState.value.copy(editor = draft) }
+    fun edit(worker: com.future.ultimate.core.common.repository.WorkerListItem) {
+        _uiState.value = _uiState.value.copy(
+            editor = WorkerDraft(
+                id = worker.id,
+                name = worker.name,
+                surname = worker.surname,
+                plant = worker.plant,
+                phone = worker.phone,
+                position = worker.position,
+                hireDate = worker.hireDate,
+            ),
+        )
+    }
+    fun clearEditor() { _uiState.value = _uiState.value.copy(editor = WorkerDraft()) }
     fun save() = viewModelScope.launch {
         _uiState.value = _uiState.value.copy(isSaving = true)
         repository.saveWorker(_uiState.value.editor)
@@ -832,6 +854,19 @@ class PlantsViewModel(private val repository: AdminRepository) : ViewModel() {
     init { repository.observePlants().onEach { _uiState.value = _uiState.value.copy(items = it) }.launchIn(viewModelScope) }
     fun updateQuery(value: String) { _uiState.value = _uiState.value.copy(query = value) }
     fun updateEditor(draft: PlantDraft) { _uiState.value = _uiState.value.copy(editor = draft) }
+    fun edit(plant: com.future.ultimate.core.common.repository.PlantListItem) {
+        _uiState.value = _uiState.value.copy(
+            editor = PlantDraft(
+                id = plant.id,
+                name = plant.name,
+                city = plant.city,
+                address = plant.address,
+                contactPhone = plant.contactPhone,
+                notes = plant.notes,
+            ),
+        )
+    }
+    fun clearEditor() { _uiState.value = _uiState.value.copy(editor = PlantDraft()) }
     fun save() = viewModelScope.launch {
         _uiState.value = _uiState.value.copy(isSaving = true)
         repository.savePlant(_uiState.value.editor)
