@@ -45,6 +45,7 @@ fun PayrollScreen(_navController: NavController) {
     val viewModel: PayrollViewModel = viewModel(factory = AdminViewModelFactory(app.container.repository))
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     var isPreviewDialogOpen by remember { mutableStateOf(false) }
+    var isSpreadsheetDialogOpen by remember { mutableStateOf(false) }
 
     val excelPicker = rememberLauncherForActivityResult(
         contract = androidx.activity.result.contract.ActivityResultContracts.GetContent(),
@@ -149,6 +150,27 @@ fun PayrollScreen(_navController: NavController) {
                     M3Button(onClick = viewModel::selectAllPreviewColumns, modifier = Modifier.fillMaxWidth()) {
                         Text("Zaznacz kolumny")
                     }
+                    M3Button(
+                        onClick = {
+                            isPreviewDialogOpen = false
+                            isSpreadsheetDialogOpen = true
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text("Otwórz tabelę w nowym oknie")
+                    }
+                    M3Button(onClick = { isPreviewDialogOpen = false }, modifier = Modifier.fillMaxWidth()) {
+                        Text("Zamknij")
+                    }
+                }
+            }
+        }
+    }
+
+    if (isSpreadsheetDialogOpen) {
+        Dialog(onDismissRequest = { isSpreadsheetDialogOpen = false }) {
+            SectionCard(title = "Tabela arkusza Excel") {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     PreviewSpreadsheetTable(
                         headers = displayHeaders,
                         rows = uiState.previewRows,
@@ -157,10 +179,11 @@ fun PayrollScreen(_navController: NavController) {
                         onToggleRow = viewModel::togglePreviewRowSelection,
                         onExportRow = { rowIndex -> viewModel.exportSinglePreviewRowToFolder(app, rowIndex) },
                     )
-                    M3Button(onClick = { isPreviewDialogOpen = false }, modifier = Modifier.fillMaxWidth()) {
-                        Text("Zamknij")
+                    M3Button(onClick = { isSpreadsheetDialogOpen = false }, modifier = Modifier.fillMaxWidth()) {
+                        Text("Zamknij tabelę")
                     }
                 }
+                uiState.actionMessage?.let { Text(it) }
             }
         }
     }
@@ -265,6 +288,17 @@ private fun SpreadsheetCell(
             text = text.ifBlank { "-" },
             style = if (isHeader) MaterialTheme.typography.titleSmall else MaterialTheme.typography.bodyMedium,
         )
+    }
+    return null
+}
+
+private fun resolveDisplayName(context: android.content.Context, uri: Uri): String? {
+    val projection = arrayOf(android.provider.OpenableColumns.DISPLAY_NAME)
+    context.contentResolver.query(uri, projection, null, null, null)?.use { cursor ->
+        val columnIndex = cursor.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME)
+        if (columnIndex >= 0 && cursor.moveToFirst()) {
+            return cursor.getString(columnIndex)
+        }
     }
     return null
 }
