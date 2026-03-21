@@ -13,11 +13,11 @@ Daemon will be stopped at the end of the build
 > Task :core-database:preBuild UP-TO-DATE
 > Task :core-database:preDebugBuild UP-TO-DATE
 > Task :core-common:writeDebugAarMetadata
-> Task :core-database:writeDebugAarMetadata
 > Task :app-admin:generateDebugResValues
+> Task :core-database:writeDebugAarMetadata
 > Task :core-common:generateDebugResValues
-> Task :app-admin:checkDebugAarMetadata
 > Task :core-common:generateDebugResources
+> Task :app-admin:checkDebugAarMetadata
 > Task :core-common:packageDebugResources
 > Task :core-database:generateDebugResValues
 > Task :core-database:generateDebugResources
@@ -44,9 +44,9 @@ Daemon will be stopped at the end of the build
 > Task :app-admin:processDebugMainManifest
 > Task :app-admin:processDebugManifest
 > Task :core-database:checkKotlinGradlePluginConfigurationErrors SKIPPED
-> Task :app-admin:javaPreCompileDebug
-> Task :core-database:javaPreCompileDebug
 > Task :app-admin:processDebugManifestForPackage
+> Task :core-database:javaPreCompileDebug
+> Task :app-admin:javaPreCompileDebug
 > Task :app-admin:mergeDebugShaders
 > Task :app-admin:compileDebugShaders NO-SOURCE
 > Task :app-admin:generateDebugAssets UP-TO-DATE
@@ -65,25 +65,25 @@ Daemon will be stopped at the end of the build
 > Task :core-common:mergeDebugJniLibFolders
 > Task :core-common:mergeDebugNativeLibs NO-SOURCE
 > Task :core-common:copyDebugJniLibsProjectOnly
+> Task :app-admin:checkDebugDuplicateClasses
+> Task :app-admin:processDebugResources
 > Task :core-database:mergeDebugJniLibFolders
 > Task :core-database:mergeDebugNativeLibs NO-SOURCE
-> Task :app-admin:checkDebugDuplicateClasses
 > Task :core-database:copyDebugJniLibsProjectOnly
-> Task :app-admin:processDebugResources
-> Task :app-admin:mergeDebugNativeLibs
 > Task :app-admin:validateSigningDebug
 > Task :app-admin:writeDebugAppMetadata
+> Task :app-admin:mergeDebugNativeLibs
 > Task :app-admin:writeDebugSigningConfigVersions
 > Task :app-driver:preBuild UP-TO-DATE
 > Task :app-driver:preDebugBuild UP-TO-DATE
+> Task :app-driver:mergeDebugNativeDebugMetadata NO-SOURCE
+> Task :app-driver:checkKotlinGradlePluginConfigurationErrors SKIPPED
 
 > Task :app-admin:stripDebugDebugSymbols
 Unable to strip the following libraries, packaging them as they are: libandroidx.graphics.path.so.
 
-> Task :app-driver:mergeDebugNativeDebugMetadata NO-SOURCE
-> Task :app-driver:checkKotlinGradlePluginConfigurationErrors SKIPPED
-> Task :app-driver:checkDebugAarMetadata
 > Task :app-driver:generateDebugResValues
+> Task :app-driver:checkDebugAarMetadata
 > Task :app-driver:mapDebugSourceSetPaths
 > Task :app-driver:generateDebugResources
 > Task :app-driver:packageDebugResources
@@ -93,8 +93,8 @@ Unable to strip the following libraries, packaging them as they are: libandroidx
 > Task :app-driver:mergeDebugResources
 > Task :app-driver:processDebugMainManifest
 > Task :app-driver:processDebugManifest
-> Task :app-driver:javaPreCompileDebug
 > Task :app-driver:processDebugManifestForPackage
+> Task :app-driver:javaPreCompileDebug
 > Task :app-driver:mergeDebugShaders
 > Task :app-driver:compileDebugShaders NO-SOURCE
 > Task :app-driver:generateDebugAssets UP-TO-DATE
@@ -121,17 +121,29 @@ Unable to strip the following libraries, packaging them as they are: libandroidx
 > Task :core-common:bundleLibCompileToJarDebug
 > Task :core-common:bundleLibRuntimeToDirDebug
 > Task :core-database:kspDebugKotlin
+> Task :core-database:compileDebugKotlin
+> Task :core-database:compileDebugJavaWithJavac
+> Task :core-database:processDebugJavaRes
+> Task :core-database:bundleLibRuntimeToJarDebug
+> Task :core-database:bundleLibCompileToJarDebug
+> Task :core-database:bundleLibRuntimeToDirDebug
+> Task :app-driver:mergeLibDexDebug
+> Task :app-admin:mergeLibDexDebug
 
-> Task :core-database:compileDebugKotlin FAILED
-e: file:///home/runner/work/Flota/Flota/android-native/core-database/src/main/java/com/future/ultimate/core/database/repository/LocalAdminRepository.kt:1162:34 Unresolved reference 'writeSheet'.
-gradle/actions: Writing build results to /home/runner/work/_temp/.gradle-actions/build-results/__run_2-1774087584521.json
+> Task :app-admin:compileDebugKotlin FAILED
+e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/PayrollScreen.kt:5:42 Conflicting import: imported name 'ActivityResultContracts' is ambiguous.
+e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/PayrollScreen.kt:11:43 Cannot access 'val RowColumnParentData?.weight: Float': it is internal in file.
+e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/PayrollScreen.kt:19:42 Conflicting import: imported name 'ActivityResultContracts' is ambiguous.
+
+> Task :app-driver:compileDebugKotlin
+gradle/actions: Writing build results to /home/runner/work/_temp/.gradle-actions/build-results/__run_2-1774090601458.json
 
 [Incubating] Problems report is available at: file:///home/runner/work/Flota/Flota/android-native/build/reports/problems/problems-report.html
 
 FAILURE: Build failed with an exception.
 
 * What went wrong:
-Execution failed for task ':core-database:compileDebugKotlin'.
+Execution failed for task ':app-admin:compileDebugKotlin'.
 > A failure occurred while executing org.jetbrains.kotlin.compilerRunner.GradleCompilerRunnerWithWorkers$GradleKotlinCompilerWorkAction
    > Compilation error. See log for more details
 
@@ -141,7 +153,7 @@ Execution failed for task ':core-database:compileDebugKotlin'.
 > Get more help at https://help.gradle.org.
 
 * Exception is:
-org.gradle.api.tasks.TaskExecutionException: Execution failed for task ':core-database:compileDebugKotlin'.
+org.gradle.api.tasks.TaskExecutionException: Execution failed for task ':app-admin:compileDebugKotlin'.
 	at org.gradle.api.internal.tasks.execution.ExecuteActionsTaskExecuter.lambda$executeIfValid$1(ExecuteActionsTaskExecuter.java:130)
 	at org.gradle.internal.Try$Failure.ifSuccessfulOrElse(Try.java:293)
 	at org.gradle.api.internal.tasks.execution.ExecuteActionsTaskExecuter.executeIfValid(ExecuteActionsTaskExecuter.java:128)
@@ -338,5 +350,5 @@ You can use '--warning-mode all' to show the individual deprecation warnings and
 
 For more on this, please refer to https://docs.gradle.org/8.14.3/userguide/command_line_interface.html#sec:command_line_warnings in the Gradle documentation.
 
-BUILD FAILED in 53s
-91 actionable tasks: 87 executed, 4 up-to-date
+BUILD FAILED in 1m 13s
+100 actionable tasks: 96 executed, 4 up-to-date
