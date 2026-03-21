@@ -24,6 +24,7 @@ import com.future.ultimate.core.common.repository.ClothesOrderWorkerListItem
 import com.future.ultimate.core.common.repository.ClothesSizeListItem
 import com.future.ultimate.core.common.repository.ClothesHistoryListItem
 import com.future.ultimate.core.common.repository.ContactListItem
+import com.future.ultimate.core.common.repository.DatabaseWorkbookImportResult
 import com.future.ultimate.core.common.repository.DashboardStats
 import com.future.ultimate.core.common.repository.DriverAccountCredentials
 import com.future.ultimate.core.common.repository.DriverRemoteSettingsData
@@ -48,6 +49,7 @@ import com.future.ultimate.core.database.entity.PlantEntity
 import com.future.ultimate.core.database.entity.ReportEntity
 import com.future.ultimate.core.database.entity.SettingEntity
 import com.future.ultimate.core.database.entity.WorkerEntity
+import java.io.ByteArrayInputStream
 import java.io.File
 import java.time.LocalDate
 import java.time.LocalDateTime
@@ -75,6 +77,8 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.Dispatchers
+import org.apache.poi.ss.usermodel.DataFormatter
+import org.apache.poi.ss.usermodel.WorkbookFactory
 
 class LocalAdminRepository(
     private val dao: AppDao,
@@ -1012,6 +1016,58 @@ class LocalAdminRepository(
         return outputFile.absolutePath
     }
 
+    override suspend fun importDatabaseWorkbook(
+        fileName: String?,
+        mimeType: String?,
+        bytes: ByteArray,
+    ): DatabaseWorkbookImportResult {
+        if (bytes.isEmpty()) return DatabaseWorkbookImportResult()
+        val workbookData = parseImportWorkbook(fileName = fileName, mimeType = mimeType, bytes = bytes)
+        var importedContacts = 0
+        var importedWorkers = 0
+        var importedPlants = 0
+        var importedClothesSizes = 0
+
+        workbookData.plants
+            .distinctBy { listOf(it.name, it.city, it.address).joinToString("|") { part -> part.trim().lowercase() } }
+            .filter { it.name.isNotBlank() }
+            .forEach { draft ->
+                savePlant(draft)
+                importedPlants += 1
+            }
+
+        workbookData.contacts
+            .distinctBy { "${it.name.trim().lowercase()}|${it.surname.trim().lowercase()}" }
+            .filter { it.name.isNotBlank() || it.surname.isNotBlank() }
+            .forEach { draft ->
+                saveContact(draft)
+                importedContacts += 1
+            }
+
+        workbookData.workers
+            .distinctBy { "${it.name.trim().lowercase()}|${it.surname.trim().lowercase()}" }
+            .filter { it.name.isNotBlank() || it.surname.isNotBlank() }
+            .forEach { draft ->
+                saveWorker(draft)
+                importedWorkers += 1
+            }
+
+        workbookData.clothesSizes
+            .distinctBy { "${it.name.trim().lowercase()}|${it.surname.trim().lowercase()}" }
+            .filter { it.name.isNotBlank() || it.surname.isNotBlank() }
+            .forEach { draft ->
+                saveClothesSize(draft)
+                importedClothesSizes += 1
+            }
+
+        return DatabaseWorkbookImportResult(
+            contactsImported = importedContacts,
+            workersImported = importedWorkers,
+            plantsImported = importedPlants,
+            clothesSizesImported = importedClothesSizes,
+        )
+    }
+
     private fun checkpointDatabase() {
         val databaseFile = context.getDatabasePath("future_v20.db")
         if (!databaseFile.exists()) return
@@ -1042,6 +1098,205 @@ class LocalAdminRepository(
         }
         return outputFile.absolutePath
     }
+
+    private data class ParsedDatabaseWorkbook(
+        val contacts: List<ContactDraft> = emptyList(),
+        val workers: List<WorkerDraft> = emptyList(),
+        val plants: List<PlantDraft> = emptyList(),
+        val clothesSizes: List<ClothesSizeDraft> = emptyList(),
+    )
+
+    private fun parseImportWorkbook(
+        fileName: String?,
+        mimeType: String?,
+        bytes: ByteArray,
+    ): ParsedDatabaseWorkbook {
+        val isXlsx = mimeType.orEmpty().contains("spreadsheetml", ignoreCase = true) ||
+            fileName.orEmpty().endsWith(".xlsx", ignoreCase = true)
+        require(isXlsx) { "Obsługiwany jest tylko plik Excel .xlsx" }
+
+        val contacts = mutableListOf<ContactDraft>()
+        val workers = mutableListOf<WorkerDraft>()
+        val plants = mutableListOf<PlantDraft>()
+        val clothesSizes = mutableListOf<ClothesSizeDraft>()
+
+        ByteArrayInputStream(bytes).use { input ->
+            WorkbookFactory.create(input).use { workbook ->
+                val formatter = DataFormatter()
+                for (sheetIndex in 0 until workbook.numberOfSheets) {
+                    val sheet = workbook.getSheetAt(sheetIndex) ?: continue
+                    val rows = readSheetRows(sheetIndex = sheetIndex, workbook = workbook, formatter = formatter)
+                    if (rows.isEmpty()) continue
+                    val headers = rows.first()
+                    val normalizedHeaders = headers.map(::normalizeImportKey)
+                    val dataRows = rows.drop(1)
+                    val sheetName = normalizeImportKey(sheet.sheetName)
+                    val sheetHasPlantFields = normalizedHeaders.any { it in setOf("miasto", "adres", "telefonkontaktowy", "telefonzakladu") }
+                    val sheetHasSizeFields = normalizedHeaders.any { it in setOf("koszulka", "bluza", "spodnie", "kurtka", "buty") }
+                    val sheetHasWorkerFields = normalizedHeaders.any { it in setOf("stanowisko", "datazatrudnienia") }
+                    val sheetHasContactFields = normalizedHeaders.any { it in setOf("email", "telefon", "mieszkanie", "notatki") }
+
+                    dataRows.forEach { row ->
+                        if (row.all { it.isBlank() }) return@forEach
+                        when {
+                            sheetName.contains("zaklad") || sheetHasPlantFields -> createPlantDraft(headers, row)?.let(plants::add)
+                        }
+                        when {
+                            sheetName.contains("rozmiar") || sheetName.contains("ubran") || sheetHasSizeFields ->
+                                createClothesSizeDraft(headers, row)?.let(clothesSizes::add)
+                        }
+                        when {
+                            sheetName.contains("pracown") || sheetHasWorkerFields -> createWorkerDraft(headers, row)?.let(workers::add)
+                        }
+                        when {
+                            sheetName.contains("kontakt") || sheetHasContactFields || (!sheetHasPlantFields && !sheetHasSizeFields) ->
+                                createContactDraft(headers, row)?.let(contacts::add)
+                        }
+
+                        if (!sheetName.contains("zaklad")) {
+                            createPlantDraft(headers, row)?.let(plants::add)
+                        }
+                        if (!sheetName.contains("rozmiar")) {
+                            createClothesSizeDraft(headers, row)?.let(clothesSizes::add)
+                        }
+                        if (!sheetName.contains("pracown")) {
+                            createWorkerDraft(headers, row)?.let(workers::add)
+                        }
+                        if (!sheetName.contains("kontakt")) {
+                            createContactDraft(headers, row)?.let(contacts::add)
+                        }
+                    }
+                }
+            }
+        }
+
+        return ParsedDatabaseWorkbook(
+            contacts = contacts,
+            workers = workers,
+            plants = plants,
+            clothesSizes = clothesSizes,
+        )
+    }
+
+    private fun readSheetRows(
+        sheetIndex: Int,
+        workbook: org.apache.poi.ss.usermodel.Workbook,
+        formatter: DataFormatter,
+    ): List<List<String>> {
+        val sheet = workbook.getSheetAt(sheetIndex) ?: return emptyList()
+        val maxColumns = (sheet.firstRowNum..sheet.lastRowNum)
+            .mapNotNull { rowIndex -> sheet.getRow(rowIndex)?.lastCellNum?.toInt()?.takeIf { it > 0 } }
+            .maxOrNull() ?: 0
+        if (maxColumns == 0) return emptyList()
+        return buildList {
+            for (rowIndex in sheet.firstRowNum..sheet.lastRowNum) {
+                val row = sheet.getRow(rowIndex)
+                val values = (0 until maxColumns).map { columnIndex ->
+                    formatter.formatCellValue(row?.getCell(columnIndex)).trim()
+                }
+                if (values.any { it.isNotBlank() }) {
+                    add(values)
+                }
+            }
+        }
+    }
+
+    private fun createContactDraft(headers: List<String>, row: List<String>): ContactDraft? {
+        val name = row.valueFor(headers, "imie", "name")
+        val surname = row.valueFor(headers, "nazwisko", "surname")
+        val workplace = row.valueFor(headers, "zaklad", "plant", "workplace", "miejscepracy")
+        val email = row.valueFor(headers, "email", "mail")
+        val phone = row.valueFor(headers, "telefon", "phone", "nrtelefonu")
+        val apartment = row.valueFor(headers, "mieszkanie", "apartment", "lokal", "pokoj")
+        val pesel = row.valueFor(headers, "pesel")
+        val notes = row.valueFor(headers, "notatki", "uwagi", "notes")
+        if (name.isBlank() && surname.isBlank() && email.isBlank() && phone.isBlank() && workplace.isBlank()) return null
+        return ContactDraft(
+            name = name,
+            surname = surname,
+            email = email,
+            pesel = pesel,
+            phone = phone,
+            workplace = workplace,
+            apartment = apartment,
+            notes = notes,
+        )
+    }
+
+    private fun createWorkerDraft(headers: List<String>, row: List<String>): WorkerDraft? {
+        val name = row.valueFor(headers, "imie", "name")
+        val surname = row.valueFor(headers, "nazwisko", "surname")
+        val plant = row.valueFor(headers, "zaklad", "plant", "workplace", "miejscepracy")
+        val phone = row.valueFor(headers, "telefon", "phone", "nrtelefonu")
+        val position = row.valueFor(headers, "stanowisko", "position")
+        val hireDate = row.valueFor(headers, "datazatrudnienia", "hiredate")
+        if (name.isBlank() && surname.isBlank() && plant.isBlank() && phone.isBlank()) return null
+        return WorkerDraft(
+            name = name,
+            surname = surname,
+            plant = plant,
+            phone = phone,
+            position = position,
+            hireDate = hireDate,
+        )
+    }
+
+    private fun createPlantDraft(headers: List<String>, row: List<String>): PlantDraft? {
+        val name = row.valueFor(headers, "nazwazakladu", "zaklad", "plant", "nazwa")
+        val city = row.valueFor(headers, "miasto", "city")
+        val address = row.valueFor(headers, "adres", "address")
+        val contactPhone = row.valueFor(headers, "telefonkontaktowy", "telefonzakladu", "telefon", "phone", "contactphone")
+        val notes = row.valueFor(headers, "notatki", "uwagi", "notes")
+        if (name.isBlank()) return null
+        return PlantDraft(
+            name = name,
+            city = city,
+            address = address,
+            contactPhone = contactPhone,
+            notes = notes,
+        )
+    }
+
+    private fun createClothesSizeDraft(headers: List<String>, row: List<String>): ClothesSizeDraft? {
+        val name = row.valueFor(headers, "imie", "name")
+        val surname = row.valueFor(headers, "nazwisko", "surname")
+        val plant = row.valueFor(headers, "zaklad", "plant", "workplace", "miejscepracy")
+        val shirt = row.valueFor(headers, "koszulka", "shirt", "tshirt")
+        val hoodie = row.valueFor(headers, "bluza", "hoodie")
+        val pants = row.valueFor(headers, "spodnie", "pants")
+        val jacket = row.valueFor(headers, "kurtka", "jacket")
+        val shoes = row.valueFor(headers, "buty", "shoes")
+        if (name.isBlank() && surname.isBlank() && shirt.isBlank() && hoodie.isBlank() && pants.isBlank() && jacket.isBlank() && shoes.isBlank()) return null
+        return ClothesSizeDraft(
+            name = name,
+            surname = surname,
+            plant = plant,
+            shirt = shirt,
+            hoodie = hoodie,
+            pants = pants,
+            jacket = jacket,
+            shoes = shoes,
+        )
+    }
+
+    private fun List<String>.valueFor(headers: List<String>, vararg candidates: String): String {
+        val headerIndex = headers.indexOfFirst { normalizeImportKey(it) in candidates.toSet() }
+        return if (headerIndex in indices) this[headerIndex].trim() else ""
+    }
+
+    private fun normalizeImportKey(value: String): String =
+        value.trim()
+            .lowercase()
+            .replace('ą', 'a')
+            .replace('ć', 'c')
+            .replace('ę', 'e')
+            .replace('ł', 'l')
+            .replace('ń', 'n')
+            .replace('ó', 'o')
+            .replace('ś', 's')
+            .replace('ż', 'z')
+            .replace('ź', 'z')
+            .replace(Regex("[^a-z0-9]+"), "")
 
     override suspend fun exportContactRowXlsx(name: String, surname: String): String {
         val contact = dao.getContact(name.trim().lowercase(), surname.trim().lowercase())
