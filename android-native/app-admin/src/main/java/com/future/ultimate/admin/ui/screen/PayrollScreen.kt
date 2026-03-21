@@ -10,7 +10,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button as M3Button
 import androidx.compose.material3.Checkbox as M3Checkbox
 import androidx.compose.material3.OutlinedTextField as M3OutlinedTextField
-import androidx.compose.material3.Text as M3Text
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -78,12 +78,12 @@ fun PayrollScreen(_navController: NavController) {
         item {
             SectionCard(title = "Wczytaj Excel", subtitle = "Wczytuje plik z pamięci telefonu.") {
                 M3Button(onClick = { excelPicker.launch("*/*") }, modifier = Modifier.fillMaxWidth()) {
-                    M3Text("Wczytaj Excel")
+                    Text("Wczytaj Excel")
                 }
                 M3Button(onClick = { folderPicker.launch(null) }, modifier = Modifier.fillMaxWidth()) {
-                    M3Text("Wybierz folder eksportu")
+                    Text("Wybierz folder eksportu")
                 }
-                M3Text(
+                Text(
                     if (uiState.exportFolderUri.isBlank()) {
                         "Folder eksportu: nie wybrano"
                     } else {
@@ -93,12 +93,12 @@ fun PayrollScreen(_navController: NavController) {
                 M3OutlinedTextField(
                     value = uiState.workbookImportText,
                     onValueChange = viewModel::updateWorkbookImportText,
-                    label = { M3Text("Podgląd surowych danych (CSV/TSV)") },
+                    label = { Text("Podgląd surowych danych (CSV/TSV)") },
                     modifier = Modifier.fillMaxWidth(),
                     minLines = 4,
                 )
                 M3Button(onClick = viewModel::stageWorkbookImport, modifier = Modifier.fillMaxWidth()) {
-                    M3Text("Odśwież podgląd")
+                    Text("Odśwież podgląd")
                 }
             }
         }
@@ -110,12 +110,12 @@ fun PayrollScreen(_navController: NavController) {
                     modifier = Modifier.fillMaxWidth(),
                     enabled = uiState.previewRows.isNotEmpty(),
                 ) {
-                    M3Text("Podgląd/Export")
+                    Text("Podgląd/Export")
                 }
                 if (uiState.previewRows.isEmpty()) {
-                    M3Text("Brak danych do podglądu. Najpierw wczytaj plik Excel/CSV.")
+                    Text("Brak danych do podglądu. Najpierw wczytaj plik Excel/CSV.")
                 }
-                uiState.actionMessage?.let { M3Text(it) }
+                uiState.actionMessage?.let { Text(it) }
             }
         }
     }
@@ -124,18 +124,18 @@ fun PayrollScreen(_navController: NavController) {
         Dialog(onDismissRequest = { isPreviewDialogOpen = false }) {
             SectionCard(title = "Podgląd arkusza Excel") {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    M3Text("Wybierz kolumny do eksportu:")
+                    Text("Wybierz kolumny do eksportu:")
                     displayHeaders.forEachIndexed { index, header ->
                         Row(modifier = Modifier.fillMaxWidth()) {
                             M3Checkbox(
                                 checked = index in uiState.selectedPreviewColumnIndexes,
                                 onCheckedChange = { viewModel.togglePreviewColumnSelection(index) },
                             )
-                            M3Text(header.ifBlank { "kolumna_${index + 1}" }, modifier = Modifier.padding(top = 12.dp))
+                            Text(header.ifBlank { "kolumna_${index + 1}" }, modifier = Modifier.padding(top = 12.dp))
                         }
                     }
                     M3Button(onClick = viewModel::selectAllPreviewColumns, modifier = Modifier.fillMaxWidth()) {
-                        M3Text("Zaznacz kolumny")
+                        Text("Zaznacz kolumny")
                     }
                     uiState.previewRows.forEach { row ->
                         val selected = row.index in uiState.selectedPreviewRowIndexes
@@ -147,19 +147,19 @@ fun PayrollScreen(_navController: NavController) {
                                 checked = selected,
                                 onCheckedChange = { viewModel.togglePreviewRowSelection(row.index) },
                             )
-                            M3Text(
+                            Text(
                                 text = row.cells.filterIndexed { columnIndex, _ ->
                                     uiState.selectedPreviewColumnIndexes.isEmpty() || columnIndex in uiState.selectedPreviewColumnIndexes
                                 }.joinToString(" | "),
                                 modifier = Modifier.padding(top = 10.dp),
                             )
                             M3Button(onClick = { viewModel.exportSinglePreviewRowToFolder(app, row.index) }) {
-                                M3Text("Eksport")
+                                Text("Eksport")
                             }
                         }
                     }
                     M3Button(onClick = { isPreviewDialogOpen = false }, modifier = Modifier.fillMaxWidth()) {
-                        M3Text("Zamknij")
+                        Text("Zamknij")
                     }
                 }
                 uiState.actionMessage?.let { Text(it) }
