@@ -13,8 +13,9 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
@@ -30,6 +31,7 @@ fun PayrollScreen(_navController: NavController) {
     val app = LocalContext.current.applicationContext as AdminApp
     val viewModel: PayrollViewModel = viewModel(factory = AdminViewModelFactory(app.container.repository))
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    var isPreviewDialogOpen by remember { mutableStateOf(false) }
 
     val excelPicker = rememberLauncherForActivityResult(
         contract = androidx.activity.result.contract.ActivityResultContracts.GetContent(),
@@ -95,13 +97,28 @@ fun PayrollScreen(_navController: NavController) {
         }
 
         item {
-            SectionCard(
-                title = "Podgląd/Export",
-                subtitle = "Tabela z pliku + wybór kolumn i eksport pojedynczego wiersza.",
-            ) {
+            SectionCard(title = "Podgląd/Export", subtitle = "Otwiera osobne okno z tabelą jak w Excelu.") {
+                Button(
+                    onClick = { isPreviewDialogOpen = true },
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = uiState.previewRows.isNotEmpty(),
+                ) {
+                    Text("Podgląd/Export")
+                }
                 if (uiState.previewRows.isEmpty()) {
                     Text("Brak danych do podglądu. Najpierw wczytaj plik Excel/CSV.")
-                } else {
+                }
+                uiState.actionMessage?.let { Text(it) }
+            }
+        }
+    }
+
+    if (isPreviewDialogOpen) {
+        AlertDialog(
+            onDismissRequest = { isPreviewDialogOpen = false },
+            title = { Text("Podgląd arkusza Excel") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text("Wybierz kolumny do eksportu:")
                     displayHeaders.forEachIndexed { index, header ->
                         Row(modifier = Modifier.fillMaxWidth()) {
@@ -115,10 +132,6 @@ fun PayrollScreen(_navController: NavController) {
                     Button(onClick = viewModel::selectAllPreviewColumns, modifier = Modifier.fillMaxWidth()) {
                         Text("Zaznacz kolumny")
                     }
-                    Button(onClick = viewModel::clearPreviewSelection, modifier = Modifier.fillMaxWidth()) {
-                        Text("Wyczyść wybór wierszy")
-                    }
-
                     uiState.previewRows.forEach { row ->
                         val selected = row.index in uiState.selectedPreviewRowIndexes
                         Row(
@@ -141,9 +154,12 @@ fun PayrollScreen(_navController: NavController) {
                         }
                     }
                 }
-
-                uiState.actionMessage?.let { Text(it) }
-            }
-        }
+            },
+            confirmButton = {
+                Button(onClick = { isPreviewDialogOpen = false }) {
+                    Text("Zamknij")
+                }
+            },
+        )
     }
 }
