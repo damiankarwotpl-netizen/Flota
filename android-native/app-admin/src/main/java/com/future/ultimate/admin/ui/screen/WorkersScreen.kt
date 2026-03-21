@@ -1,7 +1,9 @@
 package com.future.ultimate.admin.ui.screen
 
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -9,6 +11,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.future.ultimate.admin.AdminApp
@@ -31,14 +34,47 @@ fun WorkersScreen() {
                 OutlinedTextField(uiState.editor.phone, { viewModel.updateEditor(uiState.editor.copy(phone = it)) }, label = { Text("Telefon") }, modifier = Modifier.fillMaxWidth())
                 OutlinedTextField(uiState.editor.position, { viewModel.updateEditor(uiState.editor.copy(position = it)) }, label = { Text("Stanowisko") }, modifier = Modifier.fillMaxWidth())
                 OutlinedTextField(uiState.editor.hireDate, { viewModel.updateEditor(uiState.editor.copy(hireDate = it)) }, label = { Text("Data zatrudnienia") }, modifier = Modifier.fillMaxWidth())
-                Button(onClick = viewModel::save, modifier = Modifier.fillMaxWidth()) { Text(if (uiState.isSaving) "Zapisywanie..." else "Dodaj") }
+                Button(onClick = viewModel::save, modifier = Modifier.fillMaxWidth()) {
+                    Text(
+                        if (uiState.isSaving) {
+                            "Zapisywanie..."
+                        } else if (uiState.editor.id == null) {
+                            "Dodaj pracownika"
+                        } else {
+                            "Zapisz zmiany pracownika"
+                        },
+                    )
+                }
+                if (uiState.editor.id != null) {
+                    Button(onClick = viewModel::clearEditor, modifier = Modifier.fillMaxWidth()) { Text("Anuluj edycję") }
+                }
             }
         }
-        items(
-            uiState.items.filter {
+        uiState.items
+            .filter {
                 val blob = "${it.name} ${it.surname} ${it.plant} ${it.phone} ${it.position} ${it.hireDate}".lowercase()
                 uiState.query.isBlank() || uiState.query.lowercase() in blob
-            }.map { "${it.name} ${it.surname} • ${it.position} • ${it.plant} • ${it.phone}" },
-        )
+            }
+            .forEach { worker ->
+                item {
+                    SectionCard(
+                        title = "${worker.name} ${worker.surname}",
+                        subtitle = "${worker.position} • ${worker.plant}",
+                    ) {
+                        Text("Telefon: ${worker.phone.ifBlank { "Brak numeru" }}")
+                        if (worker.hireDate.isNotBlank()) {
+                            Text("Data zatrudnienia: ${worker.hireDate}")
+                        }
+                        Row(modifier = Modifier.fillMaxWidth()) {
+                            Button(
+                                onClick = { viewModel.edit(worker) },
+                                modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+                            ) {
+                                Text("Edytuj pracownika")
+                            }
+                        }
+                    }
+                }
+            }
     }
 }

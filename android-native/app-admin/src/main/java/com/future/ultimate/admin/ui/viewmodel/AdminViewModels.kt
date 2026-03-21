@@ -818,6 +818,20 @@ class WorkersViewModel(private val repository: AdminRepository) : ViewModel() {
     init { repository.observeWorkers().onEach { _uiState.value = _uiState.value.copy(items = it) }.launchIn(viewModelScope) }
     fun updateQuery(value: String) { _uiState.value = _uiState.value.copy(query = value) }
     fun updateEditor(draft: WorkerDraft) { _uiState.value = _uiState.value.copy(editor = draft) }
+    fun edit(worker: com.future.ultimate.core.common.repository.WorkerListItem) {
+        _uiState.value = _uiState.value.copy(
+            editor = WorkerDraft(
+                id = worker.id,
+                name = worker.name,
+                surname = worker.surname,
+                plant = worker.plant,
+                phone = worker.phone,
+                position = worker.position,
+                hireDate = worker.hireDate,
+            ),
+        )
+    }
+    fun clearEditor() { _uiState.value = _uiState.value.copy(editor = WorkerDraft()) }
     fun save() = viewModelScope.launch {
         _uiState.value = _uiState.value.copy(isSaving = true)
         repository.saveWorker(_uiState.value.editor)
@@ -832,6 +846,19 @@ class PlantsViewModel(private val repository: AdminRepository) : ViewModel() {
     init { repository.observePlants().onEach { _uiState.value = _uiState.value.copy(items = it) }.launchIn(viewModelScope) }
     fun updateQuery(value: String) { _uiState.value = _uiState.value.copy(query = value) }
     fun updateEditor(draft: PlantDraft) { _uiState.value = _uiState.value.copy(editor = draft) }
+    fun edit(plant: com.future.ultimate.core.common.repository.PlantListItem) {
+        _uiState.value = _uiState.value.copy(
+            editor = PlantDraft(
+                id = plant.id,
+                name = plant.name,
+                city = plant.city,
+                address = plant.address,
+                contactPhone = plant.contactPhone,
+                notes = plant.notes,
+            ),
+        )
+    }
+    fun clearEditor() { _uiState.value = _uiState.value.copy(editor = PlantDraft()) }
     fun save() = viewModelScope.launch {
         _uiState.value = _uiState.value.copy(isSaving = true)
         repository.savePlant(_uiState.value.editor)
