@@ -1721,6 +1721,31 @@ class SettingsViewModel(private val repository: AdminRepository) : ViewModel() {
         )
     }
 
+    fun importDatabaseWorkbook(
+        fileName: String?,
+        mimeType: String?,
+        bytes: ByteArray,
+    ) = viewModelScope.launch {
+        _uiState.value = _uiState.value.copy(isImportingDatabase = true, actionMessage = "Trwa import bazy z Excela...")
+        runCatching {
+            repository.importDatabaseWorkbook(
+                fileName = fileName,
+                mimeType = mimeType,
+                bytes = bytes,
+            )
+        }.onSuccess { result ->
+            _uiState.value = _uiState.value.copy(
+                isImportingDatabase = false,
+                actionMessage = "Import zakończony: kontakty ${result.contactsImported}, pracownicy ${result.workersImported}, zakłady ${result.plantsImported}, rozmiary ${result.clothesSizesImported}.",
+            )
+        }.onFailure { error ->
+            _uiState.value = _uiState.value.copy(
+                isImportingDatabase = false,
+                actionMessage = error.message ?: "Import bazy z Excela nie powiódł się",
+            )
+        }
+    }
+
     fun updateDriverRemoteApiUrl(value: String) {
         _uiState.value = _uiState.value.copy(
             remoteSettings = _uiState.value.remoteSettings.copy(apiUrl = value),
