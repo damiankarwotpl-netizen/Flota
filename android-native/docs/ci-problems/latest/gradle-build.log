@@ -12,12 +12,12 @@ Daemon will be stopped at the end of the build
 > Task :core-common:preDebugBuild UP-TO-DATE
 > Task :core-database:preBuild UP-TO-DATE
 > Task :core-database:preDebugBuild UP-TO-DATE
+> Task :core-database:writeDebugAarMetadata
 > Task :core-common:writeDebugAarMetadata
 > Task :app-admin:generateDebugResValues
-> Task :core-database:writeDebugAarMetadata
 > Task :core-common:generateDebugResValues
-> Task :core-common:generateDebugResources
 > Task :app-admin:checkDebugAarMetadata
+> Task :core-common:generateDebugResources
 > Task :core-common:packageDebugResources
 > Task :core-database:generateDebugResValues
 > Task :core-database:generateDebugResources
@@ -34,16 +34,16 @@ Daemon will be stopped at the end of the build
 > Task :core-common:compileDebugLibraryResources
 > Task :core-database:compileDebugLibraryResources
 > Task :core-common:parseDebugLocalResources
-> Task :core-database:parseDebugLocalResources
-> Task :core-database:processDebugManifest
-> Task :core-common:checkKotlinGradlePluginConfigurationErrors SKIPPED
 > Task :core-common:processDebugManifest
-> Task :core-common:javaPreCompileDebug
-> Task :core-database:generateDebugRFile
+> Task :core-database:processDebugManifest
+> Task :core-database:parseDebugLocalResources
 > Task :core-common:generateDebugRFile
 > Task :app-admin:processDebugMainManifest
 > Task :app-admin:processDebugManifest
+> Task :core-common:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :core-database:generateDebugRFile
 > Task :core-database:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :core-common:javaPreCompileDebug
 > Task :app-admin:processDebugManifestForPackage
 > Task :core-database:javaPreCompileDebug
 > Task :app-admin:javaPreCompileDebug
@@ -65,23 +65,23 @@ Daemon will be stopped at the end of the build
 > Task :core-common:mergeDebugJniLibFolders
 > Task :core-common:mergeDebugNativeLibs NO-SOURCE
 > Task :core-common:copyDebugJniLibsProjectOnly
-> Task :app-admin:checkDebugDuplicateClasses
-> Task :app-admin:processDebugResources
 > Task :core-database:mergeDebugJniLibFolders
 > Task :core-database:mergeDebugNativeLibs NO-SOURCE
+> Task :app-admin:checkDebugDuplicateClasses
 > Task :core-database:copyDebugJniLibsProjectOnly
+> Task :app-admin:processDebugResources
+> Task :app-admin:mergeDebugNativeLibs
 > Task :app-admin:validateSigningDebug
 > Task :app-admin:writeDebugAppMetadata
-> Task :app-admin:mergeDebugNativeLibs
+
+> Task :app-admin:stripDebugDebugSymbols
+Unable to strip the following libraries, packaging them as they are: libandroidx.graphics.path.so.
+
 > Task :app-admin:writeDebugSigningConfigVersions
 > Task :app-driver:preBuild UP-TO-DATE
 > Task :app-driver:preDebugBuild UP-TO-DATE
 > Task :app-driver:mergeDebugNativeDebugMetadata NO-SOURCE
 > Task :app-driver:checkKotlinGradlePluginConfigurationErrors SKIPPED
-
-> Task :app-admin:stripDebugDebugSymbols
-Unable to strip the following libraries, packaging them as they are: libandroidx.graphics.path.so.
-
 > Task :app-driver:generateDebugResValues
 > Task :app-driver:checkDebugAarMetadata
 > Task :app-driver:mapDebugSourceSetPaths
@@ -116,27 +116,28 @@ Unable to strip the following libraries, packaging them as they are: libandroidx
 > Task :app-admin:mergeExtDexDebug
 > Task :core-common:compileDebugKotlin
 > Task :core-common:compileDebugJavaWithJavac NO-SOURCE
-> Task :core-common:processDebugJavaRes
 > Task :core-common:bundleLibRuntimeToJarDebug
 > Task :core-common:bundleLibCompileToJarDebug
+> Task :core-common:processDebugJavaRes
 > Task :core-common:bundleLibRuntimeToDirDebug
 > Task :core-database:kspDebugKotlin
 > Task :core-database:compileDebugKotlin
 > Task :core-database:compileDebugJavaWithJavac
-> Task :core-database:processDebugJavaRes
-> Task :core-database:bundleLibRuntimeToJarDebug
 > Task :core-database:bundleLibCompileToJarDebug
+> Task :core-database:bundleLibRuntimeToJarDebug
+> Task :core-database:processDebugJavaRes
 > Task :core-database:bundleLibRuntimeToDirDebug
 > Task :app-driver:mergeLibDexDebug
 > Task :app-admin:mergeLibDexDebug
 
 > Task :app-admin:compileDebugKotlin FAILED
-e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/PayrollScreen.kt:5:42 Conflicting import: imported name 'ActivityResultContracts' is ambiguous.
-e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/PayrollScreen.kt:11:43 Cannot access 'val RowColumnParentData?.weight: Float': it is internal in file.
-e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/PayrollScreen.kt:19:42 Conflicting import: imported name 'ActivityResultContracts' is ambiguous.
+e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/PayrollScreen.kt:117:9 Unresolved reference 'AlertDialog'.
+e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/PayrollScreen.kt:119:23 @Composable invocations can only happen from the context of a @Composable function
+e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/PayrollScreen.kt:121:17 @Composable invocations can only happen from the context of a @Composable function
+e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/PayrollScreen.kt:159:17 @Composable invocations can only happen from the context of a @Composable function
 
 > Task :app-driver:compileDebugKotlin
-gradle/actions: Writing build results to /home/runner/work/_temp/.gradle-actions/build-results/__run_2-1774090601458.json
+gradle/actions: Writing build results to /home/runner/work/_temp/.gradle-actions/build-results/__run_2-1774092889497.json
 
 [Incubating] Problems report is available at: file:///home/runner/work/Flota/Flota/android-native/build/reports/problems/problems-report.html
 
@@ -350,5 +351,5 @@ You can use '--warning-mode all' to show the individual deprecation warnings and
 
 For more on this, please refer to https://docs.gradle.org/8.14.3/userguide/command_line_interface.html#sec:command_line_warnings in the Gradle documentation.
 
-BUILD FAILED in 1m 13s
+BUILD FAILED in 1m 5s
 100 actionable tasks: 96 executed, 4 up-to-date
