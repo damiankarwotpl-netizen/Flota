@@ -2,13 +2,11 @@ package com.future.ultimate.admin.ui.screen
 
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.weight
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.OutlinedTextField
@@ -28,12 +26,14 @@ import com.future.ultimate.admin.ui.viewmodel.AdminViewModelFactory
 import com.future.ultimate.admin.ui.viewmodel.PayrollViewModel
 
 @Composable
-fun PayrollScreen(navController: NavController) {
+fun PayrollScreen(_navController: NavController) {
     val app = LocalContext.current.applicationContext as AdminApp
     val viewModel: PayrollViewModel = viewModel(factory = AdminViewModelFactory(app.container.repository))
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
-    val excelPicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
+    val excelPicker = rememberLauncherForActivityResult(
+        contract = androidx.activity.result.contract.ActivityResultContracts.GetContent(),
+    ) { uri: Uri? ->
         if (uri == null) return@rememberLauncherForActivityResult
         val rawText = runCatching {
             app.contentResolver.openInputStream(uri)?.bufferedReader(Charsets.UTF_8)?.use { it.readText() }.orEmpty()
@@ -41,7 +41,9 @@ fun PayrollScreen(navController: NavController) {
         viewModel.loadWorkbookFromText(rawText)
     }
 
-    val folderPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri: Uri? ->
+    val folderPicker = rememberLauncherForActivityResult(
+        contract = androidx.activity.result.contract.ActivityResultContracts.OpenDocumentTree(),
+    ) { uri: Uri? ->
         if (uri != null) {
             runCatching {
                 app.contentResolver.takePersistableUriPermission(
@@ -110,16 +112,11 @@ fun PayrollScreen(navController: NavController) {
                             Text(header.ifBlank { "kolumna_${index + 1}" }, modifier = Modifier.padding(top = 12.dp))
                         }
                     }
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        Button(onClick = viewModel::selectAllPreviewColumns, modifier = Modifier.weight(1f)) {
-                            Text("Zaznacz kolumny")
-                        }
-                        Button(onClick = viewModel::clearPreviewSelection, modifier = Modifier.weight(1f)) {
-                            Text("Wyczyść wybór wierszy")
-                        }
+                    Button(onClick = viewModel::selectAllPreviewColumns, modifier = Modifier.fillMaxWidth()) {
+                        Text("Zaznacz kolumny")
+                    }
+                    Button(onClick = viewModel::clearPreviewSelection, modifier = Modifier.fillMaxWidth()) {
+                        Text("Wyczyść wybór wierszy")
                     }
 
                     uiState.previewRows.forEach { row ->
@@ -136,7 +133,7 @@ fun PayrollScreen(navController: NavController) {
                                 text = row.cells.filterIndexed { columnIndex, _ ->
                                     uiState.selectedPreviewColumnIndexes.isEmpty() || columnIndex in uiState.selectedPreviewColumnIndexes
                                 }.joinToString(" | "),
-                                modifier = Modifier.weight(1f).padding(top = 10.dp),
+                                modifier = Modifier.padding(top = 10.dp),
                             )
                             Button(onClick = { viewModel.exportSinglePreviewRowToFolder(app, row.index) }) {
                                 Text("Eksport")
