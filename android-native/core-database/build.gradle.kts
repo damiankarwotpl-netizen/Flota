@@ -21,19 +21,6 @@ android {
         buildConfig = false
     }
 
-    packaging {
-        resources {
-            val duplicateMetaInf = setOf(
-                "META-INF/NOTICE.md",
-                "META-INF/LICENSE.md",
-                "/META-INF/NOTICE.md",
-                "/META-INF/LICENSE.md",
-            )
-            excludes += duplicateMetaInf
-            pickFirsts += duplicateMetaInf
-        }
-    }
-
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
