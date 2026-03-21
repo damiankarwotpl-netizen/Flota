@@ -38,6 +38,7 @@ import androidx.navigation.NavController
 import com.future.ultimate.admin.AdminApp
 import com.future.ultimate.admin.ui.viewmodel.AdminViewModelFactory
 import com.future.ultimate.admin.ui.viewmodel.PayrollViewModel
+import com.future.ultimate.core.common.repository.PayrollPreviewRow
 
 @Composable
 fun PayrollScreen(_navController: NavController) {
@@ -192,7 +193,7 @@ fun PayrollScreen(_navController: NavController) {
 @Composable
 private fun PreviewSpreadsheetTable(
     headers: List<String>,
-    rows: List<com.future.ultimate.core.common.repository.PayrollPreviewRow>,
+    rows: List<PayrollPreviewRow>,
     selectedColumns: Set<Int>,
     selectedRows: Set<Int>,
     onToggleRow: (Int) -> Unit,
@@ -315,6 +316,17 @@ private fun resolveDisplayName(context: android.content.Context, uri: Uri): Stri
 }
 
 private fun resolveDisplayName(context: android.content.Context, uri: Uri): String? {
+    val projection = arrayOf(android.provider.OpenableColumns.DISPLAY_NAME)
+    context.contentResolver.query(uri, projection, null, null, null)?.use { cursor ->
+        val columnIndex = cursor.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME)
+        if (columnIndex >= 0 && cursor.moveToFirst()) {
+            return cursor.getString(columnIndex)
+        }
+    }
+    return null
+}
+
+private fun payrollResolveDisplayName(context: android.content.Context, uri: Uri): String? {
     val projection = arrayOf(android.provider.OpenableColumns.DISPLAY_NAME)
     context.contentResolver.query(uri, projection, null, null, null)?.use { cursor ->
         val columnIndex = cursor.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME)
