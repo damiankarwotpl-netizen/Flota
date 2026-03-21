@@ -291,6 +291,11 @@ interface AdminRepository {
     suspend fun saveVehicleReportDraft(draft: VehicleReportDraft)
     suspend fun exportVehicleReportPdf(draft: VehicleReportDraft): String
     suspend fun exportDatabaseSnapshot(): String
+    suspend fun importDatabaseWorkbook(
+        fileName: String?,
+        mimeType: String?,
+        bytes: ByteArray,
+    ): DatabaseWorkbookImportResult
     suspend fun exportContactsCsv(): String
     suspend fun exportContactRowXlsx(name: String, surname: String): String
     suspend fun exportPayrollPackage(contacts: List<ContactListItem>): String
@@ -305,3 +310,10 @@ interface AdminRepository {
     suspend fun exportClothesHistoryCsv(): String
     suspend fun exportSessionReportsCsv(): String
 }
+
+data class DatabaseWorkbookImportResult(
+    val contactsImported: Int = 0,
+    val workersImported: Int = 0,
+    val plantsImported: Int = 0,
+    val clothesSizesImported: Int = 0,
+)
