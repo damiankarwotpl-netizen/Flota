@@ -32,6 +32,7 @@ internal fun PreviewSpreadsheetTable(
     selectedColumns: Set<Int>,
     selectedRows: Set<Int>,
     onToggleRow: (Int) -> Unit,
+    onToggleColumn: (Int) -> Unit,
     onExportRow: (Int) -> Unit,
 ) {
     val horizontalState = rememberScrollState()
@@ -51,15 +52,25 @@ internal fun PreviewSpreadsheetTable(
         Column(modifier = Modifier.verticalScroll(verticalState)) {
             Row(modifier = Modifier.background(headerColor)) {
                 SpreadsheetCell(text = "#", width = 48.dp, borderColor = gridColor, isHeader = true)
-                visibleColumns.forEach { columnIndex ->
-                    SpreadsheetCell(
-                        text = headers.getOrNull(columnIndex).orEmpty().ifBlank { "kolumna_${columnIndex + 1}" },
-                        width = cellWidth,
-                        borderColor = gridColor,
-                        isHeader = true,
-                    )
-                }
                 SpreadsheetCell(text = "Eksport", width = 110.dp, borderColor = gridColor, isHeader = true)
+                visibleColumns.forEach { columnIndex ->
+                    Box(
+                        modifier = Modifier
+                            .width(cellWidth)
+                            .defaultMinSize(minHeight = 44.dp)
+                            .border(0.5.dp, gridColor)
+                            .padding(horizontal = 4.dp),
+                        contentAlignment = Alignment.CenterStart,
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Checkbox(
+                                checked = columnIndex in selectedColumns,
+                                onCheckedChange = { onToggleColumn(columnIndex) },
+                            )
+                            Text(headers.getOrNull(columnIndex).orEmpty().ifBlank { "kolumna_${columnIndex + 1}" })
+                        }
+                    }
+                }
             }
 
             rows.forEach { row ->
@@ -76,15 +87,6 @@ internal fun PreviewSpreadsheetTable(
                             onCheckedChange = { onToggleRow(row.index) },
                         )
                     }
-
-                    visibleColumns.forEach { columnIndex ->
-                        SpreadsheetCell(
-                            text = row.cells.getOrNull(columnIndex).orEmpty(),
-                            width = cellWidth,
-                            borderColor = gridColor,
-                        )
-                    }
-
                     Box(
                         modifier = Modifier
                             .width(110.dp)
@@ -96,6 +98,14 @@ internal fun PreviewSpreadsheetTable(
                         Button(onClick = { onExportRow(row.index) }) {
                             Text("Eksport")
                         }
+                    }
+
+                    visibleColumns.forEach { columnIndex ->
+                        SpreadsheetCell(
+                            text = row.cells.getOrNull(columnIndex).orEmpty(),
+                            width = cellWidth,
+                            borderColor = gridColor,
+                        )
                     }
                 }
             }
@@ -119,7 +129,7 @@ private fun SpreadsheetCell(
         contentAlignment = Alignment.CenterStart,
     ) {
         Text(
-            text = text.ifBlank { "-" },
+            text = text.ifBlank { "0" },
             style = if (isHeader) MaterialTheme.typography.titleSmall else MaterialTheme.typography.bodyMedium,
         )
     }

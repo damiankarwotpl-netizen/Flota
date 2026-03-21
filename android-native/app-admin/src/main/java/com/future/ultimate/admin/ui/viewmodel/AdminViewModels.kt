@@ -387,7 +387,7 @@ class PayrollViewModel(private val repository: AdminRepository) : ViewModel() {
             return@launch
         }
         val filteredHeaders = _uiState.value.previewHeaders.filterIndexed { columnIndex, _ -> columnIndex in selectedColumns }
-        val filteredRow = row.cells.filterIndexed { columnIndex, _ -> columnIndex in selectedColumns }
+        val filteredRow = row.cells.filterIndexed { columnIndex, _ -> columnIndex in selectedColumns }.map(::normalizePayrollCell)
         val path = repository.exportPayrollRowsXlsx(
             headers = filteredHeaders,
             rows = listOf(filteredRow),
@@ -411,7 +411,7 @@ class PayrollViewModel(private val repository: AdminRepository) : ViewModel() {
             return@launch
         }
         val filteredHeaders = selectedHeaders(selectedColumns)
-        val filteredRow = row.cells.filterIndexed { columnIndex, _ -> columnIndex in selectedColumns }
+        val filteredRow = row.cells.filterIndexed { columnIndex, _ -> columnIndex in selectedColumns }.map(::normalizePayrollCell)
         val tempPath = repository.exportPayrollRowsXlsx(
             headers = filteredHeaders,
             rows = listOf(filteredRow),
@@ -444,7 +444,9 @@ class PayrollViewModel(private val repository: AdminRepository) : ViewModel() {
         val filteredHeaders = _uiState.value.previewHeaders.filterIndexed { columnIndex, _ -> columnIndex in selectedColumns }
         val path = repository.exportPayrollRowsXlsx(
             headers = filteredHeaders,
-            rows = selected.map { row -> row.cells.filterIndexed { columnIndex, _ -> columnIndex in selectedColumns } },
+            rows = selected.map { row ->
+                row.cells.filterIndexed { columnIndex, _ -> columnIndex in selectedColumns }.map(::normalizePayrollCell)
+            },
             filePrefix = "PPI_TABELA",
             nameHint = "zaznaczone",
             surnameHint = selected.size.toString(),
@@ -461,12 +463,14 @@ class PayrollViewModel(private val repository: AdminRepository) : ViewModel() {
         return headers.filterIndexed { columnIndex, _ -> columnIndex in selectedColumns }
     }
 
+    private fun normalizePayrollCell(value: String): String = value.trim().ifBlank { "0" }
+
     private fun applyPayslipData(payslipData: com.future.ultimate.admin.payroll.PayslipData) {
         val rows = PayslipGenerator().toWorkbookRows(payslipData.rows)
         val previewRows = payslipData.rows.mapIndexed { index, row ->
             PayrollPreviewRow(
                 index = index,
-                cells = row.raw,
+                cells = row.raw.map(::normalizePayrollCell),
                 name = row.name,
                 surname = row.surname,
             )

@@ -5,15 +5,9 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.defaultMinSize
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button as M3Button
-import androidx.compose.material3.Checkbox as M3Checkbox
 import androidx.compose.material3.OutlinedTextField as M3OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -26,6 +20,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
@@ -130,26 +125,7 @@ fun PayrollScreen(_navController: NavController) {
         Dialog(onDismissRequest = { isPreviewDialogOpen = false }) {
             SectionCard(title = "Podgląd arkusza Excel") {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("Wybierz kolumny do eksportu:")
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .heightIn(max = 320.dp)
-                            .verticalScroll(rememberScrollState()),
-                        verticalArrangement = Arrangement.spacedBy(4.dp),
-                    ) {
-                        displayHeaders.forEachIndexed { index, header ->
-                            Row(modifier = Modifier.fillMaxWidth()) {
-                                M3Checkbox(
-                                    checked = index in uiState.selectedPreviewColumnIndexes,
-                                    onCheckedChange = { viewModel.togglePreviewColumnSelection(index) },
-                                )
-                                Text(header.ifBlank { "kolumna_${index + 1}" }, modifier = Modifier.padding(top = 12.dp))
-                            }
-                        }
-                    }
-
-                    M3Button(onClick = viewModel::selectAllPreviewColumns, modifier = Modifier.fillMaxWidth()) { Text("Zaznacz kolumny") }
+                    Text("Otwórz tabelę, aby wybrać kolumny i wiersze do eksportu.")
                     M3Button(
                         onClick = {
                             isPreviewDialogOpen = false
@@ -166,21 +142,40 @@ fun PayrollScreen(_navController: NavController) {
     }
 
     if (isSpreadsheetDialogOpen) {
-        Dialog(onDismissRequest = { isSpreadsheetDialogOpen = false }) {
-            SectionCard(title = "Tabela arkusza Excel") {
+        Dialog(
+            onDismissRequest = { isSpreadsheetDialogOpen = false },
+            properties = DialogProperties(usePlatformDefaultWidth = false),
+        ) {
+            SectionCard(title = "Tabela arkusza Excel", modifier = Modifier.fillMaxSize()) {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    M3Button(onClick = viewModel::exportSelectedPreviewRows, modifier = Modifier.fillMaxWidth()) {
+                        Text("Eksportuj zaznaczone wiersze")
+                    }
                     PreviewSpreadsheetTable(
                         headers = displayHeaders,
                         rows = uiState.previewRows,
                         selectedColumns = uiState.selectedPreviewColumnIndexes,
                         selectedRows = uiState.selectedPreviewRowIndexes,
                         onToggleRow = viewModel::togglePreviewRowSelection,
+                        onToggleColumn = viewModel::togglePreviewColumnSelection,
                         onExportRow = { rowIndex -> viewModel.exportSinglePreviewRowToFolder(app, rowIndex) },
                     )
                     M3Button(onClick = { isSpreadsheetDialogOpen = false }, modifier = Modifier.fillMaxWidth()) {
                         Text("Zamknij tabelę")
                     }
+
+                    M3Button(onClick = viewModel::selectAllPreviewColumns, modifier = Modifier.fillMaxWidth()) { Text("Zaznacz kolumny") }
+                    M3Button(
+                        onClick = {
+                            isPreviewDialogOpen = false
+                            isSpreadsheetDialogOpen = true
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                    ) { Text("Otwórz tabelę w nowym oknie") }
+
+                    M3Button(onClick = { isPreviewDialogOpen = false }, modifier = Modifier.fillMaxWidth()) { Text("Zamknij") }
                 }
+                uiState.actionMessage?.let { Text(it) }
             }
         }
     }
