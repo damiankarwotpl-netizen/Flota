@@ -36,6 +36,7 @@ object SimpleXlsxWorkbookWriter {
                       <Default Extension="xml" ContentType="application/xml"/>
                       <Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>
                       <Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>
+                      <Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>
                     </Types>
                 """.trimIndent(),
             )
@@ -65,8 +66,13 @@ object SimpleXlsxWorkbookWriter {
                     <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
                     <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
                       <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>
+                      <Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>
                     </Relationships>
                 """.trimIndent(),
+            )
+            zip.writeEntry(
+                name = "xl/styles.xml",
+                content = buildStylesXml(),
             )
             zip.writeEntry(
                 name = "xl/worksheets/sheet1.xml",
@@ -82,19 +88,29 @@ object SimpleXlsxWorkbookWriter {
     }
 
     private fun buildSheetXml(rows: List<List<Cell>>): String = buildString {
+        val columnWidths = calculateColumnWidths(rows)
         appendLine("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>")
         appendLine("<worksheet xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\">")
+        if (columnWidths.isNotEmpty()) {
+            appendLine("  <cols>")
+            columnWidths.forEachIndexed { index, width ->
+                appendLine("    <col min=\"${index + 1}\" max=\"${index + 1}\" width=\"$width\" customWidth=\"1\"/>")
+            }
+            appendLine("  </cols>")
+        }
         appendLine("  <sheetData>")
         rows.forEachIndexed { rowIndex, columns ->
             appendLine("    <row r=\"${rowIndex + 1}\">")
             columns.forEachIndexed { columnIndex, cell ->
                 val ref = "${columnName(columnIndex)}${rowIndex + 1}"
+                val normalizedValue = cell.value.ifBlank { "0" }
+                val styleAttribute = if (rowIndex == 0) " s=\"2\"" else " s=\"1\""
                 when (cell.type) {
                     Cell.Type.TEXT -> appendLine(
-                        "      <c r=\"$ref\" t=\"inlineStr\"><is><t xml:space=\"preserve\">${escapeXmlText(cell.value)}</t></is></c>",
+                        "      <c r=\"$ref\"$styleAttribute t=\"inlineStr\"><is><t xml:space=\"preserve\">${escapeXmlText(normalizedValue)}</t></is></c>",
                     )
                     Cell.Type.NUMBER -> appendLine(
-                        "      <c r=\"$ref\"><v>${escapeXmlText(cell.value)}</v></c>",
+                        "      <c r=\"$ref\"$styleAttribute><v>${escapeXmlText(normalizedValue)}</v></c>",
                     )
                 }
             }
@@ -102,6 +118,52 @@ object SimpleXlsxWorkbookWriter {
         }
         appendLine("  </sheetData>")
         appendLine("</worksheet>")
+    }
+
+    private fun buildStylesXml(): String = """
+        <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+        <styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+          <fonts count="2">
+            <font><sz val="11"/><color theme="1"/><name val="Calibri"/><family val="2"/></font>
+            <font><b/><sz val="11"/><color rgb="FFFFFFFF"/><name val="Calibri"/><family val="2"/></font>
+          </fonts>
+          <fills count="3">
+            <fill><patternFill patternType="none"/></fill>
+            <fill><patternFill patternType="gray125"/></fill>
+            <fill><patternFill patternType="solid"><fgColor rgb="FF1F4E78"/><bgColor indexed="64"/></patternFill></fill>
+          </fills>
+          <borders count="2">
+            <border><left/><right/><top/><bottom/><diagonal/></border>
+            <border>
+              <left style="thin"><color auto="1"/></left>
+              <right style="thin"><color auto="1"/></right>
+              <top style="thin"><color auto="1"/></top>
+              <bottom style="thin"><color auto="1"/></bottom>
+              <diagonal/>
+            </border>
+          </borders>
+          <cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>
+          <cellXfs count="3">
+            <xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>
+            <xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyBorder="1" applyAlignment="1">
+              <alignment horizontal="center" vertical="center"/>
+            </xf>
+            <xf numFmtId="0" fontId="1" fillId="2" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1">
+              <alignment horizontal="center" vertical="center"/>
+            </xf>
+          </cellXfs>
+          <cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>
+        </styleSheet>
+    """.trimIndent()
+
+    private fun calculateColumnWidths(rows: List<List<Cell>>): List<String> {
+        val maxColumns = rows.maxOfOrNull { it.size } ?: 0
+        if (maxColumns == 0) return emptyList()
+        return (0 until maxColumns).map { columnIndex ->
+            val maxLength = rows.maxOf { row -> row.getOrNull(columnIndex)?.value?.ifBlank { "0" }?.length ?: 1 }
+            val width = (maxLength + 2).coerceIn(8, 60)
+            width.toDouble().toString()
+        }
     }
 
     private fun columnName(index: Int): String {
