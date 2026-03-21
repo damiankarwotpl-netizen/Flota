@@ -15,6 +15,7 @@ Daemon will be stopped at the end of the build
 > Task :app-admin:generateDebugResValues
 > Task :core-common:writeDebugAarMetadata
 > Task :core-database:writeDebugAarMetadata
+> Task :app-admin:generateDebugResValues
 > Task :core-common:generateDebugResValues
 > Task :core-common:generateDebugResources
 > Task :app-admin:checkDebugAarMetadata
@@ -30,8 +31,9 @@ Daemon will be stopped at the end of the build
 > Task :app-admin:extractDeepLinksDebug
 > Task :core-common:extractDeepLinksDebug
 > Task :core-database:extractDeepLinksDebug
-> Task :app-admin:parseDebugLocalResources
 > Task :core-common:compileDebugLibraryResources
+> Task :core-common:parseDebugLocalResources
+> Task :app-admin:parseDebugLocalResources
 > Task :core-database:compileDebugLibraryResources
 > Task :core-common:parseDebugLocalResources
 > Task :core-database:parseDebugLocalResources
@@ -102,8 +104,8 @@ Unable to strip the following libraries, packaging them as they are: libandroidx
 > Task :app-driver:compressDebugAssets
 > Task :app-driver:desugarDebugFileDependencies
 > Task :app-driver:processDebugResources
-> Task :app-driver:checkDebugDuplicateClasses
 > Task :app-driver:mergeDebugJniLibFolders
+> Task :app-driver:checkDebugDuplicateClasses
 > Task :app-driver:mergeDebugNativeLibs
 
 > Task :app-driver:stripDebugDebugSymbols
