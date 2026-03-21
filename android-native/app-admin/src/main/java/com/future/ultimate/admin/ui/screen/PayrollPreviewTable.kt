@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
@@ -34,6 +35,7 @@ internal fun PreviewSpreadsheetTable(
     onToggleRow: (Int) -> Unit,
     onToggleColumn: (Int) -> Unit,
     onExportRow: (Int) -> Unit,
+    onSendRow: (Int) -> Unit,
 ) {
     val horizontalState = rememberScrollState()
     val verticalState = rememberScrollState()
@@ -52,7 +54,7 @@ internal fun PreviewSpreadsheetTable(
         Column(modifier = Modifier.verticalScroll(verticalState)) {
             Row(modifier = Modifier.background(headerColor)) {
                 SpreadsheetCell(text = "#", width = 48.dp, borderColor = gridColor, isHeader = true)
-                SpreadsheetCell(text = "Eksport", width = 110.dp, borderColor = gridColor, isHeader = true)
+                SpreadsheetCell(text = "Akcje", width = 220.dp, borderColor = gridColor, isHeader = true)
                 visibleColumns.forEach { columnIndex ->
                     Box(
                         modifier = Modifier
@@ -89,14 +91,19 @@ internal fun PreviewSpreadsheetTable(
                     }
                     Box(
                         modifier = Modifier
-                            .width(110.dp)
+                            .width(220.dp)
                             .defaultMinSize(minHeight = 44.dp)
                             .border(0.5.dp, gridColor)
                             .padding(4.dp),
                         contentAlignment = Alignment.Center,
                     ) {
-                        Button(onClick = { onExportRow(row.index) }) {
-                            Text("Eksport")
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Button(onClick = { onExportRow(row.index) }) {
+                                Text("Eksport")
+                            }
+                            Button(onClick = { onSendRow(row.index) }) {
+                                Text("Wyślij")
+                            }
                         }
                     }
 
