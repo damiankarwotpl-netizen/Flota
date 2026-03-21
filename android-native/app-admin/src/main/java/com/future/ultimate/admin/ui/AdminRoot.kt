@@ -2,6 +2,7 @@ package com.future.ultimate.admin.ui
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -24,6 +25,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavDestination
 import androidx.navigation.NavDestination.Companion.hierarchy
@@ -91,8 +93,10 @@ fun AdminRoot() {
                     title = {
                         Text(
                             text = currentRoute?.title ?: "Future Ultimate Admin",
+                            modifier = Modifier.fillMaxWidth(),
                             style = MaterialTheme.typography.titleLarge,
                             fontWeight = FontWeight.Bold,
+                            textAlign = TextAlign.Center,
                         )
                     },
                 )
@@ -111,12 +115,13 @@ fun AdminRoot() {
                             val selected = backStack?.destination?.route == item.route.route
                             IconButton(
                                 onClick = {
+                                    val navigatingHome = item.route == AdminRoute.Home
                                     navController.navigate(item.route.route) {
                                         popUpTo(navController.graph.findStartDestination().id) {
-                                            saveState = true
+                                            saveState = !navigatingHome
                                         }
                                         launchSingleTop = true
-                                        restoreState = true
+                                        restoreState = !navigatingHome
                                     }
                                 },
                                 colors = IconButtonDefaults.iconButtonColors(
