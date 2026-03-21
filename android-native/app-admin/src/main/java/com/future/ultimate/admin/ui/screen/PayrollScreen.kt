@@ -2,9 +2,6 @@ package com.future.ultimate.admin.ui.screen
 
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -13,12 +10,8 @@ import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button as M3Button
 import androidx.compose.material3.Checkbox as M3Checkbox
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField as M3OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -26,7 +19,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
@@ -38,7 +30,6 @@ import androidx.navigation.NavController
 import com.future.ultimate.admin.AdminApp
 import com.future.ultimate.admin.ui.viewmodel.AdminViewModelFactory
 import com.future.ultimate.admin.ui.viewmodel.PayrollViewModel
-import com.future.ultimate.core.common.repository.PayrollPreviewRow
 
 @Composable
 fun PayrollScreen(_navController: NavController) {
@@ -183,162 +174,4 @@ fun PayrollScreen(_navController: NavController) {
             }
         }
     }
-}
-
-@Composable
-private fun PreviewSpreadsheetTable(
-    headers: List<String>,
-    rows: List<PayrollPreviewRow>,
-    selectedColumns: Set<Int>,
-    selectedRows: Set<Int>,
-    onToggleRow: (Int) -> Unit,
-    onExportRow: (Int) -> Unit,
-) {
-    val horizontalState = rememberScrollState()
-    val verticalState = rememberScrollState()
-    val visibleColumns = if (selectedColumns.isEmpty()) headers.indices.toList() else selectedColumns.sorted()
-    val gridColor = MaterialTheme.colorScheme.outline
-    val headerColor = MaterialTheme.colorScheme.surfaceVariant
-    val cellWidth = 140.dp
-
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .heightIn(min = 240.dp, max = 420.dp)
-            .border(1.dp, gridColor)
-            .horizontalScroll(horizontalState),
-    ) {
-        Column(modifier = Modifier.verticalScroll(verticalState)) {
-            Row(modifier = Modifier.background(headerColor)) {
-                SpreadsheetCell(text = "#", width = 48.dp, borderColor = gridColor, isHeader = true)
-                visibleColumns.forEach { columnIndex ->
-                    SpreadsheetCell(
-                        text = headers.getOrNull(columnIndex).orEmpty().ifBlank { "kolumna_${columnIndex + 1}" },
-                        width = cellWidth,
-                        borderColor = gridColor,
-                        isHeader = true,
-                    )
-                }
-                SpreadsheetCell(text = "Eksport", width = 110.dp, borderColor = gridColor, isHeader = true)
-            }
-
-            rows.forEach { row ->
-                Row {
-                    Box(
-                        modifier = Modifier
-                            .width(48.dp)
-                            .defaultMinSize(minHeight = 44.dp)
-                            .border(0.5.dp, gridColor),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        M3Checkbox(
-                            checked = row.index in selectedRows,
-                            onCheckedChange = { onToggleRow(row.index) },
-                        )
-                    }
-
-                    visibleColumns.forEach { columnIndex ->
-                        SpreadsheetCell(
-                            text = row.cells.getOrNull(columnIndex).orEmpty(),
-                            width = cellWidth,
-                            borderColor = gridColor,
-                        )
-                    }
-
-                    Box(
-                        modifier = Modifier
-                            .width(110.dp)
-                            .defaultMinSize(minHeight = 44.dp)
-                            .border(0.5.dp, gridColor)
-                            .padding(4.dp),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        M3Button(onClick = { onExportRow(row.index) }) { Text("Eksport") }
-                    }
-                    M3Button(onClick = { isPreviewDialogOpen = false }, modifier = Modifier.fillMaxWidth()) {
-                        Text("Zamknij")
-                    }
-                }
-                uiState.actionMessage?.let { Text(it) }
-            }
-        }
-    }
-}
-
-@Composable
-private fun SpreadsheetCell(
-    text: String,
-    width: androidx.compose.ui.unit.Dp,
-    borderColor: Color,
-    isHeader: Boolean = false,
-) {
-    Box(
-        modifier = Modifier
-            .width(width)
-            .defaultMinSize(minHeight = 44.dp)
-            .border(0.5.dp, borderColor)
-            .padding(horizontal = 8.dp, vertical = 10.dp),
-        contentAlignment = Alignment.CenterStart,
-    ) {
-        Text(
-            text = text.ifBlank { "-" },
-            style = if (isHeader) MaterialTheme.typography.titleSmall else MaterialTheme.typography.bodyMedium,
-        )
-    }
-    return null
-}
-
-private fun resolveDisplayName(context: android.content.Context, uri: Uri): String? {
-    val projection = arrayOf(android.provider.OpenableColumns.DISPLAY_NAME)
-    context.contentResolver.query(uri, projection, null, null, null)?.use { cursor ->
-        val columnIndex = cursor.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME)
-        if (columnIndex >= 0 && cursor.moveToFirst()) {
-            return cursor.getString(columnIndex)
-        }
-    }
-    return null
-}
-
-private fun resolveDisplayName(context: android.content.Context, uri: Uri): String? {
-    val projection = arrayOf(android.provider.OpenableColumns.DISPLAY_NAME)
-    context.contentResolver.query(uri, projection, null, null, null)?.use { cursor ->
-        val columnIndex = cursor.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME)
-        if (columnIndex >= 0 && cursor.moveToFirst()) {
-            return cursor.getString(columnIndex)
-        }
-    }
-    return null
-}
-
-private fun resolveDisplayName(context: android.content.Context, uri: Uri): String? {
-    val projection = arrayOf(android.provider.OpenableColumns.DISPLAY_NAME)
-    context.contentResolver.query(uri, projection, null, null, null)?.use { cursor ->
-        val columnIndex = cursor.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME)
-        if (columnIndex >= 0 && cursor.moveToFirst()) {
-            return cursor.getString(columnIndex)
-        }
-    }
-    return null
-}
-
-private fun payrollResolveDisplayName(context: android.content.Context, uri: Uri): String? {
-    val projection = arrayOf(android.provider.OpenableColumns.DISPLAY_NAME)
-    context.contentResolver.query(uri, projection, null, null, null)?.use { cursor ->
-        val columnIndex = cursor.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME)
-        if (columnIndex >= 0 && cursor.moveToFirst()) {
-            return cursor.getString(columnIndex)
-        }
-    }
-    return null
-}
-
-private fun payrollResolveDisplayName(context: android.content.Context, uri: Uri): String? {
-    val projection = arrayOf(android.provider.OpenableColumns.DISPLAY_NAME)
-    context.contentResolver.query(uri, projection, null, null, null)?.use { cursor ->
-        val columnIndex = cursor.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME)
-        if (columnIndex >= 0 && cursor.moveToFirst()) {
-            return cursor.getString(columnIndex)
-        }
-    }
-    return null
 }
