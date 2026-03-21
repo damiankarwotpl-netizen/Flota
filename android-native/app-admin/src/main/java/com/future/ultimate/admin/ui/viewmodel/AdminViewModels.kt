@@ -324,6 +324,7 @@ class PayrollViewModel(private val repository: AdminRepository) : ViewModel() {
                 previewHeaders = emptyList(),
                 previewRows = emptyList(),
                 selectedPreviewRowIndexes = emptySet(),
+                selectedPreviewColumnIndexes = emptySet(),
                 actionMessage = "Nie udało się sparsować żadnych wierszy importu",
                 progressLabel = "Brak danych do stagingu",
             )
@@ -338,6 +339,7 @@ class PayrollViewModel(private val repository: AdminRepository) : ViewModel() {
             previewHeaders = payslipData.headers,
             previewRows = previewRows,
             selectedPreviewRowIndexes = emptySet(),
+            selectedPreviewColumnIndexes = (0 until columnCount).toSet(),
             actionMessage = "Zaimportowano lokalnie ${rows.size} wierszy workbooka do stagingu",
             progressLabel = "Workbook staged: ${rows.size} wierszy",
         )
@@ -355,6 +357,7 @@ class PayrollViewModel(private val repository: AdminRepository) : ViewModel() {
             previewHeaders = emptyList(),
             previewRows = emptyList(),
             selectedPreviewRowIndexes = emptySet(),
+            selectedPreviewColumnIndexes = emptySet(),
             actionMessage = "Staging workbooka wyczyszczony",
             progressLabel = "Gotowy",
         )
@@ -371,11 +374,30 @@ class PayrollViewModel(private val repository: AdminRepository) : ViewModel() {
         _uiState.value = _uiState.value.copy(selectedPreviewRowIndexes = emptySet(), actionMessage = "Wyczyszczono wybór tabeli")
     }
 
+    fun togglePreviewColumnSelection(index: Int) {
+        val updated = _uiState.value.selectedPreviewColumnIndexes.let { current ->
+            if (index in current) current - index else current + index
+        }
+        _uiState.value = _uiState.value.copy(selectedPreviewColumnIndexes = updated, actionMessage = null)
+    }
+
+    fun selectAllPreviewColumns() {
+        val all = (0 until maxOf(_uiState.value.previewHeaders.size, _uiState.value.previewRows.maxOfOrNull { it.cells.size } ?: 0)).toSet()
+        _uiState.value = _uiState.value.copy(selectedPreviewColumnIndexes = all, actionMessage = "Zaznaczono wszystkie kolumny")
+    }
+
     fun exportSinglePreviewRow(index: Int) = viewModelScope.launch {
         val row = _uiState.value.previewRows.firstOrNull { it.index == index } ?: return@launch
+        val selectedColumns = _uiState.value.selectedPreviewColumnIndexes
+        if (selectedColumns.isEmpty()) {
+            _uiState.value = _uiState.value.copy(actionMessage = "Wybierz co najmniej jedną kolumnę do eksportu")
+            return@launch
+        }
+        val filteredHeaders = _uiState.value.previewHeaders.filterIndexed { columnIndex, _ -> columnIndex in selectedColumns }
+        val filteredRow = row.cells.filterIndexed { columnIndex, _ -> columnIndex in selectedColumns }
         val path = repository.exportPayrollRowsXlsx(
-            headers = _uiState.value.previewHeaders,
-            rows = listOf(row.cells),
+            headers = filteredHeaders,
+            rows = listOf(filteredRow),
             filePrefix = "PPI",
             nameHint = row.name,
             surnameHint = row.surname,
@@ -389,9 +411,15 @@ class PayrollViewModel(private val repository: AdminRepository) : ViewModel() {
             _uiState.value = _uiState.value.copy(actionMessage = "Wybierz co najmniej jeden wiersz do eksportu tabeli")
             return@launch
         }
+        val selectedColumns = _uiState.value.selectedPreviewColumnIndexes
+        if (selectedColumns.isEmpty()) {
+            _uiState.value = _uiState.value.copy(actionMessage = "Wybierz co najmniej jedną kolumnę do eksportu")
+            return@launch
+        }
+        val filteredHeaders = _uiState.value.previewHeaders.filterIndexed { columnIndex, _ -> columnIndex in selectedColumns }
         val path = repository.exportPayrollRowsXlsx(
-            headers = _uiState.value.previewHeaders,
-            rows = selected.map { it.cells },
+            headers = filteredHeaders,
+            rows = selected.map { row -> row.cells.filterIndexed { columnIndex, _ -> columnIndex in selectedColumns } },
             filePrefix = "PPI_TABELA",
             nameHint = "zaznaczone",
             surnameHint = selected.size.toString(),

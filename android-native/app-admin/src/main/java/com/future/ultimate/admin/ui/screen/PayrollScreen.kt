@@ -164,8 +164,24 @@ fun PayrollScreen(navController: NavController) {
                         }
                         Text("Staged workbook rows: ${uiState.stagedWorkbookRows.size}")
                         Text("Podgląd/Export")
-                        if (uiState.previewHeaders.isNotEmpty()) {
-                            Text("Nagłówki: ${uiState.previewHeaders.joinToString(" | ")}")
+                        if (displayHeaders.isNotEmpty()) {
+                            Text("Nagłówki: ${displayHeaders.joinToString(" | ")}")
+                            Text("Wybierz kolumny do eksportu:")
+                            displayHeaders.forEachIndexed { index, header ->
+                                Row(modifier = Modifier.fillMaxWidth()) {
+                                    Checkbox(
+                                        checked = index in uiState.selectedPreviewColumnIndexes,
+                                        onCheckedChange = { viewModel.togglePreviewColumnSelection(index) },
+                                    )
+                                    Text(
+                                        text = header.ifBlank { "kolumna_${index + 1}" },
+                                        modifier = Modifier.padding(top = 12.dp),
+                                    )
+                                }
+                            }
+                            Button(onClick = viewModel::selectAllPreviewColumns, modifier = Modifier.fillMaxWidth()) {
+                                Text("Zaznacz wszystkie kolumny")
+                            }
                         }
                         uiState.previewRows.take(30).forEach { row ->
                             val selected = row.index in uiState.selectedPreviewRowIndexes
@@ -178,11 +194,13 @@ fun PayrollScreen(navController: NavController) {
                                     onCheckedChange = { viewModel.togglePreviewRowSelection(row.index) },
                                 )
                                 Text(
-                                    text = row.cells.joinToString(" | "),
+                                    text = row.cells.filterIndexed { columnIndex, _ ->
+                                        uiState.selectedPreviewColumnIndexes.isEmpty() || columnIndex in uiState.selectedPreviewColumnIndexes
+                                    }.joinToString(" | "),
                                     modifier = Modifier.weight(1f).padding(top = 10.dp),
                                 )
                                 Button(onClick = { viewModel.exportSinglePreviewRow(row.index) }) {
-                                    Text("Export")
+                                    Text("Export wiersza")
                                 }
                             }
                         }

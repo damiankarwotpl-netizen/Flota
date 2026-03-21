@@ -1159,11 +1159,14 @@ class LocalAdminRepository(
                 SimpleXlsxWorkbookWriter.Cell.text(row.getOrElse(index) { "" })
             }
         }
-        SimpleXlsxWorkbookWriter.writeSheet(
-            outputFile = outputFile,
+        val allRows = buildList {
+            add(normalizedHeaders.map { SimpleXlsxWorkbookWriter.Cell.text(it) })
+            addAll(dataRows)
+        }
+        SimpleXlsxWorkbookWriter.writeSingleSheet(
+            file = outputFile,
             sheetName = "Paski",
-            headers = normalizedHeaders.map { SimpleXlsxWorkbookWriter.Cell.text(it) },
-            rows = dataRows,
+            rows = allRows,
         )
         return outputFile.absolutePath
     }
