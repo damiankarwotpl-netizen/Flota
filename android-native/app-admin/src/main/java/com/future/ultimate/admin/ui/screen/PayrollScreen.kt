@@ -45,14 +45,6 @@ fun PayrollScreen(navController: NavController) {
         smtpUiState.settings.password.isNotBlank()
     val templateConfigured = templateUiState.template.subject.isNotBlank() && templateUiState.template.body.isNotBlank()
     val lastSession = reportsUiState.items.firstOrNull()
-    val filteredRecipients = uiState.contacts.filter {
-        val query = uiState.recipientQuery.trim().lowercase()
-        query.isBlank() || listOf(it.name, it.surname, it.email, it.workplace, it.phone)
-            .joinToString(" ")
-            .lowercase()
-            .contains(query)
-    }
-
     ScreenColumn("Wypłaty", "Kompletna logika finansowa, workbook, załączniki i wysyłka jak w legacy main") {
         item {
             SectionCard(
@@ -257,7 +249,7 @@ fun PayrollScreen(navController: NavController) {
             }
         }
         item {
-            if (filteredRecipients.isEmpty()) {
+            if (uiState.filteredRecipients.isEmpty()) {
                 SectionCard(
                     title = "Odbiorcy",
                     subtitle = "Brak odbiorców pasujących do bieżącego filtra.",
@@ -270,11 +262,10 @@ fun PayrollScreen(navController: NavController) {
                     subtitle = "Podgląd pierwszych 30 dopasowanych rekordów.",
                 ) {
                     Column(modifier = Modifier.fillMaxWidth()) {
-                        filteredRecipients.take(30).forEach { recipient ->
-                            val key = "${recipient.name.trim().lowercase()}|${recipient.surname.trim().lowercase()}|${recipient.email.trim().lowercase()}"
+                        uiState.filteredRecipients.take(30).forEach { recipient ->
                             Row(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
                                 Checkbox(
-                                    checked = key in uiState.selectedRecipientKeys,
+                                    checked = viewModel.isRecipientSelected(recipient),
                                     onCheckedChange = { viewModel.toggleSpecialRecipient(recipient) },
                                 )
                                 Column(modifier = Modifier.weight(1f)) {

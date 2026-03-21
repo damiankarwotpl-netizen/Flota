@@ -64,6 +64,7 @@ data class PayrollUiState(
     val attachmentCount: Int = 0,
     val totalRecipients: Int = 0,
     val contacts: List<ContactListItem> = emptyList(),
+    val filteredRecipients: List<ContactListItem> = emptyList(),
     val recipientQuery: String = "",
     val selectedRecipientKeys: Set<String> = emptySet(),
     val operatorLabel: String = "",
