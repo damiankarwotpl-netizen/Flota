@@ -19,6 +19,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
@@ -114,10 +115,8 @@ fun PayrollScreen(_navController: NavController) {
     }
 
     if (isPreviewDialogOpen) {
-        AlertDialog(
-            onDismissRequest = { isPreviewDialogOpen = false },
-            title = { Text("Podgląd arkusza Excel") },
-            text = {
+        Dialog(onDismissRequest = { isPreviewDialogOpen = false }) {
+            SectionCard(title = "Podgląd arkusza Excel") {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text("Wybierz kolumny do eksportu:")
                     displayHeaders.forEachIndexed { index, header ->
@@ -153,13 +152,12 @@ fun PayrollScreen(_navController: NavController) {
                             }
                         }
                     }
+                    Button(onClick = { isPreviewDialogOpen = false }, modifier = Modifier.fillMaxWidth()) {
+                        Text("Zamknij")
+                    }
                 }
-            },
-            confirmButton = {
-                Button(onClick = { isPreviewDialogOpen = false }) {
-                    Text("Zamknij")
-                }
-            },
-        )
+                uiState.actionMessage?.let { Text(it) }
+            }
+        }
     }
 }
