@@ -1,5 +1,7 @@
 package com.future.ultimate.admin.ui.viewmodel
 
+import android.content.Context
+import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
@@ -57,6 +59,9 @@ import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import java.time.format.DateTimeFormatter
 import java.time.LocalDate
+import java.time.LocalDateTime
+import androidx.documentfile.provider.DocumentFile
+import java.io.File
 
 class ContactsViewModel(private val repository: AdminRepository) : ViewModel() {
     private val _uiState = MutableStateFlow(ContactsUiState())
@@ -307,6 +312,13 @@ class PayrollViewModel(private val repository: AdminRepository) : ViewModel() {
         _uiState.value = _uiState.value.copy(workbookImportText = value, actionMessage = null)
     }
 
+    fun updateExportFolderUri(uri: Uri?) {
+        _uiState.value = _uiState.value.copy(
+            exportFolderUri = uri?.toString().orEmpty(),
+            actionMessage = if (uri == null) "Wybór folderu anulowany" else "Wybrano folder eksportu",
+        )
+    }
+
     fun stageWorkbookImport() {
         val payslipData = payslipModule.loadFromDelimitedText(_uiState.value.workbookImportText)
         val rows = PayslipGenerator().toWorkbookRows(payslipData.rows)
@@ -405,6 +417,38 @@ class PayrollViewModel(private val repository: AdminRepository) : ViewModel() {
         addAttachment(path, "Wyeksportowano pojedynczy wiersz")
     }
 
+    fun exportSinglePreviewRowToFolder(context: Context, index: Int) = viewModelScope.launch {
+        val folderUri = _uiState.value.exportFolderUri.takeIf { it.isNotBlank() }?.let(Uri::parse)
+        if (folderUri == null) {
+            _uiState.value = _uiState.value.copy(actionMessage = "Najpierw wybierz folder eksportu")
+            return@launch
+        }
+        val row = _uiState.value.previewRows.firstOrNull { it.index == index } ?: return@launch
+        val selectedColumns = _uiState.value.selectedPreviewColumnIndexes
+        if (selectedColumns.isEmpty()) {
+            _uiState.value = _uiState.value.copy(actionMessage = "Wybierz co najmniej jedną kolumnę do eksportu")
+            return@launch
+        }
+        val filteredHeaders = selectedHeaders(selectedColumns)
+        val filteredRow = row.cells.filterIndexed { columnIndex, _ -> columnIndex in selectedColumns }
+        val tempPath = repository.exportPayrollRowsXlsx(
+            headers = filteredHeaders,
+            rows = listOf(filteredRow),
+            filePrefix = "PPI",
+            nameHint = row.name,
+            surnameHint = row.surname,
+        )
+        if (tempPath.isBlank()) {
+            _uiState.value = _uiState.value.copy(actionMessage = "Nie udało się wygenerować pliku XLSX")
+            return@launch
+        }
+        val fileName = exportFileName(row.name, row.surname)
+        val saved = copyFileToDocumentTree(context, File(tempPath), folderUri, fileName)
+        _uiState.value = _uiState.value.copy(
+            actionMessage = if (saved) "Wyeksportowano: $fileName" else "Nie udało się zapisać pliku w wybranym folderze",
+        )
+    }
+
     fun exportSelectedPreviewRows() = viewModelScope.launch {
         val selected = _uiState.value.previewRows.filter { it.index in _uiState.value.selectedPreviewRowIndexes }
         if (selected.isEmpty()) {
@@ -425,6 +469,35 @@ class PayrollViewModel(private val repository: AdminRepository) : ViewModel() {
             surnameHint = selected.size.toString(),
         )
         addAttachment(path, "Wyeksportowano zaznaczoną tabelę")
+    }
+
+    private fun selectedHeaders(selectedColumns: Set<Int>): List<String> {
+        val headers = _uiState.value.previewHeaders
+        if (headers.isEmpty()) {
+            val maxColumns = _uiState.value.previewRows.maxOfOrNull { it.cells.size } ?: 0
+            return (0 until maxColumns).filter { it in selectedColumns }.map { "kolumna_${it + 1}" }
+        }
+        return headers.filterIndexed { columnIndex, _ -> columnIndex in selectedColumns }
+    }
+
+    private fun exportFileName(name: String, surname: String): String {
+        val safeName = name.trim().ifBlank { "rekord" }.replace("\\s+".toRegex(), "_")
+        val safeSurname = surname.trim().ifBlank { "rekord" }.replace("\\s+".toRegex(), "_")
+        val stamp = DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss").format(LocalDateTime.now())
+        return "${safeName}_${safeSurname}_$stamp.xlsx"
+    }
+
+    private fun copyFileToDocumentTree(context: Context, source: File, folderUri: Uri, fileName: String): Boolean {
+        val pickedDir = DocumentFile.fromTreeUri(context, folderUri) ?: return false
+        val created = pickedDir.createFile(
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            fileName.removeSuffix(".xlsx"),
+        ) ?: return false
+        context.contentResolver.openOutputStream(created.uri)?.use { output ->
+            source.inputStream().use { input -> input.copyTo(output) }
+            return true
+        }
+        return false
     }
 
     fun attachStagedWorkbookCsv() = viewModelScope.launch {
