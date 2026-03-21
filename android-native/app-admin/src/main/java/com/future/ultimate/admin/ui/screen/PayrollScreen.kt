@@ -162,6 +162,7 @@ fun PayrollScreen(_navController: NavController) {
                         M3Text("Zamknij")
                     }
                 }
+                uiState.actionMessage?.let { Text(it) }
             }
         }
     }
