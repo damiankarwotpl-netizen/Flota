@@ -52,7 +52,7 @@ fun PayrollScreen(_navController: NavController) {
     ) { uri: Uri? ->
         if (uri == null) return@rememberLauncherForActivityResult
         val mimeType = app.contentResolver.getType(uri)
-        val fileName = resolveDisplayName(app, uri)
+        val fileName = payrollResolveDisplayName(app, uri)
         val bytes = runCatching {
             app.contentResolver.openInputStream(uri)?.use { it.readBytes() } ?: byteArrayOf()
         }.getOrDefault(byteArrayOf())
@@ -192,7 +192,7 @@ fun PayrollScreen(_navController: NavController) {
 @Composable
 private fun PreviewSpreadsheetTable(
     headers: List<String>,
-    rows: List<com.future.ultimate.core.common.ui.PayrollPreviewRow>,
+    rows: List<com.future.ultimate.core.common.repository.PayrollPreviewRow>,
     selectedColumns: Set<Int>,
     selectedRows: Set<Int>,
     onToggleRow: (Int) -> Unit,
@@ -315,6 +315,17 @@ private fun resolveDisplayName(context: android.content.Context, uri: Uri): Stri
 }
 
 private fun resolveDisplayName(context: android.content.Context, uri: Uri): String? {
+    val projection = arrayOf(android.provider.OpenableColumns.DISPLAY_NAME)
+    context.contentResolver.query(uri, projection, null, null, null)?.use { cursor ->
+        val columnIndex = cursor.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME)
+        if (columnIndex >= 0 && cursor.moveToFirst()) {
+            return cursor.getString(columnIndex)
+        }
+    }
+    return null
+}
+
+private fun payrollResolveDisplayName(context: android.content.Context, uri: Uri): String? {
     val projection = arrayOf(android.provider.OpenableColumns.DISPLAY_NAME)
     context.contentResolver.query(uri, projection, null, null, null)?.use { cursor ->
         val columnIndex = cursor.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME)
