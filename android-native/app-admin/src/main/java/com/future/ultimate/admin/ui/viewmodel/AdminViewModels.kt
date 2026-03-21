@@ -329,6 +329,10 @@ class PayrollViewModel(private val repository: AdminRepository) : ViewModel() {
             )
             return
         }
+        val columnCount = maxOf(
+            payslipData.headers.size,
+            previewRows.maxOfOrNull { it.cells.size } ?: 0,
+        )
         _uiState.value = _uiState.value.copy(
             stagedWorkbookRows = rows,
             previewHeaders = payslipData.headers,

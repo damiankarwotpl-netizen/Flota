@@ -153,6 +153,15 @@ fun PayrollScreen(navController: NavController) {
                         }
                     }
                     if (uiState.stagedWorkbookRows.isNotEmpty()) {
+                        val columnCount = maxOf(
+                            uiState.previewHeaders.size,
+                            uiState.previewRows.maxOfOrNull { it.cells.size } ?: 0,
+                        )
+                        val displayHeaders = if (uiState.previewHeaders.isNotEmpty()) {
+                            uiState.previewHeaders
+                        } else {
+                            (0 until columnCount).map { "kolumna_${it + 1}" }
+                        }
                         Text("Staged workbook rows: ${uiState.stagedWorkbookRows.size}")
                         Text("Podgląd/Export")
                         if (uiState.previewHeaders.isNotEmpty()) {
