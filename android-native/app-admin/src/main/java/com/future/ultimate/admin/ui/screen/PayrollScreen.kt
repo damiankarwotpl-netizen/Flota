@@ -3,6 +3,7 @@ package com.future.ultimate.admin.ui.screen
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -15,6 +16,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
@@ -134,6 +136,7 @@ fun PayrollScreen(_navController: NavController) {
 
                     M3Button(onClick = { isPreviewDialogOpen = false }, modifier = Modifier.fillMaxWidth()) { Text("Zamknij") }
                 }
+                uiState.actionMessage?.let { Text(it) }
             }
         }
     }
@@ -160,7 +163,19 @@ fun PayrollScreen(_navController: NavController) {
                     M3Button(onClick = { isSpreadsheetDialogOpen = false }, modifier = Modifier.fillMaxWidth()) {
                         Text("Zamknij tabelę")
                     }
+
+                    M3Button(onClick = viewModel::selectAllPreviewColumns, modifier = Modifier.fillMaxWidth()) { Text("Zaznacz kolumny") }
+                    M3Button(
+                        onClick = {
+                            isPreviewDialogOpen = false
+                            isSpreadsheetDialogOpen = true
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                    ) { Text("Otwórz tabelę w nowym oknie") }
+
+                    M3Button(onClick = { isPreviewDialogOpen = false }, modifier = Modifier.fillMaxWidth()) { Text("Zamknij") }
                 }
+                uiState.actionMessage?.let { Text(it) }
             }
         }
     }
