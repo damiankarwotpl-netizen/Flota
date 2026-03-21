@@ -3,12 +3,22 @@ package com.future.ultimate.admin.ui.screen
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.material3.Button as M3Button
 import androidx.compose.material3.Checkbox as M3Checkbox
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField as M3OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -17,6 +27,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
@@ -137,25 +149,91 @@ fun PayrollScreen(_navController: NavController) {
                     M3Button(onClick = viewModel::selectAllPreviewColumns, modifier = Modifier.fillMaxWidth()) {
                         Text("Zaznacz kolumny")
                     }
-                    uiState.previewRows.forEach { row ->
-                        val selected = row.index in uiState.selectedPreviewRowIndexes
-                        Row(
-                            modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        ) {
-                            M3Checkbox(
-                                checked = selected,
-                                onCheckedChange = { viewModel.togglePreviewRowSelection(row.index) },
-                            )
-                            Text(
-                                text = row.cells.filterIndexed { columnIndex, _ ->
-                                    uiState.selectedPreviewColumnIndexes.isEmpty() || columnIndex in uiState.selectedPreviewColumnIndexes
-                                }.joinToString(" | "),
-                                modifier = Modifier.padding(top = 10.dp),
-                            )
-                            M3Button(onClick = { viewModel.exportSinglePreviewRowToFolder(app, row.index) }) {
-                                Text("Eksport")
-                            }
+                    PreviewSpreadsheetTable(
+                        headers = displayHeaders,
+                        rows = uiState.previewRows,
+                        selectedColumns = uiState.selectedPreviewColumnIndexes,
+                        selectedRows = uiState.selectedPreviewRowIndexes,
+                        onToggleRow = viewModel::togglePreviewRowSelection,
+                        onExportRow = { rowIndex -> viewModel.exportSinglePreviewRowToFolder(app, rowIndex) },
+                    )
+                    M3Button(onClick = { isPreviewDialogOpen = false }, modifier = Modifier.fillMaxWidth()) {
+                        Text("Zamknij")
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun PreviewSpreadsheetTable(
+    headers: List<String>,
+    rows: List<com.future.ultimate.core.common.ui.PayrollPreviewRow>,
+    selectedColumns: Set<Int>,
+    selectedRows: Set<Int>,
+    onToggleRow: (Int) -> Unit,
+    onExportRow: (Int) -> Unit,
+) {
+    val horizontalState = rememberScrollState()
+    val verticalState = rememberScrollState()
+    val visibleColumns = if (selectedColumns.isEmpty()) headers.indices.toList() else selectedColumns.sorted()
+    val headerColor = MaterialTheme.colorScheme.surfaceVariant
+    val gridColor = MaterialTheme.colorScheme.outlineVariant
+    val cellWidth = 140.dp
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = 240.dp, max = 420.dp)
+            .border(1.dp, gridColor)
+            .horizontalScroll(horizontalState),
+    ) {
+        Column(modifier = Modifier.verticalScroll(verticalState)) {
+            Row(modifier = Modifier.background(headerColor)) {
+                SpreadsheetCell(text = "#", width = 48.dp, isHeader = true, borderColor = gridColor)
+                visibleColumns.forEach { columnIndex ->
+                    SpreadsheetCell(
+                        text = headers.getOrNull(columnIndex).orEmpty().ifBlank { "kolumna_${columnIndex + 1}" },
+                        width = cellWidth,
+                        isHeader = true,
+                        borderColor = gridColor,
+                    )
+                }
+                SpreadsheetCell(text = "Eksport", width = 110.dp, isHeader = true, borderColor = gridColor)
+            }
+
+            rows.forEach { row ->
+                Row {
+                    Box(
+                        modifier = Modifier
+                            .width(48.dp)
+                            .defaultMinSize(minHeight = 44.dp)
+                            .border(0.5.dp, gridColor),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        M3Checkbox(
+                            checked = row.index in selectedRows,
+                            onCheckedChange = { onToggleRow(row.index) },
+                        )
+                    }
+                    visibleColumns.forEach { columnIndex ->
+                        SpreadsheetCell(
+                            text = row.cells.getOrNull(columnIndex).orEmpty(),
+                            width = cellWidth,
+                            borderColor = gridColor,
+                        )
+                    }
+                    Box(
+                        modifier = Modifier
+                            .width(110.dp)
+                            .defaultMinSize(minHeight = 44.dp)
+                            .border(0.5.dp, gridColor)
+                            .padding(4.dp),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        M3Button(onClick = { onExportRow(row.index) }) {
+                            Text("Eksport")
                         }
                     }
                     M3Button(onClick = { isPreviewDialogOpen = false }, modifier = Modifier.fillMaxWidth()) {
@@ -166,6 +244,29 @@ fun PayrollScreen(_navController: NavController) {
             }
         }
     }
+}
+
+@Composable
+private fun SpreadsheetCell(
+    text: String,
+    width: androidx.compose.ui.unit.Dp,
+    isHeader: Boolean = false,
+    borderColor: Color,
+) {
+    Box(
+        modifier = Modifier
+            .width(width)
+            .defaultMinSize(minHeight = 44.dp)
+            .border(0.5.dp, borderColor)
+            .padding(horizontal = 8.dp, vertical = 10.dp),
+        contentAlignment = Alignment.CenterStart,
+    ) {
+        Text(
+            text = text.ifBlank { "-" },
+            style = if (isHeader) MaterialTheme.typography.titleSmall else MaterialTheme.typography.bodyMedium,
+        )
+    }
+    return null
 }
 
 private fun resolveDisplayName(context: android.content.Context, uri: Uri): String? {
