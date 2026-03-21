@@ -12,12 +12,12 @@ Daemon will be stopped at the end of the build
 > Task :core-common:preDebugBuild UP-TO-DATE
 > Task :core-database:preBuild UP-TO-DATE
 > Task :core-database:preDebugBuild UP-TO-DATE
+> Task :core-common:writeDebugAarMetadata
 > Task :app-admin:generateDebugResValues
 > Task :core-database:writeDebugAarMetadata
-> Task :core-common:writeDebugAarMetadata
 > Task :core-common:generateDebugResValues
-> Task :app-admin:checkDebugAarMetadata
 > Task :core-common:generateDebugResources
+> Task :app-admin:checkDebugAarMetadata
 > Task :core-common:packageDebugResources
 > Task :core-database:generateDebugResValues
 > Task :core-database:generateDebugResources
@@ -32,21 +32,21 @@ Daemon will be stopped at the end of the build
 > Task :core-database:extractDeepLinksDebug
 > Task :app-admin:parseDebugLocalResources
 > Task :core-common:compileDebugLibraryResources
-> Task :core-database:compileDebugLibraryResources
 > Task :core-common:parseDebugLocalResources
+> Task :core-database:compileDebugLibraryResources
 > Task :core-common:processDebugManifest
 > Task :core-common:checkKotlinGradlePluginConfigurationErrors SKIPPED
-> Task :core-database:parseDebugLocalResources
 > Task :core-database:processDebugManifest
+> Task :core-database:parseDebugLocalResources
+> Task :core-common:javaPreCompileDebug
 > Task :core-common:generateDebugRFile
-> Task :core-database:generateDebugRFile
 > Task :app-admin:processDebugMainManifest
 > Task :app-admin:processDebugManifest
 > Task :app-admin:processDebugManifestForPackage
+> Task :core-database:generateDebugRFile
 > Task :core-database:checkKotlinGradlePluginConfigurationErrors SKIPPED
-> Task :core-common:javaPreCompileDebug
-> Task :app-admin:javaPreCompileDebug
 > Task :core-database:javaPreCompileDebug
+> Task :app-admin:javaPreCompileDebug
 > Task :app-admin:mergeDebugShaders
 > Task :app-admin:compileDebugShaders NO-SOURCE
 > Task :app-admin:generateDebugAssets UP-TO-DATE
@@ -61,15 +61,15 @@ Daemon will be stopped at the end of the build
 > Task :app-admin:mergeDebugAssets
 > Task :app-admin:compressDebugAssets
 > Task :app-admin:desugarDebugFileDependencies
-> Task :app-admin:processDebugResources
 > Task :app-admin:mergeDebugJniLibFolders
 > Task :core-common:mergeDebugJniLibFolders
 > Task :core-common:mergeDebugNativeLibs NO-SOURCE
 > Task :core-common:copyDebugJniLibsProjectOnly
+> Task :app-admin:checkDebugDuplicateClasses
 > Task :core-database:mergeDebugJniLibFolders
+> Task :app-admin:processDebugResources
 > Task :core-database:mergeDebugNativeLibs NO-SOURCE
 > Task :core-database:copyDebugJniLibsProjectOnly
-> Task :app-admin:checkDebugDuplicateClasses
 > Task :app-admin:validateSigningDebug
 > Task :app-admin:writeDebugAppMetadata
 > Task :app-admin:mergeDebugNativeLibs
@@ -82,8 +82,8 @@ Daemon will be stopped at the end of the build
 > Task :app-admin:stripDebugDebugSymbols
 Unable to strip the following libraries, packaging them as they are: libandroidx.graphics.path.so.
 
-> Task :app-driver:generateDebugResValues
 > Task :app-driver:checkDebugAarMetadata
+> Task :app-driver:generateDebugResValues
 > Task :app-driver:mapDebugSourceSetPaths
 > Task :app-driver:generateDebugResources
 > Task :app-driver:packageDebugResources
@@ -91,10 +91,15 @@ Unable to strip the following libraries, packaging them as they are: libandroidx
 > Task :app-driver:createDebugCompatibleScreenManifests
 > Task :app-driver:extractDeepLinksDebug
 > Task :app-driver:mergeDebugResources
+
+> Task :core-common:compileDebugKotlin
+e: The daemon has terminated unexpectedly on startup attempt #1 with error code: 0. The daemon process output:
+    1. Kotlin compile daemon is ready
+
 > Task :app-driver:processDebugMainManifest
 > Task :app-driver:processDebugManifest
-> Task :app-driver:processDebugManifestForPackage
 > Task :app-driver:javaPreCompileDebug
+> Task :app-driver:processDebugManifestForPackage
 > Task :app-driver:mergeDebugShaders
 > Task :app-driver:compileDebugShaders NO-SOURCE
 > Task :app-driver:generateDebugAssets UP-TO-DATE
@@ -114,40 +119,46 @@ Unable to strip the following libraries, packaging them as they are: libandroidx
 > Task :app-driver:writeDebugSigningConfigVersions
 > Task :app-driver:mergeExtDexDebug
 > Task :app-admin:mergeExtDexDebug
-> Task :core-common:compileDebugKotlin
 > Task :core-common:compileDebugJavaWithJavac NO-SOURCE
 > Task :core-common:processDebugJavaRes
-> Task :core-common:bundleLibCompileToJarDebug
 > Task :core-common:bundleLibRuntimeToJarDebug
+> Task :core-common:bundleLibCompileToJarDebug
 > Task :core-common:bundleLibRuntimeToDirDebug
 > Task :core-database:kspDebugKotlin
 > Task :core-database:compileDebugKotlin
 > Task :core-database:compileDebugJavaWithJavac
+> Task :core-database:bundleLibRuntimeToJarDebug
 > Task :core-database:bundleLibCompileToJarDebug
 > Task :core-database:processDebugJavaRes
-> Task :core-database:bundleLibRuntimeToJarDebug
 > Task :core-database:bundleLibRuntimeToDirDebug
-> Task :app-driver:mergeLibDexDebug
 > Task :app-admin:mergeLibDexDebug
+> Task :app-driver:mergeLibDexDebug
 
 > Task :app-admin:compileDebugKotlin FAILED
-e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/PayrollScreen.kt:262:42 Unresolved reference 'isPreviewDialogOpen'.
-e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/PayrollScreen.kt:266:17 Unresolved reference 'uiState'.
-e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/PayrollScreen.kt:266:40 Cannot infer type for this parameter. Please specify it explicitly.
-e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/PayrollScreen.kt:266:44 Cannot infer type for this parameter. Please specify it explicitly.
-e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/PayrollScreen.kt:292:12 Null cannot be a value of a non-null type 'kotlin.Unit'.
-e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/PayrollScreen.kt:295:1 Conflicting overloads:
+e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/PayrollScreen.kt:56:24 Overload resolution ambiguity between candidates:
+fun payrollResolveDisplayName(context: Context, uri: Uri): String?
+fun payrollResolveDisplayName(context: Context, uri: Uri): String?
+e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/PayrollScreen.kt:263:42 Unresolved reference 'isPreviewDialogOpen'.
+e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/PayrollScreen.kt:267:17 Unresolved reference 'uiState'.
+e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/PayrollScreen.kt:267:40 Cannot infer type for this parameter. Please specify it explicitly.
+e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/PayrollScreen.kt:267:44 Cannot infer type for this parameter. Please specify it explicitly.
+e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/PayrollScreen.kt:293:12 Null cannot be a value of a non-null type 'kotlin.Unit'.
+e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/PayrollScreen.kt:296:1 Conflicting overloads:
 fun resolveDisplayName(context: Context, uri: Uri): String?
 fun resolveDisplayName(context: Context, uri: Uri): String?
-e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/PayrollScreen.kt:306:1 Conflicting overloads:
+e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/PayrollScreen.kt:307:1 Conflicting overloads:
 fun resolveDisplayName(context: Context, uri: Uri): String?
 fun resolveDisplayName(context: Context, uri: Uri): String?
-e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/PayrollScreen.kt:317:1 Conflicting overloads:
+e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/PayrollScreen.kt:318:1 Conflicting overloads:
 fun resolveDisplayName(context: Context, uri: Uri): String?
 fun resolveDisplayName(context: Context, uri: Uri): String?
+e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/PayrollScreen.kt:329:1 Conflicting overloads:
+fun payrollResolveDisplayName(context: Context, uri: Uri): String?
+e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/PayrollScreen.kt:340:1 Conflicting overloads:
+fun payrollResolveDisplayName(context: Context, uri: Uri): String?
 
 > Task :app-driver:compileDebugKotlin
-gradle/actions: Writing build results to /home/runner/work/_temp/.gradle-actions/build-results/__run_2-1774102699464.json
+gradle/actions: Writing build results to /home/runner/work/_temp/.gradle-actions/build-results/__run_2-1774103284353.json
 
 [Incubating] Problems report is available at: file:///home/runner/work/Flota/Flota/android-native/build/reports/problems/problems-report.html
 
@@ -361,5 +372,5 @@ You can use '--warning-mode all' to show the individual deprecation warnings and
 
 For more on this, please refer to https://docs.gradle.org/8.14.3/userguide/command_line_interface.html#sec:command_line_warnings in the Gradle documentation.
 
-BUILD FAILED in 1m 10s
+BUILD FAILED in 1m 12s
 100 actionable tasks: 96 executed, 4 up-to-date
