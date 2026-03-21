@@ -51,7 +51,7 @@ internal fun PreviewSpreadsheetTable(
             .border(1.dp, gridColor)
             .horizontalScroll(horizontalState),
     ) {
-        Column(modifier = Modifier.verticalScroll(verticalState)) {
+        Column {
             Row(modifier = Modifier.background(headerColor)) {
                 SpreadsheetCell(text = "#", width = 48.dp, borderColor = gridColor, isHeader = true)
                 SpreadsheetCell(text = "Akcje", width = 220.dp, borderColor = gridColor, isHeader = true)
@@ -75,44 +75,50 @@ internal fun PreviewSpreadsheetTable(
                 }
             }
 
-            rows.forEach { row ->
-                Row {
-                    Box(
-                        modifier = Modifier
-                            .width(48.dp)
-                            .defaultMinSize(minHeight = 44.dp)
-                            .border(0.5.dp, gridColor),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Checkbox(
-                            checked = row.index in selectedRows,
-                            onCheckedChange = { onToggleRow(row.index) },
-                        )
-                    }
-                    Box(
-                        modifier = Modifier
-                            .width(220.dp)
-                            .defaultMinSize(minHeight = 44.dp)
-                            .border(0.5.dp, gridColor)
-                            .padding(4.dp),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Button(onClick = { onExportRow(row.index) }) {
-                                Text("Eksport")
-                            }
-                            Button(onClick = { onSendRow(row.index) }) {
-                                Text("Wyślij")
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(verticalState),
+            ) {
+                rows.forEach { row ->
+                    Row {
+                        Box(
+                            modifier = Modifier
+                                .width(48.dp)
+                                .defaultMinSize(minHeight = 44.dp)
+                                .border(0.5.dp, gridColor),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Checkbox(
+                                checked = row.index in selectedRows,
+                                onCheckedChange = { onToggleRow(row.index) },
+                            )
+                        }
+                        Box(
+                            modifier = Modifier
+                                .width(220.dp)
+                                .defaultMinSize(minHeight = 44.dp)
+                                .border(0.5.dp, gridColor)
+                                .padding(4.dp),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Button(onClick = { onExportRow(row.index) }) {
+                                    Text("Eksport")
+                                }
+                                Button(onClick = { onSendRow(row.index) }) {
+                                    Text("Wyślij")
+                                }
                             }
                         }
-                    }
 
-                    visibleColumns.forEach { columnIndex ->
-                        SpreadsheetCell(
-                            text = row.cells.getOrNull(columnIndex).orEmpty(),
-                            width = cellWidth,
-                            borderColor = gridColor,
-                        )
+                        visibleColumns.forEach { columnIndex ->
+                            SpreadsheetCell(
+                                text = row.cells.getOrNull(columnIndex).orEmpty(),
+                                width = cellWidth,
+                                borderColor = gridColor,
+                            )
+                        }
                     }
                 }
             }

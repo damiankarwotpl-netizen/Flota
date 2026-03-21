@@ -7,9 +7,11 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.material3.AlertDialog as M3AlertDialog
 import androidx.compose.material3.Button as M3Button
 import androidx.compose.material3.OutlinedTextField as M3OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton as M3TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -136,7 +138,6 @@ fun PayrollScreen(_navController: NavController) {
 
                     M3Button(onClick = { isPreviewDialogOpen = false }, modifier = Modifier.fillMaxWidth()) { Text("Zamknij") }
                 }
-                uiState.actionMessage?.let { Text(it) }
             }
         }
     }
@@ -170,8 +171,20 @@ fun PayrollScreen(_navController: NavController) {
                         }
                     }
                 }
-                uiState.actionMessage?.let { Text(it) }
             }
+        }
+
+        uiState.actionMessage?.let { message ->
+            M3AlertDialog(
+                onDismissRequest = viewModel::clearActionMessage,
+                confirmButton = {
+                    M3TextButton(onClick = viewModel::clearActionMessage) {
+                        Text("OK")
+                    }
+                },
+                title = { Text("Komunikat") },
+                text = { Text(message) },
+            )
         }
     }
 }

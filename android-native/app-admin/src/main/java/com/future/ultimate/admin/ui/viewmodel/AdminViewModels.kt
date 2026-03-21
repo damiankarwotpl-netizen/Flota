@@ -379,6 +379,10 @@ class PayrollViewModel(private val repository: AdminRepository) : ViewModel() {
         _uiState.value = _uiState.value.copy(selectedPreviewColumnIndexes = all, actionMessage = "Zaznaczono wszystkie kolumny")
     }
 
+    fun clearActionMessage() {
+        _uiState.value = _uiState.value.copy(actionMessage = null)
+    }
+
     fun exportSinglePreviewRow(index: Int) = viewModelScope.launch {
         val row = _uiState.value.previewRows.firstOrNull { it.index == index } ?: return@launch
         val selectedColumns = _uiState.value.selectedPreviewColumnIndexes
