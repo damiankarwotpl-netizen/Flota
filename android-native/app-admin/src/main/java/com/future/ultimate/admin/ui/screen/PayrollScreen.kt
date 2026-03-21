@@ -236,7 +236,11 @@ private fun PreviewSpreadsheetTable(
                             Text("Eksport")
                         }
                     }
+                    M3Button(onClick = { isPreviewDialogOpen = false }, modifier = Modifier.fillMaxWidth()) {
+                        Text("Zamknij")
+                    }
                 }
+                uiState.actionMessage?.let { Text(it) }
             }
         }
     }
@@ -262,6 +266,7 @@ private fun SpreadsheetCell(
             style = if (isHeader) MaterialTheme.typography.titleSmall else MaterialTheme.typography.bodyMedium,
         )
     }
+    return null
 }
 
 private fun resolveDisplayName(context: android.content.Context, uri: Uri): String? {
