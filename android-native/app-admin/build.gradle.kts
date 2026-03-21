@@ -16,6 +16,12 @@ val sharedMetaInfResources = setOf(
     "/META-INF/NOTICE*",
     "/META-INF/LICENSE*",
 )
+val sharedMetaInfPickFirsts = setOf(
+    "META-INF/NOTICE.md",
+    "META-INF/LICENSE.md",
+    "/META-INF/NOTICE.md",
+    "/META-INF/LICENSE.md",
+)
 
 fun Project.optionalConfig(name: String): String? =
     (findProperty(name) as String?)?.takeIf { it.isNotBlank() }
@@ -64,6 +70,7 @@ android {
     packaging {
         resources {
             excludes += sharedMetaInfResources
+            pickFirsts += sharedMetaInfPickFirsts
         }
     }
 
