@@ -38,10 +38,16 @@ fun PayrollScreen(_navController: NavController) {
         contract = androidx.activity.result.contract.ActivityResultContracts.GetContent(),
     ) { uri: Uri? ->
         if (uri == null) return@rememberLauncherForActivityResult
-        val rawText = runCatching {
-            app.contentResolver.openInputStream(uri)?.bufferedReader(Charsets.UTF_8)?.use { it.readText() }.orEmpty()
-        }.getOrDefault("")
-        viewModel.loadWorkbookFromText(rawText)
+        val mimeType = app.contentResolver.getType(uri)
+        val fileName = resolveDisplayName(app, uri)
+        val bytes = runCatching {
+            app.contentResolver.openInputStream(uri)?.use { it.readBytes() } ?: byteArrayOf()
+        }.getOrDefault(byteArrayOf())
+        viewModel.loadWorkbookFromFile(
+            fileName = fileName,
+            mimeType = mimeType,
+            bytes = bytes,
+        )
     }
 
     val folderPicker = rememberLauncherForActivityResult(
@@ -160,4 +166,15 @@ fun PayrollScreen(_navController: NavController) {
             }
         }
     }
+}
+
+private fun resolveDisplayName(context: android.content.Context, uri: Uri): String? {
+    val projection = arrayOf(android.provider.OpenableColumns.DISPLAY_NAME)
+    context.contentResolver.query(uri, projection, null, null, null)?.use { cursor ->
+        val columnIndex = cursor.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME)
+        if (columnIndex >= 0 && cursor.moveToFirst()) {
+            return cursor.getString(columnIndex)
+        }
+    }
+    return null
 }

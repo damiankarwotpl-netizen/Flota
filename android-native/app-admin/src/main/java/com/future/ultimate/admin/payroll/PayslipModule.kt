@@ -6,6 +6,9 @@ import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
+import org.apache.poi.ss.usermodel.DataFormatter
+import org.apache.poi.ss.usermodel.WorkbookFactory
+import java.io.ByteArrayInputStream
 import java.io.File
 import kotlin.random.Random
 
@@ -193,6 +196,54 @@ class PayslipModule(
         )
         loaded = mapper.map(raw)
         return loaded
+    }
+
+    fun loadFromBytes(
+        fileName: String?,
+        mimeType: String?,
+        bytes: ByteArray,
+    ): PayslipData {
+        if (bytes.isEmpty()) {
+            loaded = PayslipData(emptyList(), emptyList(), ColumnIndex(0, 1, null, null))
+            return loaded
+        }
+        val isXlsx = mimeType.orEmpty().contains("spreadsheetml", ignoreCase = true) ||
+            fileName.orEmpty().endsWith(".xlsx", ignoreCase = true)
+        return if (isXlsx) {
+            val rawData = parseXlsxRawData(bytes)
+            loaded = mapper.map(rawData)
+            loaded
+        } else {
+            loadFromDelimitedText(bytes.toString(Charsets.UTF_8))
+        }
+    }
+
+    private fun parseXlsxRawData(bytes: ByteArray): RawExcelData {
+        ByteArrayInputStream(bytes).use { input ->
+            WorkbookFactory.create(input).use { workbook ->
+                val sheet = workbook.getSheetAt(0) ?: return RawExcelData(emptyList(), emptyList())
+                val formatter = DataFormatter()
+                val allRows = mutableListOf<List<String>>()
+                val maxColumns = (sheet.firstRowNum..sheet.lastRowNum)
+                    .mapNotNull { idx -> sheet.getRow(idx)?.lastCellNum?.toInt()?.takeIf { it > 0 } }
+                    .maxOrNull() ?: 0
+                if (maxColumns == 0) return RawExcelData(emptyList(), emptyList())
+                for (rowIndex in sheet.firstRowNum..sheet.lastRowNum) {
+                    val row = sheet.getRow(rowIndex)
+                    val values = (0 until maxColumns).map { cellIndex ->
+                        formatter.formatCellValue(row?.getCell(cellIndex)).trim()
+                    }
+                    if (values.any { it.isNotBlank() }) {
+                        allRows += values
+                    }
+                }
+                if (allRows.isEmpty()) return RawExcelData(emptyList(), emptyList())
+                return RawExcelData(
+                    headers = allRows.first(),
+                    rows = allRows.drop(1),
+                )
+            }
+        }
     }
 
     fun getAll(): List<PayslipRow> = loaded.rows
