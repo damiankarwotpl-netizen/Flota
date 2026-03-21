@@ -160,6 +160,7 @@ fun PayrollScreen(_navController: NavController) {
                             onToggleRow = viewModel::togglePreviewRowSelection,
                             onToggleColumn = viewModel::togglePreviewColumnSelection,
                             onExportRow = { rowIndex -> viewModel.exportSinglePreviewRowToFolder(app, rowIndex) },
+                            onSendRow = viewModel::sendSinglePreviewRowMail,
                         )
                         M3Button(onClick = { isSpreadsheetDialogOpen = false }, modifier = Modifier.fillMaxWidth()) {
                             Text("Zamknij tabelę")

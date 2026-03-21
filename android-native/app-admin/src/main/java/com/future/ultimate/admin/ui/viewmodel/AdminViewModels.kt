@@ -398,6 +398,66 @@ class PayrollViewModel(private val repository: AdminRepository) : ViewModel() {
         addAttachment(path, "Wyeksportowano pojedynczy wiersz")
     }
 
+    fun sendSinglePreviewRowMail(index: Int) = viewModelScope.launch {
+        val row = _uiState.value.previewRows.firstOrNull { it.index == index } ?: return@launch
+        val selectedColumns = _uiState.value.selectedPreviewColumnIndexes
+        if (selectedColumns.isEmpty()) {
+            _uiState.value = _uiState.value.copy(actionMessage = "Wybierz co najmniej jedną kolumnę do wysyłki")
+            return@launch
+        }
+
+        val recipient = contactsCache.firstOrNull {
+            it.name.trim().equals(row.name.trim(), ignoreCase = true) &&
+                it.surname.trim().equals(row.surname.trim(), ignoreCase = true)
+        }
+        if (recipient == null) {
+            _uiState.value = _uiState.value.copy(
+                actionMessage = "Nie znaleziono kontaktu dla ${row.name} ${row.surname}".trim(),
+            )
+            return@launch
+        }
+        if (recipient.email.isBlank()) {
+            _uiState.value = _uiState.value.copy(
+                actionMessage = "Kontakt ${row.name} ${row.surname} nie ma adresu email".trim(),
+            )
+            return@launch
+        }
+
+        val filteredHeaders = selectedHeaders(selectedColumns)
+        val filteredRow = row.cells.filterIndexed { columnIndex, _ -> columnIndex in selectedColumns }.map(::normalizePayrollCell)
+        val attachmentPath = repository.exportPayrollRowsXlsx(
+            headers = filteredHeaders,
+            rows = listOf(filteredRow),
+            filePrefix = "PPI",
+            nameHint = row.name,
+            surnameHint = row.surname,
+        )
+        if (attachmentPath.isBlank()) {
+            _uiState.value = _uiState.value.copy(actionMessage = "Nie udało się wygenerować załącznika XLSX")
+            return@launch
+        }
+
+        runCatching {
+            repository.sendSpecialMailing(
+                recipients = listOf(recipient),
+                attachmentPaths = listOf(attachmentPath),
+                subject = templateCache.subject,
+                body = templateCache.body,
+            )
+        }.onSuccess { result ->
+            val actionMessage = when {
+                result.ok > 0 -> "Wysłano email do ${recipient.email}"
+                result.skip > 0 -> result.details.lineSequence().firstOrNull { it.isNotBlank() } ?: "Wysyłka została pominięta"
+                else -> result.details.lineSequence().firstOrNull { it.isNotBlank() } ?: "Nie udało się wysłać emaila"
+            }
+            _uiState.value = _uiState.value.copy(actionMessage = actionMessage)
+        }.onFailure { error ->
+            _uiState.value = _uiState.value.copy(
+                actionMessage = error.message ?: "Nie udało się wysłać emaila dla wybranego wiersza",
+            )
+        }
+    }
+
     fun exportSinglePreviewRowToFolder(context: Context, index: Int) = viewModelScope.launch {
         val folderUri = _uiState.value.exportFolderUri.takeIf { it.isNotBlank() }?.let(Uri::parse)
         if (folderUri == null) {
