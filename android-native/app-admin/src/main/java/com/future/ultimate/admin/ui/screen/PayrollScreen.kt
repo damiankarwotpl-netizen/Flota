@@ -2,6 +2,9 @@ package com.future.ultimate.admin.ui.screen
 
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -12,10 +15,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.material3.Button as M3Button
 import androidx.compose.material3.Checkbox as M3Checkbox
 import androidx.compose.material3.MaterialTheme
@@ -26,8 +26,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
@@ -47,15 +47,12 @@ fun PayrollScreen(_navController: NavController) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     var isPreviewDialogOpen by remember { mutableStateOf(false) }
     var isSpreadsheetDialogOpen by remember { mutableStateOf(false) }
-    val resolveDisplayNameFromUri: (Uri) -> String? = { uri ->
+
+    val displayNameFromUri: (Uri) -> String? = { uri ->
         val projection = arrayOf(android.provider.OpenableColumns.DISPLAY_NAME)
         app.contentResolver.query(uri, projection, null, null, null)?.use { cursor ->
-            val columnIndex = cursor.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME)
-            if (columnIndex >= 0 && cursor.moveToFirst()) {
-                cursor.getString(columnIndex)
-            } else {
-                null
-            }
+            val nameIndex = cursor.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME)
+            if (nameIndex >= 0 && cursor.moveToFirst()) cursor.getString(nameIndex) else null
         }
     }
 
@@ -64,10 +61,11 @@ fun PayrollScreen(_navController: NavController) {
     ) { uri: Uri? ->
         if (uri == null) return@rememberLauncherForActivityResult
         val mimeType = app.contentResolver.getType(uri)
-        val fileName = resolveDisplayNameFromUri(uri)
+        val fileName = displayNameFromUri(uri)
         val bytes = runCatching {
             app.contentResolver.openInputStream(uri)?.use { it.readBytes() } ?: byteArrayOf()
         }.getOrDefault(byteArrayOf())
+
         viewModel.loadWorkbookFromFile(
             fileName = fileName,
             mimeType = mimeType,
@@ -102,19 +100,11 @@ fun PayrollScreen(_navController: NavController) {
     ScreenColumn("Wypłaty", "Nowy moduł: import Excel + podgląd + eksport") {
         item {
             SectionCard(title = "Wczytaj Excel", subtitle = "Wczytuje plik z pamięci telefonu.") {
-                M3Button(onClick = { excelPicker.launch("*/*") }, modifier = Modifier.fillMaxWidth()) {
-                    Text("Wczytaj Excel")
-                }
-                M3Button(onClick = { folderPicker.launch(null) }, modifier = Modifier.fillMaxWidth()) {
-                    Text("Wybierz folder eksportu")
-                }
-                Text(
-                    if (uiState.exportFolderUri.isBlank()) {
-                        "Folder eksportu: nie wybrano"
-                    } else {
-                        "Folder eksportu: wybrany"
-                    },
-                )
+                M3Button(onClick = { excelPicker.launch("*/*") }, modifier = Modifier.fillMaxWidth()) { Text("Wczytaj Excel") }
+                M3Button(onClick = { folderPicker.launch(null) }, modifier = Modifier.fillMaxWidth()) { Text("Wybierz folder eksportu") }
+
+                Text(if (uiState.exportFolderUri.isBlank()) "Folder eksportu: nie wybrano" else "Folder eksportu: wybrany")
+
                 M3OutlinedTextField(
                     value = uiState.workbookImportText,
                     onValueChange = viewModel::updateWorkbookImportText,
@@ -122,9 +112,8 @@ fun PayrollScreen(_navController: NavController) {
                     modifier = Modifier.fillMaxWidth(),
                     minLines = 4,
                 )
-                M3Button(onClick = viewModel::stageWorkbookImport, modifier = Modifier.fillMaxWidth()) {
-                    Text("Odśwież podgląd")
-                }
+
+                M3Button(onClick = viewModel::stageWorkbookImport, modifier = Modifier.fillMaxWidth()) { Text("Odśwież podgląd") }
             }
         }
 
@@ -134,9 +123,8 @@ fun PayrollScreen(_navController: NavController) {
                     onClick = { isPreviewDialogOpen = true },
                     modifier = Modifier.fillMaxWidth(),
                     enabled = uiState.previewRows.isNotEmpty(),
-                ) {
-                    Text("Podgląd/Export")
-                }
+                ) { Text("Podgląd/Export") }
+
                 if (uiState.previewRows.isEmpty()) {
                     Text("Brak danych do podglądu. Najpierw wczytaj plik Excel/CSV.")
                 }
@@ -159,21 +147,17 @@ fun PayrollScreen(_navController: NavController) {
                             Text(header.ifBlank { "kolumna_${index + 1}" }, modifier = Modifier.padding(top = 12.dp))
                         }
                     }
-                    M3Button(onClick = viewModel::selectAllPreviewColumns, modifier = Modifier.fillMaxWidth()) {
-                        Text("Zaznacz kolumny")
-                    }
+
+                    M3Button(onClick = viewModel::selectAllPreviewColumns, modifier = Modifier.fillMaxWidth()) { Text("Zaznacz kolumny") }
                     M3Button(
                         onClick = {
                             isPreviewDialogOpen = false
                             isSpreadsheetDialogOpen = true
                         },
                         modifier = Modifier.fillMaxWidth(),
-                    ) {
-                        Text("Otwórz tabelę w nowym oknie")
-                    }
-                    M3Button(onClick = { isPreviewDialogOpen = false }, modifier = Modifier.fillMaxWidth()) {
-                        Text("Zamknij")
-                    }
+                    ) { Text("Otwórz tabelę w nowym oknie") }
+
+                    M3Button(onClick = { isPreviewDialogOpen = false }, modifier = Modifier.fillMaxWidth()) { Text("Zamknij") }
                 }
             }
         }
@@ -213,8 +197,8 @@ private fun PreviewSpreadsheetTable(
     val horizontalState = rememberScrollState()
     val verticalState = rememberScrollState()
     val visibleColumns = if (selectedColumns.isEmpty()) headers.indices.toList() else selectedColumns.sorted()
-    val headerColor = MaterialTheme.colorScheme.surfaceVariant
     val gridColor = MaterialTheme.colorScheme.outline
+    val headerColor = MaterialTheme.colorScheme.surfaceVariant
     val cellWidth = 140.dp
 
     Box(
@@ -226,16 +210,16 @@ private fun PreviewSpreadsheetTable(
     ) {
         Column(modifier = Modifier.verticalScroll(verticalState)) {
             Row(modifier = Modifier.background(headerColor)) {
-                SpreadsheetCell(text = "#", width = 48.dp, isHeader = true, borderColor = gridColor)
+                SpreadsheetCell(text = "#", width = 48.dp, borderColor = gridColor, isHeader = true)
                 visibleColumns.forEach { columnIndex ->
                     SpreadsheetCell(
                         text = headers.getOrNull(columnIndex).orEmpty().ifBlank { "kolumna_${columnIndex + 1}" },
                         width = cellWidth,
-                        isHeader = true,
                         borderColor = gridColor,
+                        isHeader = true,
                     )
                 }
-                SpreadsheetCell(text = "Eksport", width = 110.dp, isHeader = true, borderColor = gridColor)
+                SpreadsheetCell(text = "Eksport", width = 110.dp, borderColor = gridColor, isHeader = true)
             }
 
             rows.forEach { row ->
@@ -252,6 +236,7 @@ private fun PreviewSpreadsheetTable(
                             onCheckedChange = { onToggleRow(row.index) },
                         )
                     }
+
                     visibleColumns.forEach { columnIndex ->
                         SpreadsheetCell(
                             text = row.cells.getOrNull(columnIndex).orEmpty(),
@@ -259,6 +244,7 @@ private fun PreviewSpreadsheetTable(
                             borderColor = gridColor,
                         )
                     }
+
                     Box(
                         modifier = Modifier
                             .width(110.dp)
@@ -267,9 +253,7 @@ private fun PreviewSpreadsheetTable(
                             .padding(4.dp),
                         contentAlignment = Alignment.Center,
                     ) {
-                        M3Button(onClick = { onExportRow(row.index) }) {
-                            Text("Eksport")
-                        }
+                        M3Button(onClick = { onExportRow(row.index) }) { Text("Eksport") }
                     }
                     M3Button(onClick = { isPreviewDialogOpen = false }, modifier = Modifier.fillMaxWidth()) {
                         Text("Zamknij")
@@ -285,8 +269,8 @@ private fun PreviewSpreadsheetTable(
 private fun SpreadsheetCell(
     text: String,
     width: androidx.compose.ui.unit.Dp,
-    isHeader: Boolean = false,
     borderColor: Color,
+    isHeader: Boolean = false,
 ) {
     Box(
         modifier = Modifier
