@@ -47,13 +47,24 @@ fun PayrollScreen(_navController: NavController) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     var isPreviewDialogOpen by remember { mutableStateOf(false) }
     var isSpreadsheetDialogOpen by remember { mutableStateOf(false) }
+    val resolveDisplayNameFromUri: (Uri) -> String? = { uri ->
+        val projection = arrayOf(android.provider.OpenableColumns.DISPLAY_NAME)
+        app.contentResolver.query(uri, projection, null, null, null)?.use { cursor ->
+            val columnIndex = cursor.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME)
+            if (columnIndex >= 0 && cursor.moveToFirst()) {
+                cursor.getString(columnIndex)
+            } else {
+                null
+            }
+        }
+    }
 
     val excelPicker = rememberLauncherForActivityResult(
         contract = androidx.activity.result.contract.ActivityResultContracts.GetContent(),
     ) { uri: Uri? ->
         if (uri == null) return@rememberLauncherForActivityResult
         val mimeType = app.contentResolver.getType(uri)
-        val fileName = payrollResolveDisplayName(app, uri)
+        val fileName = resolveDisplayNameFromUri(uri)
         val bytes = runCatching {
             app.contentResolver.openInputStream(uri)?.use { it.readBytes() } ?: byteArrayOf()
         }.getOrDefault(byteArrayOf())
