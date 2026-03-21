@@ -12,12 +12,12 @@ Daemon will be stopped at the end of the build
 > Task :core-common:preDebugBuild UP-TO-DATE
 > Task :core-database:preBuild UP-TO-DATE
 > Task :core-database:preDebugBuild UP-TO-DATE
-> Task :core-database:writeDebugAarMetadata
 > Task :core-common:writeDebugAarMetadata
 > Task :app-admin:generateDebugResValues
+> Task :core-database:writeDebugAarMetadata
 > Task :core-common:generateDebugResValues
-> Task :app-admin:checkDebugAarMetadata
 > Task :core-common:generateDebugResources
+> Task :app-admin:checkDebugAarMetadata
 > Task :core-common:packageDebugResources
 > Task :core-database:generateDebugResValues
 > Task :core-database:generateDebugResources
@@ -32,19 +32,19 @@ Daemon will be stopped at the end of the build
 > Task :core-database:extractDeepLinksDebug
 > Task :app-admin:parseDebugLocalResources
 > Task :core-common:compileDebugLibraryResources
-> Task :core-database:compileDebugLibraryResources
 > Task :core-common:parseDebugLocalResources
-> Task :core-common:processDebugManifest
+> Task :core-database:compileDebugLibraryResources
 > Task :core-database:processDebugManifest
+> Task :core-common:processDebugManifest
 > Task :core-database:parseDebugLocalResources
 > Task :core-common:generateDebugRFile
 > Task :app-admin:processDebugMainManifest
 > Task :app-admin:processDebugManifest
 > Task :core-common:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :app-admin:processDebugManifestForPackage
 > Task :core-database:generateDebugRFile
 > Task :core-database:checkKotlinGradlePluginConfigurationErrors SKIPPED
 > Task :core-common:javaPreCompileDebug
-> Task :app-admin:processDebugManifestForPackage
 > Task :core-database:javaPreCompileDebug
 > Task :app-admin:javaPreCompileDebug
 > Task :app-admin:mergeDebugShaders
@@ -61,22 +61,29 @@ Daemon will be stopped at the end of the build
 > Task :app-admin:mergeDebugAssets
 > Task :app-admin:compressDebugAssets
 > Task :app-admin:desugarDebugFileDependencies
+> Task :app-admin:processDebugResources
 > Task :app-admin:mergeDebugJniLibFolders
 > Task :core-common:mergeDebugJniLibFolders
 > Task :core-common:mergeDebugNativeLibs NO-SOURCE
+> Task :app-admin:checkDebugDuplicateClasses
 > Task :core-common:copyDebugJniLibsProjectOnly
 > Task :core-database:mergeDebugJniLibFolders
+> Task :core-common:compileDebugKotlin
+> Task :app-admin:mergeExtDexDebug
+> Task :core-common:compileDebugJavaWithJavac NO-SOURCE
+> Task :core-common:processDebugJavaRes
+> Task :core-common:bundleLibRuntimeToJarDebug
+> Task :core-common:bundleLibCompileToJarDebug
+> Task :core-common:bundleLibRuntimeToDirDebug
 > Task :core-database:mergeDebugNativeLibs NO-SOURCE
-> Task :app-admin:checkDebugDuplicateClasses
 > Task :core-database:copyDebugJniLibsProjectOnly
-> Task :app-admin:processDebugResources
 > Task :app-admin:mergeDebugNativeLibs
-> Task :app-admin:validateSigningDebug
-> Task :app-admin:writeDebugAppMetadata
 
 > Task :app-admin:stripDebugDebugSymbols
 Unable to strip the following libraries, packaging them as they are: libandroidx.graphics.path.so.
 
+> Task :app-admin:validateSigningDebug
+> Task :app-admin:writeDebugAppMetadata
 > Task :app-admin:writeDebugSigningConfigVersions
 > Task :app-driver:preBuild UP-TO-DATE
 > Task :app-driver:preDebugBuild UP-TO-DATE
@@ -102,9 +109,10 @@ Unable to strip the following libraries, packaging them as they are: libandroidx
 > Task :app-driver:compressDebugAssets
 > Task :app-driver:desugarDebugFileDependencies
 > Task :app-driver:processDebugResources
-> Task :app-driver:mergeDebugJniLibFolders
 > Task :app-driver:checkDebugDuplicateClasses
+> Task :app-driver:mergeDebugJniLibFolders
 > Task :app-driver:mergeDebugNativeLibs
+> Task :core-database:kspDebugKotlin
 
 > Task :app-driver:stripDebugDebugSymbols
 Unable to strip the following libraries, packaging them as they are: libandroidx.graphics.path.so.
@@ -113,31 +121,91 @@ Unable to strip the following libraries, packaging them as they are: libandroidx
 > Task :app-driver:writeDebugAppMetadata
 > Task :app-driver:writeDebugSigningConfigVersions
 > Task :app-driver:mergeExtDexDebug
-> Task :app-admin:mergeExtDexDebug
-> Task :core-common:compileDebugKotlin
-> Task :core-common:compileDebugJavaWithJavac NO-SOURCE
-> Task :core-common:bundleLibRuntimeToJarDebug
-> Task :core-common:bundleLibCompileToJarDebug
-> Task :core-common:processDebugJavaRes
-> Task :core-common:bundleLibRuntimeToDirDebug
-> Task :core-database:kspDebugKotlin
 > Task :core-database:compileDebugKotlin
 > Task :core-database:compileDebugJavaWithJavac
+> Task :core-database:processDebugJavaRes
 > Task :core-database:bundleLibCompileToJarDebug
 > Task :core-database:bundleLibRuntimeToJarDebug
-> Task :core-database:processDebugJavaRes
 > Task :core-database:bundleLibRuntimeToDirDebug
-> Task :app-driver:mergeLibDexDebug
 > Task :app-admin:mergeLibDexDebug
+> Task :app-driver:mergeLibDexDebug
+> Task :app-driver:compileDebugKotlin
+> Task :app-driver:compileDebugJavaWithJavac NO-SOURCE
+> Task :app-driver:dexBuilderDebug
+> Task :app-driver:mergeDebugGlobalSynthetics
+> Task :app-driver:processDebugJavaRes
+> Task :app-driver:mergeProjectDexDebug
+> Task :app-driver:mergeDebugJavaResource
 
 > Task :app-admin:compileDebugKotlin FAILED
-e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/PayrollScreen.kt:117:9 Unresolved reference 'AlertDialog'.
-e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/PayrollScreen.kt:119:23 @Composable invocations can only happen from the context of a @Composable function
-e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/PayrollScreen.kt:121:17 @Composable invocations can only happen from the context of a @Composable function
-e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/PayrollScreen.kt:159:17 @Composable invocations can only happen from the context of a @Composable function
+e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/PayrollScreen.kt:132:63 Overload resolution ambiguity between candidates:
+fun togglePreviewColumnSelection(index: Int): Unit
+fun togglePreviewColumnSelection(index: Int): Unit
+e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/PayrollScreen.kt:137:49 Overload resolution ambiguity between candidates:
+fun selectAllPreviewColumns(): Unit
+fun selectAllPreviewColumns(): Unit
+e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/PayrollScreen.kt:148:63 Overload resolution ambiguity between candidates:
+fun togglePreviewRowSelection(index: Int): Unit
+fun togglePreviewRowSelection(index: Int): Unit
+e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/PayrollScreen.kt:156:58 Overload resolution ambiguity between candidates:
+fun exportSinglePreviewRowToFolder(context: Context, index: Int): Job
+fun exportSinglePreviewRowToFolder(context: Context, index: Int): Job
+e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/viewmodel/AdminViewModels.kt:359:5 Conflicting overloads:
+fun togglePreviewRowSelection(index: Int): Unit
+e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/viewmodel/AdminViewModels.kt:366:5 Conflicting overloads:
+fun clearPreviewSelection(): Unit
+e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/viewmodel/AdminViewModels.kt:370:5 Conflicting overloads:
+fun togglePreviewColumnSelection(index: Int): Unit
+e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/viewmodel/AdminViewModels.kt:377:5 Conflicting overloads:
+fun selectAllPreviewColumns(): Unit
+e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/viewmodel/AdminViewModels.kt:382:5 Conflicting overloads:
+fun exportSinglePreviewRow(index: Int): Job
+e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/viewmodel/AdminViewModels.kt:401:5 Conflicting overloads:
+fun exportSinglePreviewRowToFolder(context: Context, index: Int): Job
+e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/viewmodel/AdminViewModels.kt:413:31 Overload resolution ambiguity between candidates:
+fun selectedHeaders(selectedColumns: Set<Int>): List<String>
+fun selectedHeaders(selectedColumns: Set<Int>): List<String>
+e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/viewmodel/AdminViewModels.kt:426:24 Overload resolution ambiguity between candidates:
+fun exportFileName(name: String, surname: String): String
+fun exportFileName(name: String, surname: String): String
+e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/viewmodel/AdminViewModels.kt:433:5 Conflicting overloads:
+fun exportSelectedPreviewRows(): Job
+e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/viewmodel/AdminViewModels.kt:455:5 Conflicting overloads:
+fun selectedHeaders(selectedColumns: Set<Int>): List<String>
+e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/viewmodel/AdminViewModels.kt:501:5 Conflicting overloads:
+fun exportFileName(name: String, surname: String): String
+e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/viewmodel/AdminViewModels.kt:508:5 Conflicting overloads:
+fun copyFileToDocumentTree(context: Context, source: File, folderUri: Uri, fileName: String): Boolean
+e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/viewmodel/AdminViewModels.kt:521:5 Conflicting overloads:
+fun togglePreviewRowSelection(index: Int): Unit
+e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/viewmodel/AdminViewModels.kt:528:5 Conflicting overloads:
+fun clearPreviewSelection(): Unit
+e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/viewmodel/AdminViewModels.kt:532:5 Conflicting overloads:
+fun togglePreviewColumnSelection(index: Int): Unit
+e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/viewmodel/AdminViewModels.kt:539:5 Conflicting overloads:
+fun selectAllPreviewColumns(): Unit
+e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/viewmodel/AdminViewModels.kt:544:5 Conflicting overloads:
+fun exportSinglePreviewRow(index: Int): Job
+e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/viewmodel/AdminViewModels.kt:563:5 Conflicting overloads:
+fun exportSinglePreviewRowToFolder(context: Context, index: Int): Job
+e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/viewmodel/AdminViewModels.kt:575:31 Overload resolution ambiguity between candidates:
+fun selectedHeaders(selectedColumns: Set<Int>): List<String>
+fun selectedHeaders(selectedColumns: Set<Int>): List<String>
+e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/viewmodel/AdminViewModels.kt:588:24 Overload resolution ambiguity between candidates:
+fun exportFileName(name: String, surname: String): String
+fun exportFileName(name: String, surname: String): String
+e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/viewmodel/AdminViewModels.kt:595:5 Conflicting overloads:
+fun exportSelectedPreviewRows(): Job
+e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/viewmodel/AdminViewModels.kt:617:5 Conflicting overloads:
+fun selectedHeaders(selectedColumns: Set<Int>): List<String>
+e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/viewmodel/AdminViewModels.kt:626:5 Conflicting overloads:
+fun exportFileName(name: String, surname: String): String
+e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/viewmodel/AdminViewModels.kt:633:5 Conflicting overloads:
+fun copyFileToDocumentTree(context: Context, source: File, folderUri: Uri, fileName: String): Boolean
 
-> Task :app-driver:compileDebugKotlin
-gradle/actions: Writing build results to /home/runner/work/_temp/.gradle-actions/build-results/__run_2-1774092889497.json
+> Task :app-driver:packageDebug
+> Task :app-driver:createDebugApkListingFileRedirect
+gradle/actions: Writing build results to /home/runner/work/_temp/.gradle-actions/build-results/__run_2-1774095273852.json
 
 [Incubating] Problems report is available at: file:///home/runner/work/Flota/Flota/android-native/build/reports/problems/problems-report.html
 
@@ -351,5 +419,5 @@ You can use '--warning-mode all' to show the individual deprecation warnings and
 
 For more on this, please refer to https://docs.gradle.org/8.14.3/userguide/command_line_interface.html#sec:command_line_warnings in the Gradle documentation.
 
-BUILD FAILED in 1m 5s
-100 actionable tasks: 96 executed, 4 up-to-date
+BUILD FAILED in 2m 8s
+107 actionable tasks: 103 executed, 4 up-to-date
