@@ -12,12 +12,12 @@ Daemon will be stopped at the end of the build
 > Task :core-common:preDebugBuild UP-TO-DATE
 > Task :core-database:preBuild UP-TO-DATE
 > Task :core-database:preDebugBuild UP-TO-DATE
-> Task :core-common:writeDebugAarMetadata
 > Task :app-admin:generateDebugResValues
 > Task :core-database:writeDebugAarMetadata
+> Task :core-common:writeDebugAarMetadata
 > Task :core-common:generateDebugResValues
-> Task :core-common:generateDebugResources
 > Task :app-admin:checkDebugAarMetadata
+> Task :core-common:generateDebugResources
 > Task :core-common:packageDebugResources
 > Task :core-database:generateDebugResValues
 > Task :core-database:generateDebugResources
@@ -32,21 +32,22 @@ Daemon will be stopped at the end of the build
 > Task :core-database:extractDeepLinksDebug
 > Task :app-admin:parseDebugLocalResources
 > Task :core-common:compileDebugLibraryResources
-> Task :core-common:parseDebugLocalResources
 > Task :core-database:compileDebugLibraryResources
+> Task :core-common:parseDebugLocalResources
 > Task :core-common:processDebugManifest
-> Task :core-common:checkKotlinGradlePluginConfigurationErrors SKIPPED
 > Task :core-database:processDebugManifest
 > Task :core-database:parseDebugLocalResources
-> Task :core-common:generateDebugRFile
 > Task :app-admin:processDebugMainManifest
 > Task :app-admin:processDebugManifest
-> Task :core-database:generateDebugRFile
+> Task :core-common:checkKotlinGradlePluginConfigurationErrors SKIPPED
 > Task :app-admin:processDebugManifestForPackage
-> Task :core-common:javaPreCompileDebug
 > Task :core-database:checkKotlinGradlePluginConfigurationErrors SKIPPED
-> Task :app-admin:javaPreCompileDebug
+> Task :core-common:javaPreCompileDebug
+> Task :core-database:generateDebugRFile
+> Task :core-common:generateDebugRFile
 > Task :core-database:javaPreCompileDebug
+> Task :app-admin:processDebugResources
+> Task :app-admin:javaPreCompileDebug
 > Task :app-admin:mergeDebugShaders
 > Task :app-admin:compileDebugShaders NO-SOURCE
 > Task :app-admin:generateDebugAssets UP-TO-DATE
@@ -64,26 +65,25 @@ Daemon will be stopped at the end of the build
 > Task :app-admin:mergeDebugJniLibFolders
 > Task :core-common:mergeDebugJniLibFolders
 > Task :core-common:mergeDebugNativeLibs NO-SOURCE
-> Task :app-admin:processDebugResources
 > Task :core-common:copyDebugJniLibsProjectOnly
 > Task :core-database:mergeDebugJniLibFolders
 > Task :core-database:mergeDebugNativeLibs NO-SOURCE
-> Task :app-admin:checkDebugDuplicateClasses
 > Task :core-database:copyDebugJniLibsProjectOnly
-> Task :app-admin:mergeDebugNativeLibs
+> Task :app-admin:checkDebugDuplicateClasses
 > Task :app-admin:validateSigningDebug
 > Task :app-admin:writeDebugAppMetadata
+> Task :app-admin:mergeDebugNativeLibs
 > Task :app-admin:writeDebugSigningConfigVersions
 > Task :app-driver:preBuild UP-TO-DATE
+> Task :app-driver:preDebugBuild UP-TO-DATE
+> Task :app-driver:mergeDebugNativeDebugMetadata NO-SOURCE
+> Task :app-driver:checkKotlinGradlePluginConfigurationErrors SKIPPED
 
 > Task :app-admin:stripDebugDebugSymbols
 Unable to strip the following libraries, packaging them as they are: libandroidx.graphics.path.so.
 
-> Task :app-driver:preDebugBuild UP-TO-DATE
-> Task :app-driver:mergeDebugNativeDebugMetadata NO-SOURCE
-> Task :app-driver:checkKotlinGradlePluginConfigurationErrors SKIPPED
-> Task :app-driver:generateDebugResValues
 > Task :app-driver:checkDebugAarMetadata
+> Task :app-driver:generateDebugResValues
 > Task :app-driver:mapDebugSourceSetPaths
 > Task :app-driver:generateDebugResources
 > Task :app-driver:packageDebugResources
@@ -117,8 +117,8 @@ Unable to strip the following libraries, packaging them as they are: libandroidx
 > Task :core-common:compileDebugKotlin
 > Task :core-common:compileDebugJavaWithJavac NO-SOURCE
 > Task :core-common:processDebugJavaRes
-> Task :core-common:bundleLibCompileToJarDebug
 > Task :core-common:bundleLibRuntimeToJarDebug
+> Task :core-common:bundleLibCompileToJarDebug
 > Task :core-common:bundleLibRuntimeToDirDebug
 > Task :core-database:kspDebugKotlin
 > Task :core-database:compileDebugKotlin
@@ -130,8 +130,9 @@ Unable to strip the following libraries, packaging them as they are: libandroidx
 > Task :app-admin:mergeLibDexDebug
 > Task :app-driver:mergeLibDexDebug
 
-> Task :app-admin:compileDebugKotlin FAILED
+> Task :app-admin:compileDebugKotlin
 e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/PayrollScreen.kt:55:24 Overload resolution ambiguity between candidates:
+fun resolveDisplayName(context: Context, uri: Uri): String?
 fun resolveDisplayName(context: Context, uri: Uri): String?
 fun resolveDisplayName(context: Context, uri: Uri): String?
 e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/PayrollScreen.kt:195:51 Unresolved reference 'PayrollPreviewRow'.
@@ -148,11 +149,17 @@ e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/c
 e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/PayrollScreen.kt:292:12 Null cannot be a value of a non-null type 'kotlin.Unit'.
 e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/PayrollScreen.kt:295:1 Conflicting overloads:
 fun resolveDisplayName(context: Context, uri: Uri): String?
+fun resolveDisplayName(context: Context, uri: Uri): String?
 e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/PayrollScreen.kt:306:1 Conflicting overloads:
 fun resolveDisplayName(context: Context, uri: Uri): String?
+fun resolveDisplayName(context: Context, uri: Uri): String?
+e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/PayrollScreen.kt:317:1 Conflicting overloads:
+fun resolveDisplayName(context: Context, uri: Uri): String?
+fun resolveDisplayName(context: Context, uri: Uri): String?
 
+> Task :app-admin:compileDebugKotlin FAILED
 > Task :app-driver:compileDebugKotlin
-gradle/actions: Writing build results to /home/runner/work/_temp/.gradle-actions/build-results/__run_2-1774101116259.json
+gradle/actions: Writing build results to /home/runner/work/_temp/.gradle-actions/build-results/__run_2-1774102043996.json
 
 [Incubating] Problems report is available at: file:///home/runner/work/Flota/Flota/android-native/build/reports/problems/problems-report.html
 
