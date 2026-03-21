@@ -13,6 +13,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Call
 import androidx.compose.material.icons.rounded.Chat
+import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.FilledIconButton
@@ -45,7 +46,8 @@ fun ContactsScreen() {
     val app = context.applicationContext as AdminApp
     val viewModel: ContactsViewModel = viewModel(factory = AdminViewModelFactory(app.container.repository))
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-    var isAddDialogOpen by remember { mutableStateOf(false) }
+    var isDialogOpen by remember { mutableStateOf(false) }
+    var editedContact by remember { mutableStateOf<ContactListItem?>(null) }
 
     val filteredContacts = remember(uiState.items, uiState.query) {
         uiState.items.filter {
@@ -70,7 +72,8 @@ fun ContactsScreen() {
                     FilledIconButton(
                         onClick = {
                             viewModel.updateEditor(ContactDraft())
-                            isAddDialogOpen = true
+                            editedContact = null
+                            isDialogOpen = true
                         },
                         modifier = Modifier.size(42.dp),
                     ) {
@@ -99,24 +102,42 @@ fun ContactsScreen() {
                         contact = contact,
                         onCall = { openDialer(context, contact.phone) },
                         onWhatsApp = { openWhatsApp(context, contact.phone) },
+                        onEdit = {
+                            editedContact = contact
+                            viewModel.updateEditor(
+                                ContactDraft(
+                                    name = contact.name,
+                                    surname = contact.surname,
+                                    email = contact.email,
+                                    phone = contact.phone,
+                                    workplace = contact.workplace,
+                                    apartment = contact.apartment,
+                                    notes = contact.notes,
+                                ),
+                            )
+                            isDialogOpen = true
+                        },
                     )
                 }
             }
         }
     }
 
-    if (isAddDialogOpen) {
+    if (isDialogOpen) {
         AddContactDialog(
             draft = uiState.editor,
             isSaving = uiState.isSaving,
+            isEditing = editedContact != null,
             onDraftChange = viewModel::updateEditor,
             onDismiss = {
-                isAddDialogOpen = false
+                isDialogOpen = false
+                editedContact = null
                 viewModel.updateEditor(ContactDraft())
             },
             onSave = {
                 viewModel.save()
-                isAddDialogOpen = false
+                isDialogOpen = false
+                editedContact = null
             },
         )
     }
@@ -127,11 +148,26 @@ private fun ContactCard(
     contact: ContactListItem,
     onCall: () -> Unit,
     onWhatsApp: () -> Unit,
+    onEdit: () -> Unit,
 ) {
     SectionCard(
         title = listOf(contact.name, contact.surname).joinToString(" ").trim().ifBlank { "Bez nazwy" },
         subtitle = contact.workplace.ifBlank { "Brak przypisanego zakładu" },
     ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.End,
+        ) {
+            FilledIconButton(
+                onClick = onEdit,
+                modifier = Modifier.size(32.dp),
+            ) {
+                Icon(
+                    imageVector = Icons.Rounded.Edit,
+                    contentDescription = "Edytuj kontakt",
+                )
+            }
+        }
         Text("Telefon: ${contact.phone.ifBlank { "Brak numeru" }}")
         if (contact.email.isNotBlank()) {
             Text("Email: ${contact.email}")
@@ -179,6 +215,7 @@ private fun ContactCard(
 private fun AddContactDialog(
     draft: ContactDraft,
     isSaving: Boolean,
+    isEditing: Boolean,
     onDraftChange: (ContactDraft) -> Unit,
     onDismiss: () -> Unit,
     onSave: () -> Unit,
@@ -189,7 +226,7 @@ private fun AddContactDialog(
         onDismissRequest = onDismiss,
         title = {
             Text(
-                text = "Nowy kontakt",
+                text = if (isEditing) "Edytuj kontakt" else "Nowy kontakt",
                 fontWeight = FontWeight.Bold,
             )
         },
@@ -247,7 +284,13 @@ private fun AddContactDialog(
                 onClick = onSave,
                 enabled = isSaveEnabled && !isSaving,
             ) {
-                Text(if (isSaving) "Zapisywanie..." else "Dodaj kontakt")
+                Text(
+                    when {
+                        isSaving -> "Zapisywanie..."
+                        isEditing -> "Zapisz zmiany"
+                        else -> "Dodaj kontakt"
+                    },
+                )
             }
         },
         dismissButton = {

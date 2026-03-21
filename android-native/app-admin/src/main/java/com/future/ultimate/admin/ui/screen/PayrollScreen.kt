@@ -1,5 +1,6 @@
 package com.future.ultimate.admin.ui.screen
 
+import android.net.Uri
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -14,6 +15,8 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
@@ -33,6 +36,13 @@ fun PayrollScreen(navController: NavController) {
     val app = LocalContext.current.applicationContext as AdminApp
     val viewModel: PayrollViewModel = viewModel(factory = AdminViewModelFactory(app.container.repository))
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val excelPicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        val rawText = runCatching {
+            app.contentResolver.openInputStream(uri)?.bufferedReader(Charsets.UTF_8)?.use { it.readText() }.orEmpty()
+        }.getOrDefault("")
+        viewModel.loadWorkbookFromText(rawText)
+    }
     val smtpViewModel: SmtpViewModel = viewModel(factory = AdminViewModelFactory(app.container.repository))
     val smtpUiState by smtpViewModel.uiState.collectAsStateWithLifecycle()
     val templateViewModel: TemplateViewModel = viewModel(factory = AdminViewModelFactory(app.container.repository))
@@ -45,14 +55,6 @@ fun PayrollScreen(navController: NavController) {
         smtpUiState.settings.password.isNotBlank()
     val templateConfigured = templateUiState.template.subject.isNotBlank() && templateUiState.template.body.isNotBlank()
     val lastSession = reportsUiState.items.firstOrNull()
-    val filteredRecipients = uiState.contacts.filter {
-        val query = uiState.recipientQuery.trim().lowercase()
-        query.isBlank() || listOf(it.name, it.surname, it.email, it.workplace, it.phone)
-            .joinToString(" ")
-            .lowercase()
-            .contains(query)
-    }
-
     ScreenColumn("Wypłaty", "Kompletna logika finansowa, workbook, załączniki i wysyłka jak w legacy main") {
         item {
             SectionCard(
@@ -123,9 +125,12 @@ fun PayrollScreen(navController: NavController) {
         item {
             SectionCard(
                 title = "Workbook płac",
-                subtitle = "Wklej CSV/TSV/średnik, przygotuj staging i dołącz eksport workbooka.",
+                subtitle = "Wczytaj Excel/CSV z pamięci telefonu, podejrzyj i eksportuj pojedyncze lub zaznaczone wiersze.",
             ) {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Button(onClick = { excelPicker.launch("*/*") }, modifier = Modifier.fillMaxWidth()) {
+                        Text("Wczytaj Excel")
+                    }
                     OutlinedTextField(
                         value = uiState.workbookImportText,
                         onValueChange = viewModel::updateWorkbookImportText,
@@ -139,10 +144,38 @@ fun PayrollScreen(navController: NavController) {
                     Button(onClick = viewModel::attachStagedWorkbookCsv, modifier = Modifier.fillMaxWidth()) {
                         Text("Dołącz staging workbooka")
                     }
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Button(onClick = viewModel::exportSelectedPreviewRows, modifier = Modifier.weight(1f)) {
+                            Text("Export wybranej tabeli")
+                        }
+                        Button(onClick = viewModel::clearPreviewSelection, modifier = Modifier.weight(1f)) {
+                            Text("Wyczyść wybór")
+                        }
+                    }
                     if (uiState.stagedWorkbookRows.isNotEmpty()) {
                         Text("Staged workbook rows: ${uiState.stagedWorkbookRows.size}")
-                        uiState.stagedWorkbookRows.take(5).forEach { row ->
-                            Text("${row.name} ${row.surname} • ${row.workplace.ifBlank { "-" }} • ${row.amount.ifBlank { "-" }}")
+                        Text("Podgląd/Export")
+                        if (uiState.previewHeaders.isNotEmpty()) {
+                            Text("Nagłówki: ${uiState.previewHeaders.joinToString(" | ")}")
+                        }
+                        uiState.previewRows.take(30).forEach { row ->
+                            val selected = row.index in uiState.selectedPreviewRowIndexes
+                            Row(
+                                modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            ) {
+                                Checkbox(
+                                    checked = selected,
+                                    onCheckedChange = { viewModel.togglePreviewRowSelection(row.index) },
+                                )
+                                Text(
+                                    text = row.cells.joinToString(" | "),
+                                    modifier = Modifier.weight(1f).padding(top = 10.dp),
+                                )
+                                Button(onClick = { viewModel.exportSinglePreviewRow(row.index) }) {
+                                    Text("Export")
+                                }
+                            }
                         }
                         Button(onClick = viewModel::clearWorkbookImport, modifier = Modifier.fillMaxWidth()) {
                             Text("Wyczyść staging workbooka")
@@ -257,7 +290,7 @@ fun PayrollScreen(navController: NavController) {
             }
         }
         item {
-            if (filteredRecipients.isEmpty()) {
+            if (uiState.filteredRecipients.isEmpty()) {
                 SectionCard(
                     title = "Odbiorcy",
                     subtitle = "Brak odbiorców pasujących do bieżącego filtra.",
@@ -270,11 +303,10 @@ fun PayrollScreen(navController: NavController) {
                     subtitle = "Podgląd pierwszych 30 dopasowanych rekordów.",
                 ) {
                     Column(modifier = Modifier.fillMaxWidth()) {
-                        filteredRecipients.take(30).forEach { recipient ->
-                            val key = "${recipient.name.trim().lowercase()}|${recipient.surname.trim().lowercase()}|${recipient.email.trim().lowercase()}"
+                        uiState.filteredRecipients.take(30).forEach { recipient ->
                             Row(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
                                 Checkbox(
-                                    checked = key in uiState.selectedRecipientKeys,
+                                    checked = viewModel.isRecipientSelected(recipient),
                                     onCheckedChange = { viewModel.toggleSpecialRecipient(recipient) },
                                 )
                                 Column(modifier = Modifier.weight(1f)) {
