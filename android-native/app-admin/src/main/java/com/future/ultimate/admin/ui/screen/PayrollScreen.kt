@@ -10,6 +10,8 @@ import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button as M3Button
 import androidx.compose.material3.Checkbox as M3Checkbox
 import androidx.compose.material3.OutlinedTextField as M3OutlinedTextField
@@ -129,13 +131,21 @@ fun PayrollScreen(_navController: NavController) {
             SectionCard(title = "Podgląd arkusza Excel") {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text("Wybierz kolumny do eksportu:")
-                    displayHeaders.forEachIndexed { index, header ->
-                        Row(modifier = Modifier.fillMaxWidth()) {
-                            M3Checkbox(
-                                checked = index in uiState.selectedPreviewColumnIndexes,
-                                onCheckedChange = { viewModel.togglePreviewColumnSelection(index) },
-                            )
-                            Text(header.ifBlank { "kolumna_${index + 1}" }, modifier = Modifier.padding(top = 12.dp))
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(max = 320.dp)
+                            .verticalScroll(rememberScrollState()),
+                        verticalArrangement = Arrangement.spacedBy(4.dp),
+                    ) {
+                        displayHeaders.forEachIndexed { index, header ->
+                            Row(modifier = Modifier.fillMaxWidth()) {
+                                M3Checkbox(
+                                    checked = index in uiState.selectedPreviewColumnIndexes,
+                                    onCheckedChange = { viewModel.togglePreviewColumnSelection(index) },
+                                )
+                                Text(header.ifBlank { "kolumna_${index + 1}" }, modifier = Modifier.padding(top = 12.dp))
+                            }
                         }
                     }
 
@@ -150,6 +160,7 @@ fun PayrollScreen(_navController: NavController) {
 
                     M3Button(onClick = { isPreviewDialogOpen = false }, modifier = Modifier.fillMaxWidth()) { Text("Zamknij") }
                 }
+                uiState.actionMessage?.let { Text(it) }
             }
         }
     }
@@ -170,7 +181,6 @@ fun PayrollScreen(_navController: NavController) {
                         Text("Zamknij tabelę")
                     }
                 }
-                uiState.actionMessage?.let { Text(it) }
             }
         }
     }
