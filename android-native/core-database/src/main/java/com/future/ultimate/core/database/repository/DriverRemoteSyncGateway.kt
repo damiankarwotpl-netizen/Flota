@@ -128,20 +128,25 @@ internal object DriverRemoteSyncGateway {
             },
         )
 
-        val response = payloads.asSequence().mapNotNull { payload ->
-            runCatching {
+        var response: DriverLoginResponse? = null
+        for (payload in payloads) {
+            response = try {
                 val (statusCode, responseBody) = postPayloadToUrl(endpoint = endpoint, payload = payload)
                 require(statusCode in 200..299) { "HTTP $statusCode" }
                 parseDriverLoginResponse(responseBody, normalizedLogin)
-            }.getOrNull()
-        }.firstOrNull() ?: throw IllegalArgumentException("Błędny login lub hasło")
+            } catch (_: Exception) {
+                null
+            }
+            if (response != null) break
+        }
+        val resolvedResponse = response ?: throw IllegalArgumentException("Błędny login lub hasło")
 
         return DriverAccountEntity(
-            registration = response.registration,
+            registration = resolvedResponse.registration,
             login = normalizedLogin,
             password = normalizedPassword,
-            driverName = response.driverName,
-            changePassword = response.changePassword,
+            driverName = resolvedResponse.driverName,
+            changePassword = resolvedResponse.changePassword,
         )
     }
 
