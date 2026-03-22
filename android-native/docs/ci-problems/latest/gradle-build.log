@@ -13,11 +13,11 @@ Daemon will be stopped at the end of the build
 > Task :core-database:preBuild UP-TO-DATE
 > Task :core-database:preDebugBuild UP-TO-DATE
 > Task :core-common:writeDebugAarMetadata
-> Task :core-database:writeDebugAarMetadata
 > Task :app-admin:generateDebugResValues
+> Task :core-database:writeDebugAarMetadata
 > Task :core-common:generateDebugResValues
-> Task :core-common:generateDebugResources
 > Task :app-admin:checkDebugAarMetadata
+> Task :core-common:generateDebugResources
 > Task :core-common:packageDebugResources
 > Task :core-database:generateDebugResValues
 > Task :core-database:generateDebugResources
@@ -30,23 +30,23 @@ Daemon will be stopped at the end of the build
 > Task :app-admin:extractDeepLinksDebug
 > Task :core-common:extractDeepLinksDebug
 > Task :core-database:extractDeepLinksDebug
-> Task :core-common:compileDebugLibraryResources
 > Task :app-admin:parseDebugLocalResources
+> Task :core-common:compileDebugLibraryResources
 > Task :core-database:compileDebugLibraryResources
 > Task :core-common:parseDebugLocalResources
 > Task :core-database:parseDebugLocalResources
 > Task :core-common:processDebugManifest
 > Task :core-database:processDebugManifest
-> Task :core-common:checkKotlinGradlePluginConfigurationErrors SKIPPED
 > Task :core-database:generateDebugRFile
 > Task :core-common:generateDebugRFile
 > Task :app-admin:processDebugMainManifest
 > Task :app-admin:processDebugManifest
-> Task :core-common:javaPreCompileDebug
+> Task :core-common:checkKotlinGradlePluginConfigurationErrors SKIPPED
 > Task :app-admin:processDebugManifestForPackage
 > Task :core-database:checkKotlinGradlePluginConfigurationErrors SKIPPED
-> Task :app-admin:javaPreCompileDebug
+> Task :core-common:javaPreCompileDebug
 > Task :core-database:javaPreCompileDebug
+> Task :app-admin:javaPreCompileDebug
 > Task :app-admin:mergeDebugShaders
 > Task :app-admin:compileDebugShaders NO-SOURCE
 > Task :app-admin:generateDebugAssets UP-TO-DATE
@@ -65,23 +65,23 @@ Daemon will be stopped at the end of the build
 > Task :core-common:mergeDebugJniLibFolders
 > Task :core-common:mergeDebugNativeLibs NO-SOURCE
 > Task :core-common:copyDebugJniLibsProjectOnly
+> Task :app-admin:checkDebugDuplicateClasses
 > Task :core-database:mergeDebugJniLibFolders
 > Task :core-database:mergeDebugNativeLibs NO-SOURCE
-> Task :core-database:copyDebugJniLibsProjectOnly
 > Task :app-admin:processDebugResources
-> Task :app-admin:checkDebugDuplicateClasses
-> Task :app-admin:mergeDebugNativeLibs
-
-> Task :app-admin:stripDebugDebugSymbols
-Unable to strip the following libraries, packaging them as they are: libandroidx.graphics.path.so.
-
+> Task :core-database:copyDebugJniLibsProjectOnly
 > Task :app-admin:validateSigningDebug
 > Task :app-admin:writeDebugAppMetadata
+> Task :app-admin:mergeDebugNativeLibs
 > Task :app-admin:writeDebugSigningConfigVersions
 > Task :app-driver:preBuild UP-TO-DATE
 > Task :app-driver:preDebugBuild UP-TO-DATE
 > Task :app-driver:mergeDebugNativeDebugMetadata NO-SOURCE
 > Task :app-driver:checkKotlinGradlePluginConfigurationErrors SKIPPED
+
+> Task :app-admin:stripDebugDebugSymbols
+Unable to strip the following libraries, packaging them as they are: libandroidx.graphics.path.so.
+
 > Task :app-driver:generateDebugResValues
 > Task :app-driver:checkDebugAarMetadata
 > Task :app-driver:mapDebugSourceSetPaths
@@ -95,11 +95,6 @@ Unable to strip the following libraries, packaging them as they are: libandroidx
 > Task :app-driver:processDebugManifest
 > Task :app-driver:processDebugManifestForPackage
 > Task :app-driver:javaPreCompileDebug
-
-> Task :core-common:compileDebugKotlin
-e: The daemon has terminated unexpectedly on startup attempt #1 with error code: 0. The daemon process output:
-    1. Kotlin compile daemon is ready
-
 > Task :app-driver:mergeDebugShaders
 > Task :app-driver:compileDebugShaders NO-SOURCE
 > Task :app-driver:generateDebugAssets UP-TO-DATE
@@ -119,16 +114,17 @@ Unable to strip the following libraries, packaging them as they are: libandroidx
 > Task :app-driver:writeDebugSigningConfigVersions
 > Task :app-driver:mergeExtDexDebug
 > Task :app-admin:mergeExtDexDebug
+> Task :core-common:compileDebugKotlin
 > Task :core-common:compileDebugJavaWithJavac NO-SOURCE
-> Task :core-common:processDebugJavaRes
 > Task :core-common:bundleLibRuntimeToJarDebug
+> Task :core-common:processDebugJavaRes
 > Task :core-common:bundleLibCompileToJarDebug
 > Task :core-common:bundleLibRuntimeToDirDebug
 > Task :core-database:kspDebugKotlin
 
 > Task :core-database:compileDebugKotlin FAILED
-e: file:///home/runner/work/Flota/Flota/android-native/core-database/src/main/java/com/future/ultimate/core/database/repository/DriverRemoteSyncGateway.kt:282:5 Missing return statement.
-gradle/actions: Writing build results to /home/runner/work/_temp/.gradle-actions/build-results/__run_2-1774194820727.json
+e: file:///home/runner/work/Flota/Flota/android-native/core-database/src/main/java/com/future/ultimate/core/database/repository/StubDriverRepository.kt:11:1 Class 'StubDriverRepository' is not abstract and does not implement abstract member 'observeRemoteEndpointSettings'.
+gradle/actions: Writing build results to /home/runner/work/_temp/.gradle-actions/build-results/__run_2-1774209593814.json
 
 [Incubating] Problems report is available at: file:///home/runner/work/Flota/Flota/android-native/build/reports/problems/problems-report.html
 
@@ -342,5 +338,5 @@ You can use '--warning-mode all' to show the individual deprecation warnings and
 
 For more on this, please refer to https://docs.gradle.org/8.14.3/userguide/command_line_interface.html#sec:command_line_warnings in the Gradle documentation.
 
-BUILD FAILED in 57s
+BUILD FAILED in 1m 2s
 91 actionable tasks: 87 executed, 4 up-to-date
