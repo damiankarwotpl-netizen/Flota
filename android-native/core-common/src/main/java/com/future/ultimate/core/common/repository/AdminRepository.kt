@@ -265,6 +265,7 @@ interface AdminRepository {
     fun observeDriverRemoteSettings(): Flow<DriverRemoteSettingsData>
     suspend fun saveDriverRemoteSettings(settings: DriverRemoteSettingsData)
     suspend fun validateDriverRemoteSettings(settings: DriverRemoteSettingsData): String
+    suspend fun importDriverRemoteLogs(settings: DriverRemoteSettingsData): Int
 
     fun observeEmailTemplate(): Flow<EmailTemplateData>
     suspend fun saveEmailTemplate(template: EmailTemplateData)
@@ -291,6 +292,11 @@ interface AdminRepository {
     suspend fun saveVehicleReportDraft(draft: VehicleReportDraft)
     suspend fun exportVehicleReportPdf(draft: VehicleReportDraft): String
     suspend fun exportDatabaseSnapshot(): String
+    suspend fun importDatabaseWorkbook(
+        fileName: String?,
+        mimeType: String?,
+        bytes: ByteArray,
+    ): DatabaseWorkbookImportResult
     suspend fun exportContactsCsv(): String
     suspend fun exportContactRowXlsx(name: String, surname: String): String
     suspend fun exportPayrollPackage(contacts: List<ContactListItem>): String
@@ -302,6 +308,18 @@ interface AdminRepository {
         nameHint: String = "",
         surnameHint: String = "",
     ): String
+    suspend fun exportPayrollCashReportXlsx(
+        headers: List<String>,
+        rows: List<List<String>>,
+        totalAmount: String,
+    ): String
     suspend fun exportClothesHistoryCsv(): String
     suspend fun exportSessionReportsCsv(): String
 }
+
+data class DatabaseWorkbookImportResult(
+    val contactsImported: Int = 0,
+    val workersImported: Int = 0,
+    val plantsImported: Int = 0,
+    val clothesSizesImported: Int = 0,
+)

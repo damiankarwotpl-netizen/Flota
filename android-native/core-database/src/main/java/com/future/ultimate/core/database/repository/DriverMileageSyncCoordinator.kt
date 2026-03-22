@@ -43,15 +43,12 @@ internal object DriverMileageSyncCoordinator {
             val attemptAt = nowText()
             dao.upsertSetting(SettingEntity(key = attemptKey(reg), valText = attemptAt))
             val car = dao.getCarByRegistration(reg)
-            if (car == null) {
-                dao.upsertSetting(SettingEntity(key = statusKey(reg), valText = "Retry: brak auta do synchronizacji"))
-                dao.upsertSetting(SettingEntity(key = errorKey(reg), valText = "Nie znaleziono auta o rejestracji $reg"))
-                return@forEach
-            }
             val driverAccount = dao.getDriverAccountByRegistration(reg)
 
-            runCatching {
-                dao.updateMileageByRegistration(reg, pending.mileage)
+            try {
+                if (car != null) {
+                    dao.updateMileageByRegistration(reg, pending.mileage)
+                }
                 syncRemoteMileage(
                     dao = dao,
                     registration = reg,
@@ -62,10 +59,19 @@ internal object DriverMileageSyncCoordinator {
                 )
                 dao.upsertSetting(SettingEntity(key = "driver_last_mileage_$reg", valText = pending.mileage.toString()))
                 dao.upsertSetting(SettingEntity(key = syncedKey(reg), valText = attemptAt))
-                dao.upsertSetting(SettingEntity(key = statusKey(reg), valText = "Zsynchronizowano"))
+                dao.upsertSetting(
+                    SettingEntity(
+                        key = statusKey(reg),
+                        valText = if (car == null) {
+                            "Zsynchronizowano zdalnie (brak lokalnego auta)"
+                        } else {
+                            "Zsynchronizowano"
+                        },
+                    ),
+                )
                 dao.upsertSetting(SettingEntity(key = errorKey(reg), valText = ""))
                 dao.upsertSetting(SettingEntity(key = pendingKey(reg), valText = ""))
-            }.onFailure { error ->
+            } catch (error: Exception) {
                 dao.upsertSetting(SettingEntity(key = statusKey(reg), valText = "Retry po błędzie synchronizacji"))
                 dao.upsertSetting(
                     SettingEntity(
