@@ -5,10 +5,12 @@ import com.future.ultimate.core.database.entity.DriverAccountEntity
 import com.future.ultimate.core.database.entity.SettingEntity
 import java.net.HttpURLConnection
 import java.net.URL
+import java.net.URLEncoder
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import org.json.JSONArray
 import org.json.JSONObject
 
 internal object DriverRemoteSyncGateway {
@@ -107,32 +109,82 @@ internal object DriverRemoteSyncGateway {
         val normalizedPassword = password.trim()
         require(normalizedLogin.isNotBlank()) { "Brak loginu kierowcy" }
         require(normalizedPassword.isNotBlank()) { "Brak hasła kierowcy" }
-        val (statusCode, responseBody) = postPayloadToUrl(
-            endpoint = loadEndpoint(dao),
-            payload = JSONObject().apply {
+        val endpoint = loadEndpoint(dao)
+        val payloads = listOf(
+            JSONObject().apply {
                 put("action", "login_driver")
                 put("login", normalizedLogin)
                 put("password", normalizedPassword)
             },
+            JSONObject().apply {
+                put("action", "login")
+                put("login", normalizedLogin)
+                put("password", normalizedPassword)
+            },
+            JSONObject().apply {
+                put("action", "driver_login")
+                put("login", normalizedLogin)
+                put("password", normalizedPassword)
+            },
         )
-        require(statusCode in 200..299) { "HTTP $statusCode" }
-        val json = JSONObject(responseBody)
+
+        val response = payloads.asSequence().mapNotNull { payload ->
+            runCatching {
+                val (statusCode, responseBody) = postPayloadToUrl(endpoint = endpoint, payload = payload)
+                require(statusCode in 200..299) { "HTTP $statusCode" }
+                parseDriverLoginResponse(responseBody, normalizedLogin)
+            }.getOrNull()
+        }.firstOrNull() ?: throw IllegalArgumentException("Błędny login lub hasło")
+
+        return DriverAccountEntity(
+            registration = response.registration,
+            login = normalizedLogin,
+            password = normalizedPassword,
+            driverName = response.driverName,
+            changePassword = response.changePassword,
+        )
+    }
+
+    private fun parseDriverLoginResponse(
+        body: String,
+        fallbackLogin: String,
+    ): DriverLoginResponse {
+        val trimmed = body.trim()
+        require(trimmed.isNotBlank()) { "Pusta odpowiedź endpointu logowania" }
+        val json = when {
+            trimmed.startsWith("[") -> {
+                val array = JSONArray(trimmed)
+                require(array.length() > 0) { "Endpoint nie zwrócił danych kierowcy" }
+                array.optJSONObject(0) ?: throw IllegalArgumentException("Endpoint zwrócił nieprawidłową odpowiedź logowania")
+            }
+            trimmed.startsWith("{") -> JSONObject(trimmed)
+            else -> throw IllegalArgumentException("Endpoint zwrócił nieobsługiwany format logowania")
+        }
+
         val status = json.optString("status").trim().lowercase()
-        require(status in okStatuses) {
-            json.optString("message").ifBlank { "Błędny login lub hasło" }
+        if (status.isNotBlank()) {
+            require(status in okStatuses) {
+                json.optString("message")
+                    .takeIf { it.isNotBlank() }
+                    ?: json.optString("error").takeIf { it.isNotBlank() }
+                    ?: "Błędny login lub hasło"
+            }
         }
         val registration = json.optString("registration")
             .ifBlank { json.optString("plate") }
+            .ifBlank { json.optString("rej") }
             .trim()
             .uppercase()
         require(registration.isNotBlank()) { "Endpoint nie zwrócił numeru rejestracyjnego kierowcy" }
         val driverName = json.optString("name")
             .ifBlank { json.optString("driverName") }
+            .ifBlank { json.optString("driver") }
             .trim()
-            .ifBlank { normalizedLogin }
+            .ifBlank { fallbackLogin }
         val rawChangePassword = when {
             json.has("changePassword") -> json.opt("changePassword")
             json.has("change_password") -> json.opt("change_password")
+            json.has("resetRequired") -> json.opt("resetRequired")
             else -> null
         }
         val changePassword = when (rawChangePassword) {
@@ -141,14 +193,18 @@ internal object DriverRemoteSyncGateway {
             is String -> if (rawChangePassword == "1" || rawChangePassword.equals("true", ignoreCase = true)) 1 else 0
             else -> 0
         }
-        return DriverAccountEntity(
+        return DriverLoginResponse(
             registration = registration,
-            login = normalizedLogin,
-            password = normalizedPassword,
             driverName = driverName,
             changePassword = changePassword,
         )
     }
+
+    private data class DriverLoginResponse(
+        val registration: String,
+        val driverName: String,
+        val changePassword: Int,
+    )
 
     private suspend fun postDriverPayload(
         dao: AppDao,
@@ -188,17 +244,27 @@ internal object DriverRemoteSyncGateway {
     }
 
     private suspend fun postPayloadToUrl(endpoint: String, payload: JSONObject): Pair<Int, String> = withContext(Dispatchers.IO) {
+        runCatching { postRequest(endpoint, payload.toString(), "application/json; charset=utf-8") }
+            .getOrElse {
+                val formBody = payload.keys().asSequence().joinToString("&") { key ->
+                    val value = payload.opt(key)?.toString().orEmpty()
+                    "${key.urlEncode()}=${value.urlEncode()}"
+                }
+                postRequest(endpoint, formBody, "application/x-www-form-urlencoded; charset=utf-8")
+            }
+    }
+
+    private fun postRequest(endpoint: String, body: String, contentType: String): Pair<Int, String> {
         val connection = (URL(endpoint).openConnection() as HttpURLConnection).apply {
             requestMethod = "POST"
             connectTimeout = 10000
             readTimeout = 10000
             doOutput = true
-            setRequestProperty("Content-Type", "application/json; charset=utf-8")
+            setRequestProperty("Content-Type", contentType)
         }
-
         try {
             connection.outputStream.bufferedWriter(Charsets.UTF_8).use { writer ->
-                writer.write(payload.toString())
+                writer.write(body)
             }
             val responseCode = connection.responseCode
             val responseBody = runCatching {
@@ -210,6 +276,8 @@ internal object DriverRemoteSyncGateway {
             connection.disconnect()
         }
     }
+
+    private fun String.urlEncode(): String = URLEncoder.encode(this, Charsets.UTF_8.name())
 
     private suspend fun markDriverRemoteSync(
         registration: String,
