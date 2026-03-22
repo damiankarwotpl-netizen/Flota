@@ -100,6 +100,9 @@ fun SettingsScreen(
                     Button(onClick = viewModel::validateDriverRemoteSettings, modifier = Modifier.fillMaxWidth()) {
                         Text(if (uiState.isValidatingRemoteSettings) "Sprawdzanie endpointu..." else "Sprawdź endpoint kierowców")
                     }
+                    Button(onClick = viewModel::importDriverRemoteLogs, modifier = Modifier.fillMaxWidth()) {
+                        Text(if (uiState.isImportingRemoteLogs) "Pobieranie logów kierowców..." else "Zaczytaj logi kierowców z endpointu")
+                    }
                     uiState.actionMessage?.let { Text(it) }
                 }
             }

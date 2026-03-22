@@ -852,6 +852,49 @@ class LocalAdminRepository(
     override suspend fun validateDriverRemoteSettings(settings: DriverRemoteSettingsData): String =
         DriverRemoteSyncGateway.validateEndpoint(dao, settings.apiUrl)
 
+    override suspend fun importDriverRemoteLogs(settings: DriverRemoteSettingsData): Int {
+        val logs = DriverRemoteSyncGateway.fetchRemoteLogs(dao, settings.apiUrl)
+        var imported = 0
+        logs.forEach { log ->
+            val existingCar = dao.getCarByRegistration(log.registration)
+            val existingAccount = dao.getDriverAccountByRegistration(log.registration)
+            dao.upsertCar(
+                CarEntity(
+                    id = existingCar?.id ?: 0,
+                    name = existingCar?.name?.takeIf { it.isNotBlank() }
+                        ?: log.driverName.ifBlank { "Auto ${log.registration}" },
+                    registration = log.registration,
+                    driver = existingCar?.driver?.takeIf { it.isNotBlank() }
+                        ?: log.driverName,
+                    mileage = maxOf(existingCar?.mileage ?: 0, log.mileage),
+                    serviceInterval = existingCar?.serviceInterval ?: 15000,
+                    lastService = existingCar?.lastService ?: 0,
+                ),
+            )
+            if (existingAccount == null && (log.driverName.isNotBlank() || log.login.isNotBlank())) {
+                dao.upsertDriverAccount(
+                    DriverAccountEntity(
+                        registration = log.registration,
+                        login = log.login.ifBlank { log.driverName.lowercase().replace(" ", ".") },
+                        password = "",
+                        driverName = log.driverName.ifBlank { existingCar?.driver.orEmpty() },
+                        changePassword = 0,
+                    ),
+                )
+            }
+            dao.upsertSetting(
+                SettingEntity(
+                    key = "driver_mileage_sync_at_${log.registration}",
+                    valText = log.timestamp.ifBlank { LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")) },
+                ),
+            )
+            dao.upsertSetting(SettingEntity(key = "driver_mileage_sync_status_${log.registration}", valText = "Zaimportowano z endpointu"))
+            dao.upsertSetting(SettingEntity(key = "driver_mileage_sync_error_${log.registration}", valText = ""))
+            imported += 1
+        }
+        return imported
+    }
+
     override fun observeEmailTemplate(): Flow<EmailTemplateData> = dao.observeSettings().map { settings ->
         val map = settings.associateBy({ it.key }, { it.valText })
         EmailTemplateData(

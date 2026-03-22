@@ -265,6 +265,7 @@ interface AdminRepository {
     fun observeDriverRemoteSettings(): Flow<DriverRemoteSettingsData>
     suspend fun saveDriverRemoteSettings(settings: DriverRemoteSettingsData)
     suspend fun validateDriverRemoteSettings(settings: DriverRemoteSettingsData): String
+    suspend fun importDriverRemoteLogs(settings: DriverRemoteSettingsData): Int
 
     fun observeEmailTemplate(): Flow<EmailTemplateData>
     suspend fun saveEmailTemplate(template: EmailTemplateData)

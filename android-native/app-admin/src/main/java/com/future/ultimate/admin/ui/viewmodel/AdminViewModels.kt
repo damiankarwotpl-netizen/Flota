@@ -1921,6 +1921,23 @@ class SettingsViewModel(private val repository: AdminRepository) : ViewModel() {
             )
         }
     }
+
+    fun importDriverRemoteLogs() = viewModelScope.launch {
+        _uiState.value = _uiState.value.copy(isImportingRemoteLogs = true, actionMessage = "Trwa pobieranie logów kierowców...")
+        runCatching {
+            repository.importDriverRemoteLogs(_uiState.value.remoteSettings)
+        }.onSuccess { importedCount ->
+            _uiState.value = _uiState.value.copy(
+                isImportingRemoteLogs = false,
+                actionMessage = "Zaczytano logi kierowców: $importedCount",
+            )
+        }.onFailure { error ->
+            _uiState.value = _uiState.value.copy(
+                isImportingRemoteLogs = false,
+                actionMessage = error.message ?: "Pobieranie logów kierowców nie powiodło się",
+            )
+        }
+    }
 }
 
 class AdminViewModelFactory(private val repository: AdminRepository) : ViewModelProvider.Factory {

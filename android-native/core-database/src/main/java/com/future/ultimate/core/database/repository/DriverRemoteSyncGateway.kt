@@ -100,6 +100,27 @@ internal object DriverRemoteSyncGateway {
         return "Zdalny endpoint kierowców odpowiada prawidłowo"
     }
 
+    suspend fun fetchRemoteLogs(dao: AppDao, endpointOverride: String = ""): List<RemoteDriverLog> {
+        val endpoint = endpointOverride.trim().ifBlank { loadEndpoint(dao) }
+        require(endpoint.isNotBlank()) { "Brak endpointu zdalnej synchronizacji kierowców" }
+        val payloads = listOf(
+            JSONObject().apply { put("action", "get_logs") },
+            JSONObject().apply { put("action", "logs") },
+            JSONObject().apply { put("action", "driver_logs") },
+        )
+
+        payloads.forEach { payload ->
+            try {
+                val (statusCode, responseBody) = postPayloadToUrl(endpoint = endpoint, payload = payload)
+                require(statusCode in 200..299) { "HTTP $statusCode" }
+                return parseRemoteLogs(responseBody)
+            } catch (_: Exception) {
+                // try next payload variant
+            }
+        }
+        throw IllegalArgumentException("Nie udało się pobrać logów kierowców z endpointu")
+    }
+
     suspend fun loginDriver(
         dao: AppDao,
         login: String,
@@ -211,6 +232,14 @@ internal object DriverRemoteSyncGateway {
         val changePassword: Int,
     )
 
+    data class RemoteDriverLog(
+        val registration: String,
+        val mileage: Int,
+        val driverName: String,
+        val login: String,
+        val timestamp: String,
+    )
+
     private suspend fun postDriverPayload(
         dao: AppDao,
         registration: String,
@@ -320,6 +349,58 @@ internal object DriverRemoteSyncGateway {
                 .takeIf { it.isNotBlank() }
                 ?: json.optString("error").takeIf { it.isNotBlank() }
                 ?: "Endpoint zgłosił błąd walidacji"
+        }
+    }
+
+    private fun parseRemoteLogs(body: String): List<RemoteDriverLog> {
+        val trimmed = body.trim()
+        if (trimmed.isBlank()) return emptyList()
+        val rows = when {
+            trimmed.startsWith("[") -> JSONArray(trimmed)
+            trimmed.startsWith("{") -> {
+                val json = JSONObject(trimmed)
+                when (val logsNode = json.opt("logs")) {
+                    is JSONArray -> logsNode
+                    else -> JSONArray().apply {
+                        if (json.has("registration") || json.has("plate") || json.has("rej")) {
+                            put(json)
+                        }
+                    }
+                }
+            }
+            else -> return emptyList()
+        }
+
+        return buildList {
+            for (index in 0 until rows.length()) {
+                val item = rows.optJSONObject(index) ?: continue
+                val registration = item.optString("registration")
+                    .ifBlank { item.optString("plate") }
+                    .ifBlank { item.optString("rej") }
+                    .trim()
+                    .uppercase()
+                val mileage = item.optString("mileage")
+                    .ifBlank { item.optString("value") }
+                    .ifBlank { item.optString("odometer") }
+                    .toIntOrNull()
+                    ?: continue
+                if (registration.isBlank()) continue
+                add(
+                    RemoteDriverLog(
+                        registration = registration,
+                        mileage = mileage.coerceAtLeast(0),
+                        driverName = item.optString("name")
+                            .ifBlank { item.optString("driverName") }
+                            .ifBlank { item.optString("driver") }
+                            .trim(),
+                        login = item.optString("login").trim(),
+                        timestamp = item.optString("timestamp")
+                            .ifBlank { item.optString("date") }
+                            .ifBlank { item.optString("createdAt") }
+                            .trim(),
+                    ),
+                )
+            }
         }
     }
 
