@@ -2,6 +2,7 @@ package com.future.ultimate.core.database.repository
 
 import com.future.ultimate.core.common.model.VehicleReportDraft
 import com.future.ultimate.core.common.repository.DriverMileageSyncState
+import com.future.ultimate.core.common.repository.DriverRemoteEndpointSettings
 import com.future.ultimate.core.common.repository.DriverRepository
 import com.future.ultimate.core.common.repository.DriverSession
 import kotlinx.coroutines.flow.Flow
@@ -10,9 +11,11 @@ import kotlinx.coroutines.flow.asStateFlow
 
 class StubDriverRepository : DriverRepository {
     private val session = MutableStateFlow<DriverSession?>(null)
+    private val remoteEndpointSettings = MutableStateFlow(DriverRemoteEndpointSettings())
 
     override fun observeSession(): Flow<DriverSession?> = session.asStateFlow()
     override fun observeMileageSyncState(): Flow<DriverMileageSyncState> = MutableStateFlow(DriverMileageSyncState()).asStateFlow()
+    override fun observeRemoteEndpointSettings(): Flow<DriverRemoteEndpointSettings> = remoteEndpointSettings.asStateFlow()
 
     override suspend fun login(login: String, password: String): DriverSession = DriverSession(
         login = login,
@@ -36,6 +39,13 @@ class StubDriverRepository : DriverRepository {
         registration = registrationFallback(session.value?.registration),
         status = "Stub sync completed",
     )
+
+    override suspend fun saveRemoteEndpointSettings(settings: DriverRemoteEndpointSettings) {
+        remoteEndpointSettings.value = settings
+    }
+
+    override suspend fun validateRemoteEndpointSettings(settings: DriverRemoteEndpointSettings): String =
+        settings.apiUrl.trim().ifBlank { "Adres API jest wymagany" }
 
     override suspend fun saveVehicleReportDraft(draft: VehicleReportDraft) = Unit
 
