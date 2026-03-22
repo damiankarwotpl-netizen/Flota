@@ -21,8 +21,15 @@ class DriverLoginViewModel(
     private val _uiState = MutableStateFlow(DriverLoginUiState())
     val uiState: StateFlow<DriverLoginUiState> = _uiState.asStateFlow()
 
+    init {
+        repository.observeRemoteEndpointSettings().onEach { settings ->
+            _uiState.value = _uiState.value.copy(remoteApiUrl = settings.apiUrl)
+        }.launchIn(viewModelScope)
+    }
+
     fun updateLogin(value: String) { _uiState.value = _uiState.value.copy(login = value) }
     fun updatePassword(value: String) { _uiState.value = _uiState.value.copy(password = value) }
+    fun updateRemoteApiUrl(value: String) { _uiState.value = _uiState.value.copy(remoteApiUrl = value, error = null) }
 
     fun login(onSuccess: (requiresPasswordChange: Boolean) -> Unit) {
         viewModelScope.launch {
@@ -35,6 +42,50 @@ class DriverLoginViewModel(
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
                     error = error.message ?: "Nie udało się zalogować",
+                )
+            }
+        }
+    }
+
+    fun saveRemoteSettings() {
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isSavingRemoteSettings = true, error = null)
+            try {
+                repository.saveRemoteEndpointSettings(
+                    com.future.ultimate.core.common.repository.DriverRemoteEndpointSettings(
+                        apiUrl = _uiState.value.remoteApiUrl,
+                    ),
+                )
+                _uiState.value = _uiState.value.copy(
+                    isSavingRemoteSettings = false,
+                    error = "Zapisano endpoint zdalnej synchronizacji",
+                )
+            } catch (error: Exception) {
+                _uiState.value = _uiState.value.copy(
+                    isSavingRemoteSettings = false,
+                    error = error.message ?: "Nie udało się zapisać endpointu",
+                )
+            }
+        }
+    }
+
+    fun validateRemoteSettings() {
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isValidatingRemoteSettings = true, error = null)
+            try {
+                val message = repository.validateRemoteEndpointSettings(
+                    com.future.ultimate.core.common.repository.DriverRemoteEndpointSettings(
+                        apiUrl = _uiState.value.remoteApiUrl,
+                    ),
+                )
+                _uiState.value = _uiState.value.copy(
+                    isValidatingRemoteSettings = false,
+                    error = message,
+                )
+            } catch (error: Exception) {
+                _uiState.value = _uiState.value.copy(
+                    isValidatingRemoteSettings = false,
+                    error = error.message ?: "Walidacja endpointu nie powiodła się",
                 )
             }
         }

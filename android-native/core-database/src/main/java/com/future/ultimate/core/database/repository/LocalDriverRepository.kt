@@ -4,6 +4,7 @@ import android.content.Context
 import com.future.ultimate.core.common.model.VehicleReportDraft
 import com.future.ultimate.core.common.pdf.VehicleReportPdfExporter
 import com.future.ultimate.core.common.repository.DriverMileageSyncState
+import com.future.ultimate.core.common.repository.DriverRemoteEndpointSettings
 import com.future.ultimate.core.common.repository.DriverRepository
 import com.future.ultimate.core.common.repository.DriverSession
 import com.future.ultimate.core.database.dao.AppDao
@@ -13,6 +14,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.runBlocking
 
 class LocalDriverRepository(
@@ -31,6 +33,17 @@ class LocalDriverRepository(
             DriverMileageSyncCoordinator.buildState(
                 settings = settings.associateBy({ it.key }, { it.valText }),
                 registration = currentSession?.registration,
+            )
+        }
+
+    override fun observeRemoteEndpointSettings(): Flow<DriverRemoteEndpointSettings> =
+        dao.observeSettings().map { settings ->
+            DriverRemoteEndpointSettings(
+                apiUrl = settings
+                    .firstOrNull { it.key == DriverRemoteSyncGateway.EndpointSettingKey }
+                    ?.valText
+                    .orEmpty()
+                    .ifBlank { DriverRemoteSyncGateway.DefaultDriverRemoteApiUrl },
             )
         }
 
@@ -108,6 +121,13 @@ class LocalDriverRepository(
 
     override suspend fun flushPendingMileageSync(): DriverMileageSyncState =
         DriverMileageSyncCoordinator.flushPending(dao, session.value?.registration)
+
+    override suspend fun saveRemoteEndpointSettings(settings: DriverRemoteEndpointSettings) {
+        DriverRemoteSyncGateway.saveEndpoint(dao, settings.apiUrl)
+    }
+
+    override suspend fun validateRemoteEndpointSettings(settings: DriverRemoteEndpointSettings): String =
+        DriverRemoteSyncGateway.validateEndpoint(dao, settings.apiUrl)
 
     override suspend fun saveVehicleReportDraft(draft: VehicleReportDraft) {
         val current = session.value ?: throw IllegalStateException("Brak aktywnej sesji kierowcy")
