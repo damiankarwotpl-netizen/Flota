@@ -34,13 +34,14 @@ internal fun PreviewSpreadsheetTable(
     selectedRows: Set<Int>,
     onToggleRow: (Int) -> Unit,
     onToggleColumn: (Int) -> Unit,
+    showAllColumns: Boolean = false,
     showRowActions: Boolean = true,
     onExportRow: ((Int) -> Unit)? = null,
     onSendRow: ((Int) -> Unit)? = null,
 ) {
     val horizontalState = rememberScrollState()
     val verticalState = rememberScrollState()
-    val visibleColumns = if (selectedColumns.isEmpty()) headers.indices.toList() else selectedColumns.sorted()
+    val visibleColumns = if (showAllColumns || selectedColumns.isEmpty()) headers.indices.toList() else selectedColumns.sorted()
     val gridColor = MaterialTheme.colorScheme.outline
     val headerColor = MaterialTheme.colorScheme.surfaceVariant
     val cellWidth = 140.dp

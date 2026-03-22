@@ -1465,6 +1465,16 @@ class LocalAdminRepository(
             }
 
             val reportHeaders = listOf("LP") + headers + listOf("DATA", "PODPIS")
+            val nameColumnIndex = reportHeaders.indexOfFirst { it.contains("imi", ignoreCase = true) }.takeIf { it >= 0 } ?: 1
+            val surnameColumnIndex = reportHeaders.indexOfFirst { it.contains("nazw", ignoreCase = true) }.takeIf { it >= 0 } ?: 2
+            val amountColumnIndex = reportHeaders.indexOfFirst {
+                it.contains("suma", ignoreCase = true) ||
+                    it.contains("netto", ignoreCase = true) ||
+                    it.contains("różnica", ignoreCase = true) ||
+                    it.contains("/mtx", ignoreCase = true)
+            }.takeIf { it >= 0 } ?: 3
+            val dateColumnIndex = reportHeaders.lastIndex - 1
+            val signatureColumnIndex = reportHeaders.lastIndex
             var rowIndex = 0
             val headerRow = sheet.createRow(rowIndex++)
             reportHeaders.forEachIndexed { columnIndex, title ->
@@ -1476,7 +1486,7 @@ class LocalAdminRepository(
 
             rows.forEachIndexed { index, row ->
                 val sheetRow = sheet.createRow(rowIndex++)
-                val values = listOf((index + 1).toString()) + row + listOf("", "")
+                val values = listOf((index + 1).toString()) + row.map(::roundNumericString) + listOf("", "")
                 values.forEachIndexed { columnIndex, value ->
                     sheetRow.createCell(columnIndex).apply {
                         setCellValue(value)
@@ -1487,7 +1497,7 @@ class LocalAdminRepository(
 
             val statementRow = sheet.createRow(rowIndex++)
             statementRow.createCell(0).apply {
-                setCellValue("JA WYŻEJ PODPISANY ODEBRAŁEM CAŁOŚĆ GOTÓWKI")
+                setCellValue("ja niżej podpisany odebrałem całość gotówki")
                 cellStyle = headerStyle
             }
             sheet.addMergedRegion(CellRangeAddress(statementRow.rowNum, statementRow.rowNum, 0, reportHeaders.lastIndex))
@@ -1496,27 +1506,45 @@ class LocalAdminRepository(
             }
 
             val signatureHeaderRow = sheet.createRow(rowIndex++)
-            listOf("IMIĘ", "NAZWISKO", "SUMA", "DATA", "PODPIS").forEachIndexed { columnIndex, title ->
-                signatureHeaderRow.createCell(columnIndex).apply {
+            reportHeaders.indices.forEach { columnIndex ->
+                signatureHeaderRow.createCell(columnIndex).cellStyle = bodyStyle
+            }
+            listOf(
+                nameColumnIndex to "IMIĘ",
+                surnameColumnIndex to "NAZWISKO",
+                amountColumnIndex to "SUMA",
+                dateColumnIndex to "DATA",
+                signatureColumnIndex to "PODPIS",
+            ).forEach { (columnIndex, title) ->
+                signatureHeaderRow.getCell(columnIndex).apply {
                     setCellValue(title)
                     cellStyle = headerStyle
                 }
             }
 
             val signatureValueRow = sheet.createRow(rowIndex)
-            listOf("", "", totalAmount, "", "").forEachIndexed { columnIndex, value ->
+            reportHeaders.indices.forEach { columnIndex ->
                 signatureValueRow.createCell(columnIndex).apply {
-                    setCellValue(value)
+                    setCellValue("")
                     cellStyle = bodyStyle
                 }
             }
+            signatureValueRow.getCell(amountColumnIndex).setCellValue(roundNumericString(totalAmount))
 
             val widthRows = buildList {
                 add(reportHeaders)
-                addAll(rows.mapIndexed { index, row -> listOf((index + 1).toString()) + row + listOf("", "") })
-                add(listOf("JA WYŻEJ PODPISANY ODEBRAŁEM CAŁOŚĆ GOTÓWKI"))
-                add(listOf("IMIĘ", "NAZWISKO", "SUMA", "DATA", "PODPIS"))
-                add(listOf("", "", totalAmount, "", ""))
+                addAll(rows.mapIndexed { index, row -> listOf((index + 1).toString()) + row.map(::roundNumericString) + listOf("", "") })
+                add(List(reportHeaders.size) { columnIndex ->
+                    when (columnIndex) {
+                        nameColumnIndex -> "IMIĘ"
+                        surnameColumnIndex -> "NAZWISKO"
+                        amountColumnIndex -> "SUMA"
+                        dateColumnIndex -> "DATA"
+                        signatureColumnIndex -> "PODPIS"
+                        else -> ""
+                    }
+                })
+                add(List(reportHeaders.size) { columnIndex -> if (columnIndex == amountColumnIndex) roundNumericString(totalAmount) else "" })
             }
             applyColumnWidths(sheet = sheet, rows = widthRows, totalColumns = reportHeaders.size.coerceAtLeast(5))
             outputFile.outputStream().use { workbook.write(it) }
@@ -1540,6 +1568,12 @@ class LocalAdminRepository(
             val width = ((maxLength + 4).coerceIn(10, 40)) * 256
             sheet.setColumnWidth(columnIndex, width)
         }
+    }
+
+    private fun roundNumericString(value: String): String {
+        val normalized = value.trim().replace(" ", "").replace(",", ".")
+        val parsed = normalized.toDoubleOrNull() ?: return value
+        return kotlin.math.round(parsed).toInt().toString()
     }
 
     override suspend fun exportClothesHistoryCsv(): String {

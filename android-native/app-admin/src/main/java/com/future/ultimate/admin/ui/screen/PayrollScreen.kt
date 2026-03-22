@@ -202,6 +202,7 @@ fun PayrollScreen(_navController: NavController) {
                             selectedRows = uiState.selectedPreviewRowIndexes,
                             onToggleRow = viewModel::togglePreviewRowSelection,
                             onToggleColumn = viewModel::togglePreviewColumnSelection,
+                            showAllColumns = true,
                             showRowActions = false,
                         )
                         M3Button(onClick = { isCashReportDialogOpen = false }, modifier = Modifier.fillMaxWidth()) {

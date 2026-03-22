@@ -389,8 +389,6 @@ class PayrollViewModel(private val repository: AdminRepository) : ViewModel() {
                 when {
                     normalized.contains("imi") -> index
                     normalized.contains("nazw") -> index
-                    normalized.contains("suma") -> index
-                    normalized.contains("netto") -> index
                     else -> null
                 }
             }.toSet()
