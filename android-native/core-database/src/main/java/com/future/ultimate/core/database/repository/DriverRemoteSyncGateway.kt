@@ -66,19 +66,62 @@ internal object DriverRemoteSyncGateway {
         login: String,
         driverName: String,
     ) {
-        val payload = JSONObject().apply {
-            put("action", "mileage_update")
-            put("registration", registration)
-            put("plate", registration)
-            put("mileage", mileage.coerceAtLeast(0))
-            put("timestamp", queuedAt.ifBlank { nowText() })
-            if (login.isNotBlank()) put("login", login)
-            if (driverName.isNotBlank()) put("name", driverName)
+        val normalizedRegistration = registration.trim().uppercase()
+        val normalizedTimestamp = queuedAt.ifBlank { nowText() }
+        val normalizedMileage = mileage.coerceAtLeast(0)
+        val normalizedDriverName = driverName.trim()
+        val endpoint = loadEndpoint(dao)
+        val payloads = listOf(
+            mileagePayload(
+                action = "mileage_update",
+                registration = normalizedRegistration,
+                mileage = normalizedMileage,
+                timestamp = normalizedTimestamp,
+                login = login,
+                driverName = normalizedDriverName,
+            ),
+            mileagePayload(
+                action = "update_mileage",
+                registration = normalizedRegistration,
+                mileage = normalizedMileage,
+                timestamp = normalizedTimestamp,
+                login = login,
+                driverName = normalizedDriverName,
+            ),
+            mileagePayload(
+                action = "save_mileage",
+                registration = normalizedRegistration,
+                mileage = normalizedMileage,
+                timestamp = normalizedTimestamp,
+                login = login,
+                driverName = normalizedDriverName,
+            ),
+            mileagePayload(
+                action = "",
+                registration = normalizedRegistration,
+                mileage = normalizedMileage,
+                timestamp = normalizedTimestamp,
+                login = login,
+                driverName = normalizedDriverName,
+            ),
+        )
+
+        payloads.forEach { payload ->
+            try {
+                val (statusCode, responseBody) = postPayloadToUrl(
+                    endpoint = endpoint,
+                    payload = payload,
+                    preferFormEncoded = true,
+                )
+                require(statusCode in 200..299) { "HTTP $statusCode" }
+                validateResponse(responseBody, fallbackMessage = "Zdalny endpoint odrzucił aktualizację przebiegu")
+                return
+            } catch (_: Exception) {
+                // try next payload variant
+            }
         }
 
-        val (statusCode, responseBody) = postPayload(dao, payload)
-        require(statusCode in 200..299) { "HTTP $statusCode" }
-        validateResponse(responseBody, fallbackMessage = "Zdalny endpoint odrzucił aktualizację przebiegu")
+        throw IllegalArgumentException("Nie udało się zapisać przebiegu w zdalnym endpointcie kierowców")
     }
 
     suspend fun loadEndpoint(dao: AppDao): String =
@@ -276,15 +319,52 @@ internal object DriverRemoteSyncGateway {
         return postPayloadToUrl(endpoint = endpoint, payload = payload)
     }
 
-    private suspend fun postPayloadToUrl(endpoint: String, payload: JSONObject): Pair<Int, String> = withContext(Dispatchers.IO) {
-        runCatching { postRequest(endpoint, payload.toString(), "application/json; charset=utf-8") }
-            .getOrElse {
+    private suspend fun postPayloadToUrl(
+        endpoint: String,
+        payload: JSONObject,
+        preferFormEncoded: Boolean = false,
+    ): Pair<Int, String> = withContext(Dispatchers.IO) {
+        if (preferFormEncoded) {
+            runCatching {
                 val formBody = payload.keys().asSequence().joinToString("&") { key ->
                     val value = payload.opt(key)?.toString().orEmpty()
                     "${key.urlEncode()}=${value.urlEncode()}"
                 }
                 postRequest(endpoint, formBody, "application/x-www-form-urlencoded; charset=utf-8")
+            }.getOrElse {
+                postRequest(endpoint, payload.toString(), "application/json; charset=utf-8")
             }
+        } else {
+            runCatching { postRequest(endpoint, payload.toString(), "application/json; charset=utf-8") }
+                .getOrElse {
+                    val formBody = payload.keys().asSequence().joinToString("&") { key ->
+                        val value = payload.opt(key)?.toString().orEmpty()
+                        "${key.urlEncode()}=${value.urlEncode()}"
+                    }
+                    postRequest(endpoint, formBody, "application/x-www-form-urlencoded; charset=utf-8")
+                }
+        }
+    }
+
+    private fun mileagePayload(
+        action: String,
+        registration: String,
+        mileage: Int,
+        timestamp: String,
+        login: String,
+        driverName: String,
+    ): JSONObject = JSONObject().apply {
+        if (action.isNotBlank()) put("action", action)
+        put("registration", registration)
+        put("plate", registration)
+        put("rej", registration)
+        put("mileage", mileage)
+        put("value", mileage)
+        put("timestamp", timestamp)
+        put("driver", driverName)
+        put("name", driverName)
+        if (login.isNotBlank()) put("login", login)
+        if (driverName.isNotBlank()) put("driverName", driverName)
     }
 
     private fun postRequest(endpoint: String, body: String, contentType: String): Pair<Int, String> {
