@@ -22,21 +22,17 @@ class DriverMileageSyncWorker(
             dao = DatabaseFactory.create(applicationContext).appDao(),
             context = applicationContext,
         )
-        return runCatching {
-            repository.flushPendingMileageSync()
-        }.fold(
-            onSuccess = { state ->
-                DriverSyncNotifier.notifySyncState(applicationContext, state)
-                if (state.pendingCount > 0) Result.retry() else Result.success()
-            },
-            onFailure = { error ->
-                DriverSyncNotifier.notifyWorkerFailure(
-                    applicationContext,
-                    error.message ?: "Nieznany błąd pracy synchronizacji kierowcy",
-                )
-                Result.retry()
-            },
-        )
+        return try {
+            val state = repository.flushPendingMileageSync()
+            DriverSyncNotifier.notifySyncState(applicationContext, state)
+            if (state.pendingCount > 0) Result.retry() else Result.success()
+        } catch (error: Exception) {
+            DriverSyncNotifier.notifyWorkerFailure(
+                applicationContext,
+                error.message ?: "Nieznany błąd pracy synchronizacji kierowcy",
+            )
+            Result.retry()
+        }
     }
 
     companion object {
