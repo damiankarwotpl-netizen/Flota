@@ -379,6 +379,33 @@ class PayrollViewModel(private val repository: AdminRepository) : ViewModel() {
         _uiState.value = _uiState.value.copy(selectedPreviewColumnIndexes = all, actionMessage = "Zaznaczono wszystkie kolumny")
     }
 
+    fun prepareCashReportSelection() {
+        val previewRows = _uiState.value.previewRows
+        val previewHeaders = _uiState.value.previewHeaders
+        val fallbackMaxColumns = previewRows.maxOfOrNull { it.cells.size } ?: 0
+        val defaultColumns = if (previewHeaders.isNotEmpty()) {
+            previewHeaders.mapIndexedNotNull { index, header ->
+                val normalized = header.trim().lowercase()
+                when {
+                    normalized.contains("imi") -> index
+                    normalized.contains("nazw") -> index
+                    else -> null
+                }
+            }.toSet()
+        } else {
+            emptySet()
+        }
+        _uiState.value = _uiState.value.copy(
+            selectedPreviewRowIndexes = previewRows.map { it.index }.toSet(),
+            selectedPreviewColumnIndexes = defaultColumns.ifEmpty { (0 until fallbackMaxColumns.coerceAtMost(3)).toSet() },
+            actionMessage = null,
+        )
+    }
+
+    fun clearActionMessage() {
+        _uiState.value = _uiState.value.copy(actionMessage = null)
+    }
+
     fun exportSinglePreviewRow(index: Int) = viewModelScope.launch {
         val row = _uiState.value.previewRows.firstOrNull { it.index == index } ?: return@launch
         val selectedColumns = _uiState.value.selectedPreviewColumnIndexes
@@ -396,6 +423,66 @@ class PayrollViewModel(private val repository: AdminRepository) : ViewModel() {
             surnameHint = row.surname,
         )
         addAttachment(path, "Wyeksportowano pojedynczy wiersz")
+    }
+
+    fun sendSinglePreviewRowMail(index: Int) = viewModelScope.launch {
+        val row = _uiState.value.previewRows.firstOrNull { it.index == index } ?: return@launch
+        val selectedColumns = _uiState.value.selectedPreviewColumnIndexes
+        if (selectedColumns.isEmpty()) {
+            _uiState.value = _uiState.value.copy(actionMessage = "Wybierz co najmniej jedną kolumnę do wysyłki")
+            return@launch
+        }
+
+        val recipient = contactsCache.firstOrNull {
+            it.name.trim().equals(row.name.trim(), ignoreCase = true) &&
+                it.surname.trim().equals(row.surname.trim(), ignoreCase = true)
+        }
+        if (recipient == null) {
+            _uiState.value = _uiState.value.copy(
+                actionMessage = "Nie znaleziono kontaktu dla ${row.name} ${row.surname}".trim(),
+            )
+            return@launch
+        }
+        if (recipient.email.isBlank()) {
+            _uiState.value = _uiState.value.copy(
+                actionMessage = "Kontakt ${row.name} ${row.surname} nie ma adresu email".trim(),
+            )
+            return@launch
+        }
+
+        val filteredHeaders = selectedHeaders(selectedColumns)
+        val filteredRow = row.cells.filterIndexed { columnIndex, _ -> columnIndex in selectedColumns }.map(::normalizePayrollCell)
+        val attachmentPath = repository.exportPayrollRowsXlsx(
+            headers = filteredHeaders,
+            rows = listOf(filteredRow),
+            filePrefix = "PPI",
+            nameHint = row.name,
+            surnameHint = row.surname,
+        )
+        if (attachmentPath.isBlank()) {
+            _uiState.value = _uiState.value.copy(actionMessage = "Nie udało się wygenerować załącznika XLSX")
+            return@launch
+        }
+
+        runCatching {
+            repository.sendSpecialMailing(
+                recipients = listOf(recipient),
+                attachmentPaths = listOf(attachmentPath),
+                subject = templateCache.subject,
+                body = templateCache.body,
+            )
+        }.onSuccess { result ->
+            val actionMessage = when {
+                result.ok > 0 -> "Wysłano email do ${recipient.email}"
+                result.skip > 0 -> result.details.lineSequence().firstOrNull { it.isNotBlank() } ?: "Wysyłka została pominięta"
+                else -> result.details.lineSequence().firstOrNull { it.isNotBlank() } ?: "Nie udało się wysłać emaila"
+            }
+            _uiState.value = _uiState.value.copy(actionMessage = actionMessage)
+        }.onFailure { error ->
+            _uiState.value = _uiState.value.copy(
+                actionMessage = error.message ?: "Nie udało się wysłać emaila dla wybranego wiersza",
+            )
+        }
     }
 
     fun exportSinglePreviewRowToFolder(context: Context, index: Int) = viewModelScope.launch {
@@ -454,6 +541,46 @@ class PayrollViewModel(private val repository: AdminRepository) : ViewModel() {
         addAttachment(path, "Wyeksportowano zaznaczoną tabelę")
     }
 
+    fun generateCashReportToFolder(context: Context) = viewModelScope.launch {
+        val folderUri = _uiState.value.exportFolderUri.takeIf { it.isNotBlank() }?.let(Uri::parse)
+        if (folderUri == null) {
+            _uiState.value = _uiState.value.copy(actionMessage = "Najpierw wybierz folder eksportu")
+            return@launch
+        }
+        val selectedRows = _uiState.value.previewRows.filter { it.index in _uiState.value.selectedPreviewRowIndexes }
+        if (selectedRows.isEmpty()) {
+            _uiState.value = _uiState.value.copy(actionMessage = "Wybierz co najmniej jeden wiersz do raportu gotówki")
+            return@launch
+        }
+        val selectedColumns = _uiState.value.selectedPreviewColumnIndexes
+        if (selectedColumns.isEmpty()) {
+            _uiState.value = _uiState.value.copy(actionMessage = "Wybierz co najmniej jedną kolumnę do raportu gotówki")
+            return@launch
+        }
+
+        val filteredHeaders = selectedHeaders(selectedColumns)
+        val filteredRows = selectedRows.map { row ->
+            row.cells.filterIndexed { columnIndex, _ -> columnIndex in selectedColumns }.map(::normalizePayrollCell)
+        }
+        val totalAmount = calculateCashReportTotal(filteredHeaders, filteredRows)
+        val tempPath = repository.exportPayrollCashReportXlsx(
+            headers = filteredHeaders,
+            rows = filteredRows,
+            totalAmount = totalAmount,
+        )
+        if (tempPath.isBlank()) {
+            _uiState.value = _uiState.value.copy(actionMessage = "Nie udało się wygenerować raportu gotówki")
+            return@launch
+        }
+
+        val stamp = DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss").format(LocalDateTime.now())
+        val fileName = "raport_gotowki_$stamp.xlsx"
+        val saved = copyFileToDocumentTree(context, File(tempPath), folderUri, fileName)
+        _uiState.value = _uiState.value.copy(
+            actionMessage = if (saved) "Wygenerowano raport gotówki: $fileName" else "Nie udało się zapisać raportu gotówki",
+        )
+    }
+
     private fun selectedHeaders(selectedColumns: Set<Int>): List<String> {
         val headers = _uiState.value.previewHeaders
         if (headers.isEmpty()) {
@@ -464,6 +591,22 @@ class PayrollViewModel(private val repository: AdminRepository) : ViewModel() {
     }
 
     private fun normalizePayrollCell(value: String): String = value.trim().ifBlank { "0" }
+
+    private fun calculateCashReportTotal(headers: List<String>, rows: List<List<String>>): String {
+        val amountIndex = headers.indexOfFirst { header ->
+            val normalized = header.trim().lowercase()
+            normalized.contains("suma") || normalized.contains("netto") || normalized.contains("amount")
+        }
+        if (amountIndex < 0) return "0"
+        val total = rows.sumOf { row ->
+            row.getOrNull(amountIndex)
+                ?.replace(" ", "")
+                ?.replace(",", ".")
+                ?.toDoubleOrNull()
+                ?: 0.0
+        }
+        return if (total % 1.0 == 0.0) total.toInt().toString() else "%.2f".format(total)
+    }
 
     private fun applyPayslipData(payslipData: com.future.ultimate.admin.payroll.PayslipData) {
         val rows = PayslipGenerator().toWorkbookRows(payslipData.rows)
@@ -1721,6 +1864,31 @@ class SettingsViewModel(private val repository: AdminRepository) : ViewModel() {
         )
     }
 
+    fun importDatabaseWorkbook(
+        fileName: String?,
+        mimeType: String?,
+        bytes: ByteArray,
+    ) = viewModelScope.launch {
+        _uiState.value = _uiState.value.copy(isImportingDatabase = true, actionMessage = "Trwa import bazy z Excela...")
+        runCatching {
+            repository.importDatabaseWorkbook(
+                fileName = fileName,
+                mimeType = mimeType,
+                bytes = bytes,
+            )
+        }.onSuccess { result ->
+            _uiState.value = _uiState.value.copy(
+                isImportingDatabase = false,
+                actionMessage = "Import zakończony: kontakty ${result.contactsImported}, pracownicy ${result.workersImported}, zakłady ${result.plantsImported}, rozmiary ${result.clothesSizesImported}.",
+            )
+        }.onFailure { error ->
+            _uiState.value = _uiState.value.copy(
+                isImportingDatabase = false,
+                actionMessage = error.message ?: "Import bazy z Excela nie powiódł się",
+            )
+        }
+    }
+
     fun updateDriverRemoteApiUrl(value: String) {
         _uiState.value = _uiState.value.copy(
             remoteSettings = _uiState.value.remoteSettings.copy(apiUrl = value),
@@ -1750,6 +1918,23 @@ class SettingsViewModel(private val repository: AdminRepository) : ViewModel() {
             _uiState.value = _uiState.value.copy(
                 isValidatingRemoteSettings = false,
                 actionMessage = error.message ?: "Walidacja endpointu nie powiodła się",
+            )
+        }
+    }
+
+    fun importDriverRemoteLogs() = viewModelScope.launch {
+        _uiState.value = _uiState.value.copy(isImportingRemoteLogs = true, actionMessage = "Trwa pobieranie logów kierowców...")
+        runCatching {
+            repository.importDriverRemoteLogs(_uiState.value.remoteSettings)
+        }.onSuccess { importedCount ->
+            _uiState.value = _uiState.value.copy(
+                isImportingRemoteLogs = false,
+                actionMessage = "Zaczytano logi kierowców: $importedCount",
+            )
+        }.onFailure { error ->
+            _uiState.value = _uiState.value.copy(
+                isImportingRemoteLogs = false,
+                actionMessage = error.message ?: "Pobieranie logów kierowców nie powiodło się",
             )
         }
     }
