@@ -27,15 +27,43 @@ internal object DriverRemoteSyncGateway {
         action: String,
         successStatus: String = "Zdalne konto kierowcy zsynchronizowane",
     ) {
-        val payload = JSONObject().apply {
-            put("action", action)
-            put("login", account.login)
-            put("password", account.password)
-            put("name", account.driverName)
-            put("registration", account.registration)
+        val payloads = when (action) {
+            "reset_driver" -> listOf(
+                JSONObject().apply {
+                    put("action", "change_password")
+                    put("login", account.login)
+                    put("password", account.password)
+                },
+                JSONObject().apply {
+                    put("action", action)
+                    put("login", account.login)
+                    put("password", account.password)
+                    put("name", account.driverName)
+                    put("registration", account.registration)
+                },
+            )
+
+            else -> listOf(
+                JSONObject().apply {
+                    put("action", action)
+                    put("login", account.login)
+                    put("password", account.password)
+                    put("name", account.driverName)
+                    put("registration", account.registration)
+                },
+            )
         }
-        postDriverPayload(dao, account.registration, payload, successStatus)
-        syncDriverAssignment(dao, account)
+
+        payloads.forEach { payload ->
+            try {
+                postDriverPayload(dao, account.registration, payload, successStatus)
+                syncDriverAssignment(dao, account)
+                return
+            } catch (_: Exception) {
+                // try next payload variant
+            }
+        }
+        throw IllegalArgumentException("Nie udało się zsynchronizować konta kierowcy z endpointem")
     }
 
     suspend fun syncDriverAssignment(dao: AppDao, account: DriverAccountEntity) {
@@ -73,7 +101,7 @@ internal object DriverRemoteSyncGateway {
         val endpoint = loadEndpoint(dao)
         val payloads = listOf(
             mileagePayload(
-                action = "mileage_update",
+                action = "add_mileage",
                 registration = normalizedRegistration,
                 mileage = normalizedMileage,
                 timestamp = normalizedTimestamp,
@@ -111,7 +139,7 @@ internal object DriverRemoteSyncGateway {
                 val (statusCode, responseBody) = postPayloadToUrl(
                     endpoint = endpoint,
                     payload = payload,
-                    preferFormEncoded = true,
+                    preferFormEncoded = false,
                 )
                 require(statusCode in 200..299) { "HTTP $statusCode" }
                 validateResponse(responseBody, fallbackMessage = "Zdalny endpoint odrzucił aktualizację przebiegu")
@@ -361,6 +389,7 @@ internal object DriverRemoteSyncGateway {
         put("mileage", mileage)
         put("value", mileage)
         put("timestamp", timestamp)
+        put("driver_login", login)
         put("driver", driverName)
         put("name", driverName)
         if (login.isNotBlank()) put("login", login)
@@ -435,22 +464,48 @@ internal object DriverRemoteSyncGateway {
     private fun parseRemoteLogs(body: String): List<RemoteDriverLog> {
         val trimmed = body.trim()
         if (trimmed.isBlank()) return emptyList()
-        val rows = when {
-            trimmed.startsWith("[") -> JSONArray(trimmed)
+        return when {
+            trimmed.startsWith("[") -> parseRemoteLogsArray(JSONArray(trimmed))
             trimmed.startsWith("{") -> {
                 val json = JSONObject(trimmed)
                 when (val logsNode = json.opt("logs")) {
-                    is JSONArray -> logsNode
-                    else -> JSONArray().apply {
+                    is JSONArray -> parseRemoteLogsArray(logsNode)
+                    else -> parseRemoteLogsArray(JSONArray().apply {
                         if (json.has("registration") || json.has("plate") || json.has("rej")) {
                             put(json)
                         }
-                    }
+                    })
                 }
             }
-            else -> return emptyList()
+            else -> emptyList()
         }
+    }
 
+    private fun parseRemoteLogsArray(rows: JSONArray): List<RemoteDriverLog> {
+        if (rows.length() == 0) return emptyList()
+        val headerRow = rows.optJSONArray(0)
+        if (headerRow != null) {
+            val headers = (0 until headerRow.length()).map { index ->
+                headerRow.optString(index).trim().lowercase()
+            }
+            return buildList {
+                for (rowIndex in 1 until rows.length()) {
+                    val row = rows.optJSONArray(rowIndex) ?: continue
+                    val registration = valueByHeader(row, headers, listOf("registration", "plate", "rej")).uppercase()
+                    val mileage = valueByHeader(row, headers, listOf("mileage", "value", "odometer")).toIntOrNull() ?: continue
+                    if (registration.isBlank()) continue
+                    add(
+                        RemoteDriverLog(
+                            registration = registration,
+                            mileage = mileage.coerceAtLeast(0),
+                            driverName = valueByHeader(row, headers, listOf("driver", "name", "drivername")),
+                            login = valueByHeader(row, headers, listOf("driver_login", "login", "driver")),
+                            timestamp = valueByHeader(row, headers, listOf("timestamp", "date", "createdat")),
+                        ),
+                    )
+                }
+            }
+        }
         return buildList {
             for (index in 0 until rows.length()) {
                 val item = rows.optJSONObject(index) ?: continue
@@ -482,6 +537,12 @@ internal object DriverRemoteSyncGateway {
                 )
             }
         }
+    }
+
+    private fun valueByHeader(row: JSONArray, headers: List<String>, aliases: List<String>): String {
+        val columnIndex = headers.indexOfFirst { it in aliases }
+        if (columnIndex < 0 || columnIndex >= row.length()) return ""
+        return row.optString(columnIndex).trim()
     }
 
     private fun nowText(): String = LocalDateTime.now().format(timestampFormatter)
