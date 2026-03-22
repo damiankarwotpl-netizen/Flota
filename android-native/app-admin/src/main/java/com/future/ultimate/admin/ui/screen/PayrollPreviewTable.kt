@@ -34,8 +34,9 @@ internal fun PreviewSpreadsheetTable(
     selectedRows: Set<Int>,
     onToggleRow: (Int) -> Unit,
     onToggleColumn: (Int) -> Unit,
-    onExportRow: (Int) -> Unit,
-    onSendRow: (Int) -> Unit,
+    showRowActions: Boolean = true,
+    onExportRow: ((Int) -> Unit)? = null,
+    onSendRow: ((Int) -> Unit)? = null,
 ) {
     val horizontalState = rememberScrollState()
     val verticalState = rememberScrollState()
@@ -54,7 +55,9 @@ internal fun PreviewSpreadsheetTable(
         Column {
             Row(modifier = Modifier.background(headerColor)) {
                 SpreadsheetCell(text = "#", width = 48.dp, borderColor = gridColor, isHeader = true)
-                SpreadsheetCell(text = "Akcje", width = 220.dp, borderColor = gridColor, isHeader = true)
+                if (showRowActions) {
+                    SpreadsheetCell(text = "Akcje", width = 220.dp, borderColor = gridColor, isHeader = true)
+                }
                 visibleColumns.forEach { columnIndex ->
                     Box(
                         modifier = Modifier
@@ -94,20 +97,22 @@ internal fun PreviewSpreadsheetTable(
                                 onCheckedChange = { onToggleRow(row.index) },
                             )
                         }
-                        Box(
-                            modifier = Modifier
-                                .width(220.dp)
-                                .defaultMinSize(minHeight = 44.dp)
-                                .border(0.5.dp, gridColor)
-                                .padding(4.dp),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                Button(onClick = { onExportRow(row.index) }) {
-                                    Text("Eksport")
-                                }
-                                Button(onClick = { onSendRow(row.index) }) {
-                                    Text("Wyślij")
+                        if (showRowActions) {
+                            Box(
+                                modifier = Modifier
+                                    .width(220.dp)
+                                    .defaultMinSize(minHeight = 44.dp)
+                                    .border(0.5.dp, gridColor)
+                                    .padding(4.dp),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    Button(onClick = { onExportRow?.invoke(row.index) }) {
+                                        Text("Eksport")
+                                    }
+                                    Button(onClick = { onSendRow?.invoke(row.index) }) {
+                                        Text("Wyślij")
+                                    }
                                 }
                             }
                         }

@@ -518,6 +518,46 @@ class PayrollViewModel(private val repository: AdminRepository) : ViewModel() {
         addAttachment(path, "Wyeksportowano zaznaczoną tabelę")
     }
 
+    fun generateCashReportToFolder(context: Context) = viewModelScope.launch {
+        val folderUri = _uiState.value.exportFolderUri.takeIf { it.isNotBlank() }?.let(Uri::parse)
+        if (folderUri == null) {
+            _uiState.value = _uiState.value.copy(actionMessage = "Najpierw wybierz folder eksportu")
+            return@launch
+        }
+        val selectedRows = _uiState.value.previewRows.filter { it.index in _uiState.value.selectedPreviewRowIndexes }
+        if (selectedRows.isEmpty()) {
+            _uiState.value = _uiState.value.copy(actionMessage = "Wybierz co najmniej jeden wiersz do raportu gotówki")
+            return@launch
+        }
+        val selectedColumns = _uiState.value.selectedPreviewColumnIndexes
+        if (selectedColumns.isEmpty()) {
+            _uiState.value = _uiState.value.copy(actionMessage = "Wybierz co najmniej jedną kolumnę do raportu gotówki")
+            return@launch
+        }
+
+        val filteredHeaders = selectedHeaders(selectedColumns)
+        val filteredRows = selectedRows.map { row ->
+            row.cells.filterIndexed { columnIndex, _ -> columnIndex in selectedColumns }.map(::normalizePayrollCell)
+        }
+        val totalAmount = calculateCashReportTotal(filteredHeaders, filteredRows)
+        val tempPath = repository.exportPayrollCashReportXlsx(
+            headers = filteredHeaders,
+            rows = filteredRows,
+            totalAmount = totalAmount,
+        )
+        if (tempPath.isBlank()) {
+            _uiState.value = _uiState.value.copy(actionMessage = "Nie udało się wygenerować raportu gotówki")
+            return@launch
+        }
+
+        val stamp = DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss").format(LocalDateTime.now())
+        val fileName = "raport_gotowki_$stamp.xlsx"
+        val saved = copyFileToDocumentTree(context, File(tempPath), folderUri, fileName)
+        _uiState.value = _uiState.value.copy(
+            actionMessage = if (saved) "Wygenerowano raport gotówki: $fileName" else "Nie udało się zapisać raportu gotówki",
+        )
+    }
+
     private fun selectedHeaders(selectedColumns: Set<Int>): List<String> {
         val headers = _uiState.value.previewHeaders
         if (headers.isEmpty()) {
@@ -528,6 +568,22 @@ class PayrollViewModel(private val repository: AdminRepository) : ViewModel() {
     }
 
     private fun normalizePayrollCell(value: String): String = value.trim().ifBlank { "0" }
+
+    private fun calculateCashReportTotal(headers: List<String>, rows: List<List<String>>): String {
+        val amountIndex = headers.indexOfFirst { header ->
+            val normalized = header.trim().lowercase()
+            normalized.contains("suma") || normalized.contains("netto") || normalized.contains("amount")
+        }
+        if (amountIndex < 0) return "0"
+        val total = rows.sumOf { row ->
+            row.getOrNull(amountIndex)
+                ?.replace(" ", "")
+                ?.replace(",", ".")
+                ?.toDoubleOrNull()
+                ?: 0.0
+        }
+        return if (total % 1.0 == 0.0) total.toInt().toString() else "%.2f".format(total)
+    }
 
     private fun applyPayslipData(payslipData: com.future.ultimate.admin.payroll.PayslipData) {
         val rows = PayslipGenerator().toWorkbookRows(payslipData.rows)

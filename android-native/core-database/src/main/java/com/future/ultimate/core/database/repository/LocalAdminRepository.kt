@@ -78,7 +78,13 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.Dispatchers
 import org.apache.poi.ss.usermodel.DataFormatter
+import org.apache.poi.ss.usermodel.FillPatternType
+import org.apache.poi.ss.usermodel.HorizontalAlignment
+import org.apache.poi.ss.usermodel.IndexedColors
+import org.apache.poi.ss.usermodel.VerticalAlignment
 import org.apache.poi.ss.usermodel.WorkbookFactory
+import org.apache.poi.ss.util.CellRangeAddress
+import org.apache.poi.xssf.usermodel.XSSFWorkbook
 
 class LocalAdminRepository(
     private val dao: AppDao,
@@ -1423,6 +1429,93 @@ class LocalAdminRepository(
             sheetName = "Paski",
             rows = allRows,
         )
+        return outputFile.absolutePath
+    }
+
+    override suspend fun exportPayrollCashReportXlsx(
+        headers: List<String>,
+        rows: List<List<String>>,
+        totalAmount: String,
+    ): String {
+        if (rows.isEmpty()) return ""
+        val outputDir = PatchLoader.safeExternalDir(context, feature = "payroll_cash_report")
+        val stamp = DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss").format(LocalDateTime.now())
+        val outputFile = File(outputDir, "raport_gotowki_$stamp.xlsx")
+
+        XSSFWorkbook().use { workbook ->
+            val sheet = workbook.createSheet("Raport gotówki")
+            val headerStyle = workbook.createCellStyle().apply {
+                fillForegroundColor = IndexedColors.LIGHT_CORNFLOWER_BLUE.index
+                fillPattern = FillPatternType.SOLID_FOREGROUND
+                alignment = HorizontalAlignment.CENTER
+                verticalAlignment = VerticalAlignment.CENTER
+                setFont(workbook.createFont().apply { bold = true })
+                borderBottom = org.apache.poi.ss.usermodel.BorderStyle.THIN
+                borderTop = org.apache.poi.ss.usermodel.BorderStyle.THIN
+                borderLeft = org.apache.poi.ss.usermodel.BorderStyle.THIN
+                borderRight = org.apache.poi.ss.usermodel.BorderStyle.THIN
+            }
+            val bodyStyle = workbook.createCellStyle().apply {
+                alignment = HorizontalAlignment.CENTER
+                verticalAlignment = VerticalAlignment.CENTER
+                borderBottom = org.apache.poi.ss.usermodel.BorderStyle.THIN
+                borderTop = org.apache.poi.ss.usermodel.BorderStyle.THIN
+                borderLeft = org.apache.poi.ss.usermodel.BorderStyle.THIN
+                borderRight = org.apache.poi.ss.usermodel.BorderStyle.THIN
+            }
+
+            val reportHeaders = listOf("LP") + headers + listOf("DATA", "PODPIS")
+            var rowIndex = 0
+            val headerRow = sheet.createRow(rowIndex++)
+            reportHeaders.forEachIndexed { columnIndex, title ->
+                headerRow.createCell(columnIndex).apply {
+                    setCellValue(title)
+                    cellStyle = headerStyle
+                }
+            }
+
+            rows.forEachIndexed { index, row ->
+                val sheetRow = sheet.createRow(rowIndex++)
+                val values = listOf((index + 1).toString()) + row + listOf("", "")
+                values.forEachIndexed { columnIndex, value ->
+                    sheetRow.createCell(columnIndex).apply {
+                        setCellValue(value)
+                        cellStyle = bodyStyle
+                    }
+                }
+            }
+
+            rowIndex += 1
+            val statementRow = sheet.createRow(rowIndex++)
+            statementRow.createCell(0).apply {
+                setCellValue("JA NIŻEJ PODPISANY ODEBRAŁEM CAŁOŚĆ GOTÓWKI W IMIENIU OSÓB WYŻEJ WYMIENIONYCH")
+                cellStyle = headerStyle
+            }
+            sheet.addMergedRegion(CellRangeAddress(statementRow.rowNum, statementRow.rowNum, 0, reportHeaders.lastIndex))
+            for (columnIndex in 1..reportHeaders.lastIndex) {
+                statementRow.createCell(columnIndex).cellStyle = headerStyle
+            }
+
+            val signatureHeaderRow = sheet.createRow(rowIndex++)
+            listOf("IMIĘ", "NAZWISKO", "SUMA", "DATA", "PODPIS").forEachIndexed { columnIndex, title ->
+                signatureHeaderRow.createCell(columnIndex).apply {
+                    setCellValue(title)
+                    cellStyle = headerStyle
+                }
+            }
+
+            val signatureValueRow = sheet.createRow(rowIndex)
+            listOf("", "", totalAmount, "", "").forEachIndexed { columnIndex, value ->
+                signatureValueRow.createCell(columnIndex).apply {
+                    setCellValue(value)
+                    cellStyle = bodyStyle
+                }
+            }
+
+            (0 until reportHeaders.size.coerceAtLeast(5)).forEach(sheet::autoSizeColumn)
+            outputFile.outputStream().use { workbook.write(it) }
+        }
+
         return outputFile.absolutePath
     }
 

@@ -37,6 +37,7 @@ fun PayrollScreen(_navController: NavController) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     var isPreviewDialogOpen by remember { mutableStateOf(false) }
     var isSpreadsheetDialogOpen by remember { mutableStateOf(false) }
+    var isCashReportDialogOpen by remember { mutableStateOf(false) }
 
     val displayNameFromUri: (Uri) -> String? = { uri ->
         val projection = arrayOf(android.provider.OpenableColumns.DISPLAY_NAME)
@@ -114,6 +115,11 @@ fun PayrollScreen(_navController: NavController) {
                     modifier = Modifier.fillMaxWidth(),
                     enabled = uiState.previewRows.isNotEmpty(),
                 ) { Text("Podgląd/Export") }
+                M3Button(
+                    onClick = { isCashReportDialogOpen = true },
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = uiState.previewRows.isNotEmpty(),
+                ) { Text("Generuj raport gotówki") }
 
                 if (uiState.previewRows.isEmpty()) {
                     Text("Brak danych do podglądu. Najpierw wczytaj plik Excel/CSV.")
@@ -174,6 +180,53 @@ fun PayrollScreen(_navController: NavController) {
             }
         }
 
+        uiState.actionMessage?.let { message ->
+            M3AlertDialog(
+                onDismissRequest = viewModel::clearActionMessage,
+                confirmButton = {
+                    M3TextButton(onClick = viewModel::clearActionMessage) {
+                        Text("OK")
+                    }
+                },
+                title = { Text("Komunikat") },
+                text = { Text(message) },
+            )
+        }
+    }
+
+    if (isCashReportDialogOpen) {
+        Dialog(
+            onDismissRequest = { isCashReportDialogOpen = false },
+            properties = DialogProperties(usePlatformDefaultWidth = false),
+        ) {
+            Box(modifier = Modifier.fillMaxSize()) {
+                SectionCard(title = "Raport gotówki") {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        M3Button(onClick = { viewModel.generateCashReportToFolder(app) }, modifier = Modifier.fillMaxWidth()) {
+                            Text("Generuj raport gotówki")
+                        }
+                        PreviewSpreadsheetTable(
+                            headers = displayHeaders,
+                            rows = uiState.previewRows,
+                            selectedColumns = uiState.selectedPreviewColumnIndexes,
+                            selectedRows = uiState.selectedPreviewRowIndexes,
+                            onToggleRow = viewModel::togglePreviewRowSelection,
+                            onToggleColumn = viewModel::togglePreviewColumnSelection,
+                            showRowActions = false,
+                        )
+                        M3Button(onClick = { isCashReportDialogOpen = false }, modifier = Modifier.fillMaxWidth()) {
+                            Text("Zamknij")
+                        }
+                        M3Button(onClick = viewModel::selectAllPreviewColumns, modifier = Modifier.fillMaxWidth()) {
+                            Text("Zaznacz kolumny")
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    if (isSpreadsheetDialogOpen || isCashReportDialogOpen) {
         uiState.actionMessage?.let { message ->
             M3AlertDialog(
                 onDismissRequest = viewModel::clearActionMessage,

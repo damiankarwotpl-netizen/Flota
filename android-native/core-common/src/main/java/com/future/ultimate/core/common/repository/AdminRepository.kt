@@ -307,6 +307,11 @@ interface AdminRepository {
         nameHint: String = "",
         surnameHint: String = "",
     ): String
+    suspend fun exportPayrollCashReportXlsx(
+        headers: List<String>,
+        rows: List<List<String>>,
+        totalAmount: String,
+    ): String
     suspend fun exportClothesHistoryCsv(): String
     suspend fun exportSessionReportsCsv(): String
 }
