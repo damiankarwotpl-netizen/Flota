@@ -116,7 +116,10 @@ fun PayrollScreen(_navController: NavController) {
                     enabled = uiState.previewRows.isNotEmpty(),
                 ) { Text("Podgląd/Export") }
                 M3Button(
-                    onClick = { isCashReportDialogOpen = true },
+                    onClick = {
+                        viewModel.prepareCashReportSelection()
+                        isCashReportDialogOpen = true
+                    },
                     modifier = Modifier.fillMaxWidth(),
                     enabled = uiState.previewRows.isNotEmpty(),
                 ) { Text("Generuj raport gotówki") }
@@ -178,19 +181,6 @@ fun PayrollScreen(_navController: NavController) {
                     }
                 }
             }
-        }
-
-        uiState.actionMessage?.let { message ->
-            M3AlertDialog(
-                onDismissRequest = viewModel::clearActionMessage,
-                confirmButton = {
-                    M3TextButton(onClick = viewModel::clearActionMessage) {
-                        Text("OK")
-                    }
-                },
-                title = { Text("Komunikat") },
-                text = { Text(message) },
-            )
         }
     }
 

@@ -379,6 +379,31 @@ class PayrollViewModel(private val repository: AdminRepository) : ViewModel() {
         _uiState.value = _uiState.value.copy(selectedPreviewColumnIndexes = all, actionMessage = "Zaznaczono wszystkie kolumny")
     }
 
+    fun prepareCashReportSelection() {
+        val previewRows = _uiState.value.previewRows
+        val previewHeaders = _uiState.value.previewHeaders
+        val fallbackMaxColumns = previewRows.maxOfOrNull { it.cells.size } ?: 0
+        val defaultColumns = if (previewHeaders.isNotEmpty()) {
+            previewHeaders.mapIndexedNotNull { index, header ->
+                val normalized = header.trim().lowercase()
+                when {
+                    normalized.contains("imi") -> index
+                    normalized.contains("nazw") -> index
+                    normalized.contains("suma") -> index
+                    normalized.contains("netto") -> index
+                    else -> null
+                }
+            }.toSet()
+        } else {
+            emptySet()
+        }
+        _uiState.value = _uiState.value.copy(
+            selectedPreviewRowIndexes = previewRows.map { it.index }.toSet(),
+            selectedPreviewColumnIndexes = defaultColumns.ifEmpty { (0 until fallbackMaxColumns.coerceAtMost(3)).toSet() },
+            actionMessage = null,
+        )
+    }
+
     fun clearActionMessage() {
         _uiState.value = _uiState.value.copy(actionMessage = null)
     }

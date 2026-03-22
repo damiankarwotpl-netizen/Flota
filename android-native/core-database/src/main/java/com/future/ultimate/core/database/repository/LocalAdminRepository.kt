@@ -1485,10 +1485,9 @@ class LocalAdminRepository(
                 }
             }
 
-            rowIndex += 1
             val statementRow = sheet.createRow(rowIndex++)
             statementRow.createCell(0).apply {
-                setCellValue("JA NIŻEJ PODPISANY ODEBRAŁEM CAŁOŚĆ GOTÓWKI W IMIENIU OSÓB WYŻEJ WYMIENIONYCH")
+                setCellValue("JA WYŻEJ PODPISANY ODEBRAŁEM CAŁOŚĆ GOTÓWKI")
                 cellStyle = headerStyle
             }
             sheet.addMergedRegion(CellRangeAddress(statementRow.rowNum, statementRow.rowNum, 0, reportHeaders.lastIndex))
@@ -1512,11 +1511,35 @@ class LocalAdminRepository(
                 }
             }
 
-            (0 until reportHeaders.size.coerceAtLeast(5)).forEach(sheet::autoSizeColumn)
+            val widthRows = buildList {
+                add(reportHeaders)
+                addAll(rows.mapIndexed { index, row -> listOf((index + 1).toString()) + row + listOf("", "") })
+                add(listOf("JA WYŻEJ PODPISANY ODEBRAŁEM CAŁOŚĆ GOTÓWKI"))
+                add(listOf("IMIĘ", "NAZWISKO", "SUMA", "DATA", "PODPIS"))
+                add(listOf("", "", totalAmount, "", ""))
+            }
+            applyColumnWidths(sheet = sheet, rows = widthRows, totalColumns = reportHeaders.size.coerceAtLeast(5))
             outputFile.outputStream().use { workbook.write(it) }
         }
 
         return outputFile.absolutePath
+    }
+
+    private fun applyColumnWidths(
+        sheet: org.apache.poi.ss.usermodel.Sheet,
+        rows: List<List<String>>,
+        totalColumns: Int,
+    ) {
+        (0 until totalColumns).forEach { columnIndex ->
+            val maxLength = rows.maxOfOrNull { row ->
+                row.getOrNull(columnIndex)
+                    ?.replace('\n', ' ')
+                    ?.length
+                    ?: 0
+            } ?: 0
+            val width = ((maxLength + 4).coerceIn(10, 40)) * 256
+            sheet.setColumnWidth(columnIndex, width)
+        }
     }
 
     override suspend fun exportClothesHistoryCsv(): String {
