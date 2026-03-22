@@ -275,7 +275,7 @@ internal object DriverRemoteSyncGateway {
                 val source = if (responseCode in 200..299) connection.inputStream else connection.errorStream
                 source?.bufferedReader(Charsets.UTF_8)?.use { it.readText() }.orEmpty()
             }.getOrDefault("")
-            responseCode to responseBody
+            return responseCode to responseBody
         } finally {
             connection.disconnect()
         }
