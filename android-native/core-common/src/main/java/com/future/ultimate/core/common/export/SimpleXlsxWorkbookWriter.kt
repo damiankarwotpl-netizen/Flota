@@ -94,7 +94,7 @@ object SimpleXlsxWorkbookWriter {
         if (columnWidths.isNotEmpty()) {
             appendLine("  <cols>")
             columnWidths.forEachIndexed { index, width ->
-                appendLine("    <col min=\"${index + 1}\" max=\"${index + 1}\" width=\"$width\" customWidth=\"1\"/>")
+                appendLine("    <col min=\"${index + 1}\" max=\"${index + 1}\" width=\"$width\" bestFit=\"1\" customWidth=\"1\"/>")
             }
             appendLine("  </cols>")
         }
@@ -160,8 +160,15 @@ object SimpleXlsxWorkbookWriter {
         val maxColumns = rows.maxOfOrNull { it.size } ?: 0
         if (maxColumns == 0) return emptyList()
         return (0 until maxColumns).map { columnIndex ->
-            val maxLength = rows.maxOf { row -> row.getOrNull(columnIndex)?.value?.ifBlank { "0" }?.length ?: 1 }
-            val width = (maxLength + 2).coerceIn(8, 60)
+            val maxLength = rows.maxOf { row ->
+                row.getOrNull(columnIndex)
+                    ?.value
+                    ?.ifBlank { "0" }
+                    ?.replace('\n', ' ')
+                    ?.length
+                    ?: 1
+            }
+            val width = ((maxLength * 1.2) + 4).toInt().coerceIn(10, 80)
             width.toDouble().toString()
         }
     }
