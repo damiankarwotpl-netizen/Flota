@@ -1,5 +1,7 @@
 package com.future.ultimate.admin.ui.screen
 
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -30,6 +32,21 @@ fun SettingsScreen(
     val app = LocalContext.current.applicationContext as AdminApp
     val viewModel: SettingsViewModel = viewModel(factory = AdminViewModelFactory(app.container.repository))
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val excelPicker = rememberLauncherForActivityResult(
+        contract = androidx.activity.result.contract.ActivityResultContracts.GetContent(),
+    ) { uri: Uri? ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        val mimeType = app.contentResolver.getType(uri)
+        val projection = arrayOf(android.provider.OpenableColumns.DISPLAY_NAME)
+        val fileName = app.contentResolver.query(uri, projection, null, null, null)?.use { cursor ->
+            val nameIndex = cursor.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME)
+            if (nameIndex >= 0 && cursor.moveToFirst()) cursor.getString(nameIndex) else null
+        }
+        val bytes = runCatching {
+            app.contentResolver.openInputStream(uri)?.use { it.readBytes() } ?: byteArrayOf()
+        }.getOrDefault(byteArrayOf())
+        viewModel.importDatabaseWorkbook(fileName = fileName, mimeType = mimeType, bytes = bytes)
+    }
 
     ScreenColumn("Ustawienia", "Integracje, snapshoty i podstawowe statystyki systemu") {
         item {
@@ -83,6 +100,9 @@ fun SettingsScreen(
                     Button(onClick = viewModel::validateDriverRemoteSettings, modifier = Modifier.fillMaxWidth()) {
                         Text(if (uiState.isValidatingRemoteSettings) "Sprawdzanie endpointu..." else "Sprawdź endpoint kierowców")
                     }
+                    Button(onClick = viewModel::importDriverRemoteLogs, modifier = Modifier.fillMaxWidth()) {
+                        Text(if (uiState.isImportingRemoteLogs) "Pobieranie logów kierowców..." else "Zaczytaj logi kierowców z endpointu")
+                    }
                     uiState.actionMessage?.let { Text(it) }
                 }
             }
@@ -104,12 +124,16 @@ fun SettingsScreen(
                     Button(onClick = viewModel::exportDatabaseSnapshot, modifier = Modifier.fillMaxWidth()) {
                         Text(if (uiState.isExportingDatabase) "Eksportowanie bazy..." else "Eksportuj snapshot bazy")
                     }
+                    Button(onClick = { excelPicker.launch("*/*") }, modifier = Modifier.fillMaxWidth()) {
+                        Text(if (uiState.isImportingDatabase) "Wgrywanie bazy..." else "Wgraj bazę danych z Excela")
+                    }
                     Button(onClick = { navController.navigate(AdminRoute.Smtp.route) }, modifier = Modifier.fillMaxWidth()) {
                         Text("Ustawienia SMTP")
                     }
                     Button(onClick = { navController.navigate(AdminRoute.Template.route) }, modifier = Modifier.fillMaxWidth()) {
                         Text("Edytuj szablon email")
                     }
+                    uiState.actionMessage?.let { Text(it) }
                 }
             }
         }
