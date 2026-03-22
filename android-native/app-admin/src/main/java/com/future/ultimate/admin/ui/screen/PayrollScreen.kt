@@ -179,6 +179,19 @@ fun PayrollScreen(_navController: NavController) {
                 }
             }
         }
+
+        uiState.actionMessage?.let { message ->
+            M3AlertDialog(
+                onDismissRequest = viewModel::clearActionMessage,
+                confirmButton = {
+                    M3TextButton(onClick = viewModel::clearActionMessage) {
+                        Text("OK")
+                    }
+                },
+                title = { Text("Komunikat") },
+                text = { Text(message) },
+            )
+        }
     }
 
     if (isCashReportDialogOpen) {
