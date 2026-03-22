@@ -27,12 +27,11 @@ class DriverLoginViewModel(
     fun login(onSuccess: (requiresPasswordChange: Boolean) -> Unit) {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true, error = null)
-            runCatching {
-                repository.login(_uiState.value.login, _uiState.value.password)
-            }.onSuccess { session ->
+            try {
+                val session = repository.login(_uiState.value.login, _uiState.value.password)
                 _uiState.value = _uiState.value.copy(isLoading = false)
                 onSuccess(session.changePasswordRequired)
-            }.onFailure { error ->
+            } catch (error: Exception) {
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
                     error = error.message ?: "Nie udało się zalogować",
@@ -75,19 +74,18 @@ class DriverMileageViewModel(
     fun save() {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isSaving = true, status = null)
-            runCatching {
+            try {
                 repository.saveMileage(
                     login = "",
                     registration = _uiState.value.registration,
                     mileage = _uiState.value.mileage.toIntOrNull() ?: 0,
                 )
-            }.onSuccess {
                 _uiState.value = _uiState.value.copy(
                     isSaving = false,
                     mileage = "",
                     status = "Przebieg zapisany lokalnie i przekazany do kolejki synchronizacji",
                 )
-            }.onFailure { error ->
+            } catch (error: Exception) {
                 _uiState.value = _uiState.value.copy(
                     isSaving = false,
                     status = error.message ?: "Nie udało się zapisać przebiegu",
@@ -99,9 +97,8 @@ class DriverMileageViewModel(
     fun flushSyncNow() {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isSaving = true, status = "Trwa ręczna synchronizacja przebiegu...")
-            runCatching {
-                repository.flushPendingMileageSync()
-            }.onSuccess { state ->
+            try {
+                val state = repository.flushPendingMileageSync()
                 _uiState.value = _uiState.value.copy(
                     isSaving = false,
                     status = if (state.pendingCount > 0) {
@@ -110,7 +107,7 @@ class DriverMileageViewModel(
                         "Synchronizacja zakończona: ${state.status}"
                     },
                 )
-            }.onFailure { error ->
+            } catch (error: Exception) {
                 _uiState.value = _uiState.value.copy(
                     isSaving = false,
                     status = error.message ?: "Ręczna synchronizacja nie powiodła się",
@@ -152,12 +149,11 @@ class DriverVehicleReportViewModel(
     fun save() {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isSaving = true, message = null)
-            runCatching {
+            try {
                 repository.saveVehicleReportDraft(_uiState.value.draft)
-                repository.exportVehicleReportPdf(_uiState.value.draft)
-            }.onSuccess { path ->
+                val path = repository.exportVehicleReportPdf(_uiState.value.draft)
                 _uiState.value = _uiState.value.copy(isSaving = false, message = "PDF zapisany: $path")
-            }.onFailure { error ->
+            } catch (error: Exception) {
                 _uiState.value = _uiState.value.copy(
                     isSaving = false,
                     message = error.message ?: "Nie udało się zapisać raportu",
@@ -194,12 +190,11 @@ class DriverChangePasswordViewModel(
     fun save(onSuccess: () -> Unit) {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true, error = null)
-            runCatching {
+            try {
                 repository.changePassword(_uiState.value.login, _uiState.value.password)
-            }.onSuccess {
                 _uiState.value = _uiState.value.copy(isLoading = false, password = "")
                 onSuccess()
-            }.onFailure { error ->
+            } catch (error: Exception) {
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
                     error = error.message ?: "Nie udało się zmienić hasła",
