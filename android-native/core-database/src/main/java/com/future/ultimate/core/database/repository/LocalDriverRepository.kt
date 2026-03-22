@@ -35,8 +35,20 @@ class LocalDriverRepository(
         }
 
     override suspend fun login(login: String, password: String): DriverSession {
-        val account = dao.getDriverAccount(login.trim(), password)
-            ?: throw IllegalArgumentException("Błędny login lub hasło")
+        val normalizedLogin = login.trim()
+        val normalizedPassword = password.trim()
+        val account = dao.getDriverAccount(normalizedLogin, normalizedPassword)
+            ?: try {
+                DriverRemoteSyncGateway.loginDriver(
+                    dao = dao,
+                    login = normalizedLogin,
+                    password = normalizedPassword,
+                ).also { remoteAccount ->
+                    dao.upsertDriverAccount(remoteAccount)
+                }
+            } catch (_: Exception) {
+                throw IllegalArgumentException("Błędny login lub hasło")
+            }
 
         return DriverSession(
             login = account.login,
@@ -84,7 +96,13 @@ class LocalDriverRepository(
     override suspend fun saveMileage(login: String, registration: String, mileage: Int) {
         val current = session.value ?: throw IllegalStateException("Brak aktywnej sesji kierowcy")
         val targetRegistration = registration.trim().ifBlank { current.registration }.uppercase()
-        DriverMileageSyncCoordinator.queueMileage(dao, targetRegistration, mileage.coerceAtLeast(0))
+        DriverMileageSyncCoordinator.queueMileage(
+            dao = dao,
+            registration = targetRegistration,
+            mileage = mileage.coerceAtLeast(0),
+            login = current.login,
+            driverName = current.driverName,
+        )
         DriverMileageSyncCoordinator.flushPending(dao, targetRegistration)
     }
 
