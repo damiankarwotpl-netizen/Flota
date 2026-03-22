@@ -97,15 +97,17 @@ internal object DriverRemoteSyncGateway {
         val normalizedRegistration = registration.trim().uppercase()
         val normalizedTimestamp = queuedAt.ifBlank { nowText() }
         val normalizedMileage = mileage.coerceAtLeast(0)
+        val normalizedLogin = login.trim()
         val normalizedDriverName = driverName.trim()
         val endpoint = loadEndpoint(dao)
+        val logsBefore = runCatching { fetchRemoteLogs(dao, endpoint) }.getOrDefault(emptyList())
         val payloads = listOf(
             mileagePayload(
                 action = "add_mileage",
                 registration = normalizedRegistration,
                 mileage = normalizedMileage,
                 timestamp = normalizedTimestamp,
-                login = login,
+                login = normalizedLogin,
                 driverName = normalizedDriverName,
             ),
             mileagePayload(
@@ -113,7 +115,7 @@ internal object DriverRemoteSyncGateway {
                 registration = normalizedRegistration,
                 mileage = normalizedMileage,
                 timestamp = normalizedTimestamp,
-                login = login,
+                login = normalizedLogin,
                 driverName = normalizedDriverName,
             ),
             mileagePayload(
@@ -121,7 +123,7 @@ internal object DriverRemoteSyncGateway {
                 registration = normalizedRegistration,
                 mileage = normalizedMileage,
                 timestamp = normalizedTimestamp,
-                login = login,
+                login = normalizedLogin,
                 driverName = normalizedDriverName,
             ),
             mileagePayload(
@@ -129,7 +131,7 @@ internal object DriverRemoteSyncGateway {
                 registration = normalizedRegistration,
                 mileage = normalizedMileage,
                 timestamp = normalizedTimestamp,
-                login = login,
+                login = normalizedLogin,
                 driverName = normalizedDriverName,
             ),
         )
@@ -143,6 +145,15 @@ internal object DriverRemoteSyncGateway {
                 )
                 require(statusCode in 200..299) { "HTTP $statusCode" }
                 validateResponse(responseBody, fallbackMessage = "Zdalny endpoint odrzucił aktualizację przebiegu")
+                verifyMileageLogWritten(
+                    dao = dao,
+                    endpoint = endpoint,
+                    logsBefore = logsBefore,
+                    registration = normalizedRegistration,
+                    mileage = normalizedMileage,
+                    login = normalizedLogin,
+                    driverName = normalizedDriverName,
+                )
                 return
             } catch (_: Exception) {
                 // try next payload variant
@@ -543,6 +554,33 @@ internal object DriverRemoteSyncGateway {
         val columnIndex = headers.indexOfFirst { it in aliases }
         if (columnIndex < 0 || columnIndex >= row.length()) return ""
         return row.optString(columnIndex).trim()
+    }
+
+    private suspend fun verifyMileageLogWritten(
+        dao: AppDao,
+        endpoint: String,
+        logsBefore: List<RemoteDriverLog>,
+        registration: String,
+        mileage: Int,
+        login: String,
+        driverName: String,
+    ) {
+        val logsAfter = fetchRemoteLogs(dao, endpoint)
+        val previousCount = logsBefore.count {
+            it.registration == registration &&
+                it.mileage == mileage &&
+                (login.isBlank() || it.login.equals(login, ignoreCase = true) || it.driverName.equals(login, ignoreCase = true)) &&
+                (driverName.isBlank() || it.driverName.equals(driverName, ignoreCase = true))
+        }
+        val currentCount = logsAfter.count {
+            it.registration == registration &&
+                it.mileage == mileage &&
+                (login.isBlank() || it.login.equals(login, ignoreCase = true) || it.driverName.equals(login, ignoreCase = true)) &&
+                (driverName.isBlank() || it.driverName.equals(driverName, ignoreCase = true))
+        }
+        require(currentCount > previousCount) {
+            "Endpoint odpowiedział poprawnie, ale nie zapisał przebiegu do mileage_logs"
+        }
     }
 
     private fun nowText(): String = LocalDateTime.now().format(timestampFormatter)
