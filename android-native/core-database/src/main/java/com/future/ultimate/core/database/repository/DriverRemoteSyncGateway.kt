@@ -166,6 +166,7 @@ internal object DriverRemoteSyncGateway {
                     logsBefore = logsBefore,
                     registration = normalizedRegistration,
                     mileage = normalizedMileage,
+                    timestamp = normalizedTimestamp,
                     login = normalizedLogin,
                     driverName = normalizedDriverName,
                 )
@@ -541,7 +542,7 @@ internal object DriverRemoteSyncGateway {
                             registration = registration,
                             mileage = mileage.coerceAtLeast(0),
                             driverName = valueByHeader(row, headers, listOf("driver", "name", "drivername")),
-                            login = valueByHeader(row, headers, listOf("driver_login", "login", "driver")),
+                            login = valueByHeader(row, headers, listOf("driver_login", "login")),
                             timestamp = valueByHeader(row, headers, listOf("timestamp", "date", "createdat")),
                         ),
                     )
@@ -593,24 +594,59 @@ internal object DriverRemoteSyncGateway {
         logsBefore: List<RemoteDriverLog>,
         registration: String,
         mileage: Int,
+        timestamp: String,
         login: String,
         driverName: String,
     ) {
         val logsAfter = fetchRemoteLogs(dao, endpoint)
         val previousCount = logsBefore.count {
-            it.registration == registration &&
-                it.mileage == mileage &&
-                (login.isBlank() || it.login.equals(login, ignoreCase = true) || it.driverName.equals(login, ignoreCase = true)) &&
-                (driverName.isBlank() || it.driverName.equals(driverName, ignoreCase = true))
+            matchesMileageLog(
+                log = it,
+                registration = registration,
+                mileage = mileage,
+                timestamp = timestamp,
+                login = login,
+                driverName = driverName,
+            )
         }
         val currentCount = logsAfter.count {
-            it.registration == registration &&
-                it.mileage == mileage &&
-                (login.isBlank() || it.login.equals(login, ignoreCase = true) || it.driverName.equals(login, ignoreCase = true)) &&
-                (driverName.isBlank() || it.driverName.equals(driverName, ignoreCase = true))
+            matchesMileageLog(
+                log = it,
+                registration = registration,
+                mileage = mileage,
+                timestamp = timestamp,
+                login = login,
+                driverName = driverName,
+            )
         }
         require(currentCount > previousCount) {
             "Endpoint odpowiedział poprawnie, ale nie zapisał przebiegu do mileage_logs"
+        }
+    }
+
+    private fun matchesMileageLog(
+        log: RemoteDriverLog,
+        registration: String,
+        mileage: Int,
+        timestamp: String,
+        login: String,
+        driverName: String,
+    ): Boolean {
+        if (log.registration != registration || log.mileage != mileage) return false
+        if (timestamp.isNotBlank() && log.timestamp.isNotBlank() && log.timestamp != timestamp) return false
+
+        val normalizedLogin = login.trim()
+        val normalizedDriverName = driverName.trim()
+        val logLogin = log.login.trim()
+        val logDriverName = log.driverName.trim()
+        val logHasIdentity = logLogin.isNotBlank() || logDriverName.isNotBlank()
+        if (!logHasIdentity) return true
+
+        val expectedIdentities = listOf(normalizedLogin, normalizedDriverName).filter { it.isNotBlank() }
+        if (expectedIdentities.isEmpty()) return true
+
+        return expectedIdentities.any { expected ->
+            logLogin.equals(expected, ignoreCase = true) || logDriverName.equals(expected, ignoreCase = true)
         }
     }
 
