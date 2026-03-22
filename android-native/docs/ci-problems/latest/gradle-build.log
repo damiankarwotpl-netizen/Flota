@@ -12,9 +12,9 @@ Daemon will be stopped at the end of the build
 > Task :core-common:preDebugBuild UP-TO-DATE
 > Task :core-database:preBuild UP-TO-DATE
 > Task :core-database:preDebugBuild UP-TO-DATE
+> Task :app-admin:generateDebugResValues
 > Task :core-database:writeDebugAarMetadata
 > Task :core-common:writeDebugAarMetadata
-> Task :app-admin:generateDebugResValues
 > Task :core-common:generateDebugResValues
 > Task :app-admin:checkDebugAarMetadata
 > Task :core-common:generateDebugResources
@@ -32,19 +32,19 @@ Daemon will be stopped at the end of the build
 > Task :core-database:extractDeepLinksDebug
 > Task :app-admin:parseDebugLocalResources
 > Task :core-common:compileDebugLibraryResources
-> Task :core-database:compileDebugLibraryResources
 > Task :core-common:parseDebugLocalResources
-> Task :core-database:parseDebugLocalResources
-> Task :core-database:processDebugManifest
-> Task :core-common:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :core-database:compileDebugLibraryResources
 > Task :core-common:processDebugManifest
-> Task :core-common:javaPreCompileDebug
-> Task :core-database:generateDebugRFile
+> Task :core-database:processDebugManifest
+> Task :core-database:parseDebugLocalResources
 > Task :core-common:generateDebugRFile
 > Task :app-admin:processDebugMainManifest
 > Task :app-admin:processDebugManifest
 > Task :app-admin:processDebugManifestForPackage
+> Task :core-common:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :core-database:generateDebugRFile
 > Task :core-database:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :core-common:javaPreCompileDebug
 > Task :core-database:javaPreCompileDebug
 > Task :app-admin:javaPreCompileDebug
 > Task :app-admin:mergeDebugShaders
@@ -68,11 +68,11 @@ Daemon will be stopped at the end of the build
 > Task :core-common:copyDebugJniLibsProjectOnly
 > Task :core-database:mergeDebugJniLibFolders
 > Task :core-database:mergeDebugNativeLibs NO-SOURCE
-> Task :app-admin:checkDebugDuplicateClasses
 > Task :core-database:copyDebugJniLibsProjectOnly
-> Task :app-admin:mergeDebugNativeLibs
+> Task :app-admin:checkDebugDuplicateClasses
 > Task :app-admin:validateSigningDebug
 > Task :app-admin:writeDebugAppMetadata
+> Task :app-admin:mergeDebugNativeLibs
 > Task :app-admin:writeDebugSigningConfigVersions
 > Task :app-driver:preBuild UP-TO-DATE
 > Task :app-driver:preDebugBuild UP-TO-DATE
@@ -113,19 +113,18 @@ Unable to strip the following libraries, packaging them as they are: libandroidx
 > Task :app-driver:writeDebugAppMetadata
 > Task :app-driver:writeDebugSigningConfigVersions
 > Task :app-driver:mergeExtDexDebug
-> Task :app-admin:mergeExtDexDebug
 > Task :core-common:compileDebugKotlin
 > Task :core-common:compileDebugJavaWithJavac NO-SOURCE
-> Task :core-common:processDebugJavaRes
 > Task :core-common:bundleLibRuntimeToJarDebug
 > Task :core-common:bundleLibCompileToJarDebug
+> Task :core-common:processDebugJavaRes
+> Task :app-admin:mergeExtDexDebug
 > Task :core-common:bundleLibRuntimeToDirDebug
 > Task :core-database:kspDebugKotlin
 
 > Task :core-database:compileDebugKotlin FAILED
-e: file:///home/runner/work/Flota/Flota/android-native/core-database/src/main/java/com/future/ultimate/core/database/repository/DriverRemoteSyncGateway.kt:133:50 Suspension functions can only be called within coroutine body.
-e: file:///home/runner/work/Flota/Flota/android-native/core-database/src/main/java/com/future/ultimate/core/database/repository/DriverRemoteSyncGateway.kt:278:5 Missing return statement.
-gradle/actions: Writing build results to /home/runner/work/_temp/.gradle-actions/build-results/__run_2-1774192178814.json
+e: file:///home/runner/work/Flota/Flota/android-native/core-database/src/main/java/com/future/ultimate/core/database/repository/DriverRemoteSyncGateway.kt:283:5 Missing return statement.
+gradle/actions: Writing build results to /home/runner/work/_temp/.gradle-actions/build-results/__run_2-1774193795233.json
 
 [Incubating] Problems report is available at: file:///home/runner/work/Flota/Flota/android-native/build/reports/problems/problems-report.html
 
@@ -339,5 +338,5 @@ You can use '--warning-mode all' to show the individual deprecation warnings and
 
 For more on this, please refer to https://docs.gradle.org/8.14.3/userguide/command_line_interface.html#sec:command_line_warnings in the Gradle documentation.
 
-BUILD FAILED in 57s
+BUILD FAILED in 1m
 91 actionable tasks: 87 executed, 4 up-to-date
