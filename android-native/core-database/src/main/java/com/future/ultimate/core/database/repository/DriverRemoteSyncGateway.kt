@@ -102,6 +102,11 @@ internal object DriverRemoteSyncGateway {
         val endpoint = loadEndpoint(dao)
         val logsBefore = runCatching { fetchRemoteLogs(dao, endpoint) }.getOrDefault(emptyList())
         val payloads = listOf(
+            legacyAddMileagePayload(
+                registration = normalizedRegistration,
+                mileage = normalizedMileage,
+                login = normalizedLogin,
+            ),
             legacyMileagePayload(
                 registration = normalizedRegistration,
                 mileage = normalizedMileage,
@@ -401,6 +406,17 @@ internal object DriverRemoteSyncGateway {
         }
     }
 
+    private fun legacyAddMileagePayload(
+        registration: String,
+        mileage: Int,
+        login: String,
+    ): JSONObject = JSONObject().apply {
+        put("action", "add_mileage")
+        put("driver", login)
+        put("registration", registration)
+        put("mileage", mileage)
+    }
+
     private fun legacyMileagePayload(
         registration: String,
         mileage: Int,
@@ -433,7 +449,7 @@ internal object DriverRemoteSyncGateway {
         put("value", mileage)
         put("timestamp", timestamp)
         put("driver_login", login)
-        put("driver", driverName)
+        put("driver", login.ifBlank { driverName })
         put("name", driverName)
         if (login.isNotBlank()) put("login", login)
         if (driverName.isNotBlank()) put("driverName", driverName)
