@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
@@ -33,7 +34,9 @@ internal fun PreviewSpreadsheetTable(
     selectedRows: Set<Int>,
     onToggleRow: (Int) -> Unit,
     onToggleColumn: (Int) -> Unit,
-    onExportRow: (Int) -> Unit,
+    showRowActions: Boolean = true,
+    onExportRow: ((Int) -> Unit)? = null,
+    onSendRow: ((Int) -> Unit)? = null,
 ) {
     val horizontalState = rememberScrollState()
     val verticalState = rememberScrollState()
@@ -49,10 +52,12 @@ internal fun PreviewSpreadsheetTable(
             .border(1.dp, gridColor)
             .horizontalScroll(horizontalState),
     ) {
-        Column(modifier = Modifier.verticalScroll(verticalState)) {
+        Column {
             Row(modifier = Modifier.background(headerColor)) {
                 SpreadsheetCell(text = "#", width = 48.dp, borderColor = gridColor, isHeader = true)
-                SpreadsheetCell(text = "Eksport", width = 110.dp, borderColor = gridColor, isHeader = true)
+                if (showRowActions) {
+                    SpreadsheetCell(text = "Akcje", width = 220.dp, borderColor = gridColor, isHeader = true)
+                }
                 visibleColumns.forEach { columnIndex ->
                     Box(
                         modifier = Modifier
@@ -73,39 +78,52 @@ internal fun PreviewSpreadsheetTable(
                 }
             }
 
-            rows.forEach { row ->
-                Row {
-                    Box(
-                        modifier = Modifier
-                            .width(48.dp)
-                            .defaultMinSize(minHeight = 44.dp)
-                            .border(0.5.dp, gridColor),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Checkbox(
-                            checked = row.index in selectedRows,
-                            onCheckedChange = { onToggleRow(row.index) },
-                        )
-                    }
-                    Box(
-                        modifier = Modifier
-                            .width(110.dp)
-                            .defaultMinSize(minHeight = 44.dp)
-                            .border(0.5.dp, gridColor)
-                            .padding(4.dp),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Button(onClick = { onExportRow(row.index) }) {
-                            Text("Eksport")
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(verticalState),
+            ) {
+                rows.forEach { row ->
+                    Row {
+                        Box(
+                            modifier = Modifier
+                                .width(48.dp)
+                                .defaultMinSize(minHeight = 44.dp)
+                                .border(0.5.dp, gridColor),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Checkbox(
+                                checked = row.index in selectedRows,
+                                onCheckedChange = { onToggleRow(row.index) },
+                            )
                         }
-                    }
+                        if (showRowActions) {
+                            Box(
+                                modifier = Modifier
+                                    .width(220.dp)
+                                    .defaultMinSize(minHeight = 44.dp)
+                                    .border(0.5.dp, gridColor)
+                                    .padding(4.dp),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    Button(onClick = { onExportRow?.invoke(row.index) }) {
+                                        Text("Eksport")
+                                    }
+                                    Button(onClick = { onSendRow?.invoke(row.index) }) {
+                                        Text("Wyślij")
+                                    }
+                                }
+                            }
+                        }
 
-                    visibleColumns.forEach { columnIndex ->
-                        SpreadsheetCell(
-                            text = row.cells.getOrNull(columnIndex).orEmpty(),
-                            width = cellWidth,
-                            borderColor = gridColor,
-                        )
+                        visibleColumns.forEach { columnIndex ->
+                            SpreadsheetCell(
+                                text = row.cells.getOrNull(columnIndex).orEmpty(),
+                                width = cellWidth,
+                                borderColor = gridColor,
+                            )
+                        }
                     }
                 }
             }
