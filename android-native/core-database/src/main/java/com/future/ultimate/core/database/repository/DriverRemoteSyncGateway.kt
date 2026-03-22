@@ -98,6 +98,58 @@ internal object DriverRemoteSyncGateway {
         return "Zdalny endpoint kierowców odpowiada prawidłowo"
     }
 
+    suspend fun loginDriver(
+        dao: AppDao,
+        login: String,
+        password: String,
+    ): DriverAccountEntity {
+        val normalizedLogin = login.trim()
+        val normalizedPassword = password.trim()
+        require(normalizedLogin.isNotBlank()) { "Brak loginu kierowcy" }
+        require(normalizedPassword.isNotBlank()) { "Brak hasła kierowcy" }
+        val (statusCode, responseBody) = postPayloadToUrl(
+            endpoint = loadEndpoint(dao),
+            payload = JSONObject().apply {
+                put("action", "login_driver")
+                put("login", normalizedLogin)
+                put("password", normalizedPassword)
+            },
+        )
+        require(statusCode in 200..299) { "HTTP $statusCode" }
+        val json = JSONObject(responseBody)
+        val status = json.optString("status").trim().lowercase()
+        require(status in okStatuses) {
+            json.optString("message").ifBlank { "Błędny login lub hasło" }
+        }
+        val registration = json.optString("registration")
+            .ifBlank { json.optString("plate") }
+            .trim()
+            .uppercase()
+        require(registration.isNotBlank()) { "Endpoint nie zwrócił numeru rejestracyjnego kierowcy" }
+        val driverName = json.optString("name")
+            .ifBlank { json.optString("driverName") }
+            .trim()
+            .ifBlank { normalizedLogin }
+        val rawChangePassword = when {
+            json.has("changePassword") -> json.opt("changePassword")
+            json.has("change_password") -> json.opt("change_password")
+            else -> null
+        }
+        val changePassword = when (rawChangePassword) {
+            is Boolean -> if (rawChangePassword) 1 else 0
+            is Number -> if (rawChangePassword.toInt() != 0) 1 else 0
+            is String -> if (rawChangePassword == "1" || rawChangePassword.equals("true", ignoreCase = true)) 1 else 0
+            else -> 0
+        }
+        return DriverAccountEntity(
+            registration = registration,
+            login = normalizedLogin,
+            password = normalizedPassword,
+            driverName = driverName,
+            changePassword = changePassword,
+        )
+    }
+
     private suspend fun postDriverPayload(
         dao: AppDao,
         registration: String,
