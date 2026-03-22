@@ -96,7 +96,13 @@ class LocalDriverRepository(
     override suspend fun saveMileage(login: String, registration: String, mileage: Int) {
         val current = session.value ?: throw IllegalStateException("Brak aktywnej sesji kierowcy")
         val targetRegistration = registration.trim().ifBlank { current.registration }.uppercase()
-        DriverMileageSyncCoordinator.queueMileage(dao, targetRegistration, mileage.coerceAtLeast(0))
+        DriverMileageSyncCoordinator.queueMileage(
+            dao = dao,
+            registration = targetRegistration,
+            mileage = mileage.coerceAtLeast(0),
+            login = current.login,
+            driverName = current.driverName,
+        )
         DriverMileageSyncCoordinator.flushPending(dao, targetRegistration)
     }
 
