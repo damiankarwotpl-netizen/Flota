@@ -225,13 +225,12 @@ internal object DriverRemoteSyncGateway {
             return
         }
 
-        runCatching {
+        try {
             val (statusCode, responseBody) = postPayload(dao, payload)
             require(statusCode in 200..299) { "HTTP $statusCode" }
             validateResponse(responseBody, fallbackMessage = "Zdalny endpoint odrzucił synchronizację kierowcy")
-        }.onSuccess {
             markDriverRemoteSync(normalizedRegistration, dao, status = successStatus, error = "")
-        }.onFailure { error ->
+        } catch (error: Exception) {
             markDriverRemoteSync(
                 normalizedRegistration,
                 dao,

@@ -50,7 +50,7 @@ internal object DriverMileageSyncCoordinator {
             }
             val driverAccount = dao.getDriverAccountByRegistration(reg)
 
-            runCatching {
+            try {
                 dao.updateMileageByRegistration(reg, pending.mileage)
                 syncRemoteMileage(
                     dao = dao,
@@ -65,7 +65,7 @@ internal object DriverMileageSyncCoordinator {
                 dao.upsertSetting(SettingEntity(key = statusKey(reg), valText = "Zsynchronizowano"))
                 dao.upsertSetting(SettingEntity(key = errorKey(reg), valText = ""))
                 dao.upsertSetting(SettingEntity(key = pendingKey(reg), valText = ""))
-            }.onFailure { error ->
+            } catch (error: Exception) {
                 dao.upsertSetting(SettingEntity(key = statusKey(reg), valText = "Retry po błędzie synchronizacji"))
                 dao.upsertSetting(
                     SettingEntity(

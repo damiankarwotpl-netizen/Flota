@@ -7,11 +7,11 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.material3.AlertDialog as M3AlertDialog
-import androidx.compose.material3.Button as M3Button
-import androidx.compose.material3.OutlinedTextField as M3OutlinedTextField
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton as M3TextButton
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -91,12 +91,12 @@ fun PayrollScreen(_navController: NavController) {
     ScreenColumn("Wypłaty", "Nowy moduł: import Excel + podgląd + eksport") {
         item {
             SectionCard(title = "Wczytaj Excel", subtitle = "Wczytuje plik z pamięci telefonu.") {
-                M3Button(onClick = { excelPicker.launch("*/*") }, modifier = Modifier.fillMaxWidth()) { Text("Wczytaj Excel") }
-                M3Button(onClick = { folderPicker.launch(null) }, modifier = Modifier.fillMaxWidth()) { Text("Wybierz folder eksportu") }
+                Button(onClick = { excelPicker.launch("*/*") }, modifier = Modifier.fillMaxWidth()) { Text("Wczytaj Excel") }
+                Button(onClick = { folderPicker.launch(null) }, modifier = Modifier.fillMaxWidth()) { Text("Wybierz folder eksportu") }
 
                 Text(if (uiState.exportFolderUri.isBlank()) "Folder eksportu: nie wybrano" else "Folder eksportu: wybrany")
 
-                M3OutlinedTextField(
+                OutlinedTextField(
                     value = uiState.workbookImportText,
                     onValueChange = viewModel::updateWorkbookImportText,
                     label = { Text("Podgląd surowych danych (CSV/TSV)") },
@@ -104,18 +104,18 @@ fun PayrollScreen(_navController: NavController) {
                     minLines = 4,
                 )
 
-                M3Button(onClick = viewModel::stageWorkbookImport, modifier = Modifier.fillMaxWidth()) { Text("Odśwież podgląd") }
+                Button(onClick = viewModel::stageWorkbookImport, modifier = Modifier.fillMaxWidth()) { Text("Odśwież podgląd") }
             }
         }
 
         item {
             SectionCard(title = "Podgląd/Export", subtitle = "Otwiera osobne okno z tabelą jak w Excelu.") {
-                M3Button(
+                Button(
                     onClick = { isPreviewDialogOpen = true },
                     modifier = Modifier.fillMaxWidth(),
                     enabled = uiState.previewRows.isNotEmpty(),
                 ) { Text("Podgląd/Export") }
-                M3Button(
+                Button(
                     onClick = {
                         viewModel.prepareCashReportSelection()
                         isCashReportDialogOpen = true
@@ -137,7 +137,7 @@ fun PayrollScreen(_navController: NavController) {
             SectionCard(title = "Podgląd arkusza Excel") {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text("Otwórz tabelę, aby wybrać kolumny i wiersze do eksportu.")
-                    M3Button(
+                    Button(
                         onClick = {
                             isPreviewDialogOpen = false
                             isSpreadsheetDialogOpen = true
@@ -145,7 +145,7 @@ fun PayrollScreen(_navController: NavController) {
                         modifier = Modifier.fillMaxWidth(),
                     ) { Text("Otwórz tabelę w nowym oknie") }
 
-                    M3Button(onClick = { isPreviewDialogOpen = false }, modifier = Modifier.fillMaxWidth()) { Text("Zamknij") }
+                    Button(onClick = { isPreviewDialogOpen = false }, modifier = Modifier.fillMaxWidth()) { Text("Zamknij") }
                 }
             }
         }
@@ -159,7 +159,7 @@ fun PayrollScreen(_navController: NavController) {
             Box(modifier = Modifier.fillMaxSize()) {
                 SectionCard(title = "Tabela arkusza Excel") {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        M3Button(onClick = viewModel::exportSelectedPreviewRows, modifier = Modifier.fillMaxWidth()) {
+                        Button(onClick = viewModel::exportSelectedPreviewRows, modifier = Modifier.fillMaxWidth()) {
                             Text("Eksportuj zaznaczone wiersze")
                         }
                         PreviewSpreadsheetTable(
@@ -172,10 +172,10 @@ fun PayrollScreen(_navController: NavController) {
                             onExportRow = { rowIndex -> viewModel.exportSinglePreviewRowToFolder(app, rowIndex) },
                             onSendRow = viewModel::sendSinglePreviewRowMail,
                         )
-                        M3Button(onClick = { isSpreadsheetDialogOpen = false }, modifier = Modifier.fillMaxWidth()) {
+                        Button(onClick = { isSpreadsheetDialogOpen = false }, modifier = Modifier.fillMaxWidth()) {
                             Text("Zamknij tabelę")
                         }
-                        M3Button(onClick = viewModel::selectAllPreviewColumns, modifier = Modifier.fillMaxWidth()) {
+                        Button(onClick = viewModel::selectAllPreviewColumns, modifier = Modifier.fillMaxWidth()) {
                             Text("Zaznacz kolumny")
                         }
                     }
@@ -192,7 +192,7 @@ fun PayrollScreen(_navController: NavController) {
             Box(modifier = Modifier.fillMaxSize()) {
                 SectionCard(title = "Raport gotówki") {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        M3Button(onClick = { viewModel.generateCashReportToFolder(app) }, modifier = Modifier.fillMaxWidth()) {
+                        Button(onClick = { viewModel.generateCashReportToFolder(app) }, modifier = Modifier.fillMaxWidth()) {
                             Text("Generuj raport gotówki")
                         }
                         PreviewSpreadsheetTable(
@@ -205,10 +205,10 @@ fun PayrollScreen(_navController: NavController) {
                             showAllColumns = true,
                             showRowActions = false,
                         )
-                        M3Button(onClick = { isCashReportDialogOpen = false }, modifier = Modifier.fillMaxWidth()) {
+                        Button(onClick = { isCashReportDialogOpen = false }, modifier = Modifier.fillMaxWidth()) {
                             Text("Zamknij")
                         }
-                        M3Button(onClick = viewModel::selectAllPreviewColumns, modifier = Modifier.fillMaxWidth()) {
+                        Button(onClick = viewModel::selectAllPreviewColumns, modifier = Modifier.fillMaxWidth()) {
                             Text("Zaznacz kolumny")
                         }
                     }
@@ -219,10 +219,10 @@ fun PayrollScreen(_navController: NavController) {
 
     if (isSpreadsheetDialogOpen || isCashReportDialogOpen) {
         uiState.actionMessage?.let { message ->
-            M3AlertDialog(
+            AlertDialog(
                 onDismissRequest = viewModel::clearActionMessage,
                 confirmButton = {
-                    M3TextButton(onClick = viewModel::clearActionMessage) {
+                    TextButton(onClick = viewModel::clearActionMessage) {
                         Text("OK")
                     }
                 },

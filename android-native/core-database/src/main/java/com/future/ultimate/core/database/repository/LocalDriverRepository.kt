@@ -38,7 +38,7 @@ class LocalDriverRepository(
         val normalizedLogin = login.trim()
         val normalizedPassword = password.trim()
         val account = dao.getDriverAccount(normalizedLogin, normalizedPassword)
-            ?: runCatching {
+            ?: try {
                 DriverRemoteSyncGateway.loginDriver(
                     dao = dao,
                     login = normalizedLogin,
@@ -46,7 +46,7 @@ class LocalDriverRepository(
                 ).also { remoteAccount ->
                     dao.upsertDriverAccount(remoteAccount)
                 }
-            }.getOrElse {
+            } catch (_: Exception) {
                 throw IllegalArgumentException("Błędny login lub hasło")
             }
 
