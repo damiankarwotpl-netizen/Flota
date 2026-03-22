@@ -187,6 +187,8 @@ data class SettingsUiState(
     val stats: DashboardStats = DashboardStats(),
     val remoteSettings: DriverRemoteSettingsData = DriverRemoteSettingsData(),
     val isExportingDatabase: Boolean = false,
+    val isImportingDatabase: Boolean = false,
+    val isImportingRemoteLogs: Boolean = false,
     val isSavingRemoteSettings: Boolean = false,
     val isValidatingRemoteSettings: Boolean = false,
     val actionMessage: String? = null,

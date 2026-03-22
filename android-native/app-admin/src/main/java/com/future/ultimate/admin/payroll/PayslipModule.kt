@@ -223,6 +223,7 @@ class PayslipModule(
             WorkbookFactory.create(input).use { workbook ->
                 val sheet = workbook.getSheetAt(0) ?: return RawExcelData(emptyList(), emptyList())
                 val formatter = DataFormatter()
+                val evaluator = workbook.creationHelper.createFormulaEvaluator()
                 val allRows = mutableListOf<List<String>>()
                 val maxColumns = (sheet.firstRowNum..sheet.lastRowNum)
                     .mapNotNull { idx -> sheet.getRow(idx)?.lastCellNum?.toInt()?.takeIf { it > 0 } }
@@ -231,7 +232,7 @@ class PayslipModule(
                 for (rowIndex in sheet.firstRowNum..sheet.lastRowNum) {
                     val row = sheet.getRow(rowIndex)
                     val values = (0 until maxColumns).map { cellIndex ->
-                        formatter.formatCellValue(row?.getCell(cellIndex)).trim()
+                        formatter.formatCellValue(row?.getCell(cellIndex), evaluator).trim()
                     }
                     if (values.any { it.isNotBlank() }) {
                         allRows += values

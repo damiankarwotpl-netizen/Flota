@@ -9,17 +9,27 @@ import kotlinx.coroutines.flow.first
 
 internal object DriverMileageSyncCoordinator {
     private const val PendingPrefix = "driver_mileage_sync_pending_"
+    private const val LoginPrefix = "driver_mileage_sync_login_"
+    private const val DriverNamePrefix = "driver_mileage_sync_driver_"
     private const val StatusPrefix = "driver_mileage_sync_status_"
     private const val AttemptPrefix = "driver_mileage_sync_attempt_"
     private const val SyncedPrefix = "driver_mileage_sync_at_"
     private const val ErrorPrefix = "driver_mileage_sync_error_"
     private val timestampFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
 
-    suspend fun queueMileage(dao: AppDao, registration: String, mileage: Int) {
+    suspend fun queueMileage(
+        dao: AppDao,
+        registration: String,
+        mileage: Int,
+        login: String = "",
+        driverName: String = "",
+    ) {
         val normalized = registration.trim().uppercase()
         require(normalized.isNotBlank()) { "Brak rejestracji do synchronizacji przebiegu" }
         val now = nowText()
         dao.upsertSetting(SettingEntity(key = pendingKey(normalized), valText = "${mileage.coerceAtLeast(0)}|$now"))
+        dao.upsertSetting(SettingEntity(key = loginKey(normalized), valText = login.trim()))
+        dao.upsertSetting(SettingEntity(key = driverNameKey(normalized), valText = driverName.trim()))
         dao.upsertSetting(SettingEntity(key = statusKey(normalized), valText = "Oczekuje na synchronizację"))
         dao.upsertSetting(SettingEntity(key = attemptKey(normalized), valText = now))
         dao.upsertSetting(SettingEntity(key = errorKey(normalized), valText = ""))
@@ -43,29 +53,37 @@ internal object DriverMileageSyncCoordinator {
             val attemptAt = nowText()
             dao.upsertSetting(SettingEntity(key = attemptKey(reg), valText = attemptAt))
             val car = dao.getCarByRegistration(reg)
-            if (car == null) {
-                dao.upsertSetting(SettingEntity(key = statusKey(reg), valText = "Retry: brak auta do synchronizacji"))
-                dao.upsertSetting(SettingEntity(key = errorKey(reg), valText = "Nie znaleziono auta o rejestracji $reg"))
-                return@forEach
-            }
             val driverAccount = dao.getDriverAccountByRegistration(reg)
+            val queuedLogin = settings[loginKey(reg)].orEmpty()
+            val queuedDriverName = settings[driverNameKey(reg)].orEmpty()
 
-            runCatching {
-                dao.updateMileageByRegistration(reg, pending.mileage)
+            try {
+                if (car != null) {
+                    dao.updateMileageByRegistration(reg, pending.mileage)
+                }
                 syncRemoteMileage(
                     dao = dao,
                     registration = reg,
                     mileage = pending.mileage,
                     queuedAt = pending.queuedAt.ifBlank { attemptAt },
-                    login = driverAccount?.login.orEmpty(),
-                    driverName = driverAccount?.driverName.orEmpty(),
+                    login = driverAccount?.login.orEmpty().ifBlank { queuedLogin },
+                    driverName = driverAccount?.driverName.orEmpty().ifBlank { queuedDriverName },
                 )
                 dao.upsertSetting(SettingEntity(key = "driver_last_mileage_$reg", valText = pending.mileage.toString()))
                 dao.upsertSetting(SettingEntity(key = syncedKey(reg), valText = attemptAt))
-                dao.upsertSetting(SettingEntity(key = statusKey(reg), valText = "Zsynchronizowano"))
+                dao.upsertSetting(
+                    SettingEntity(
+                        key = statusKey(reg),
+                        valText = if (car == null) {
+                            "Zsynchronizowano zdalnie (brak lokalnego auta)"
+                        } else {
+                            "Zsynchronizowano"
+                        },
+                    ),
+                )
                 dao.upsertSetting(SettingEntity(key = errorKey(reg), valText = ""))
                 dao.upsertSetting(SettingEntity(key = pendingKey(reg), valText = ""))
-            }.onFailure { error ->
+            } catch (error: Exception) {
                 dao.upsertSetting(SettingEntity(key = statusKey(reg), valText = "Retry po błędzie synchronizacji"))
                 dao.upsertSetting(
                     SettingEntity(
@@ -98,6 +116,8 @@ internal object DriverMileageSyncCoordinator {
 
     private suspend fun clearPending(dao: AppDao, registration: String) {
         dao.upsertSetting(SettingEntity(key = pendingKey(registration), valText = ""))
+        dao.upsertSetting(SettingEntity(key = loginKey(registration), valText = ""))
+        dao.upsertSetting(SettingEntity(key = driverNameKey(registration), valText = ""))
         dao.upsertSetting(SettingEntity(key = statusKey(registration), valText = "Brak aktywnej kolejki"))
         dao.upsertSetting(SettingEntity(key = errorKey(registration), valText = ""))
     }
@@ -112,6 +132,8 @@ internal object DriverMileageSyncCoordinator {
     }
 
     private fun pendingKey(registration: String): String = "$PendingPrefix$registration"
+    private fun loginKey(registration: String): String = "$LoginPrefix$registration"
+    private fun driverNameKey(registration: String): String = "$DriverNamePrefix$registration"
     private fun statusKey(registration: String): String = "$StatusPrefix$registration"
     private fun attemptKey(registration: String): String = "$AttemptPrefix$registration"
     private fun syncedKey(registration: String): String = "$SyncedPrefix$registration"

@@ -199,6 +199,31 @@ fun DriverLoginScreen(navController: NavController) {
         subtitle = "Zaloguj się, aby dodać przebieg lub wysłać raport stanu pojazdu.",
     ) {
         item {
+            DriverSectionCard(
+                title = "Endpoint synchronizacji",
+                subtitle = "Jeżeli APK kierowcy wskazuje zły backend, tutaj możesz go nadpisać i sprawdzić połączenie.",
+            ) {
+                DriverInputField(
+                    value = uiState.remoteApiUrl,
+                    onValueChange = viewModel::updateRemoteApiUrl,
+                    label = "Endpoint zdalnego syncu kierowców",
+                    singleLine = false,
+                )
+                DriverActionButton(
+                    text = if (uiState.isSavingRemoteSettings) "Zapisywanie endpointu..." else "Zapisz endpoint",
+                    onClick = viewModel::saveRemoteSettings,
+                    enabled = !uiState.isSavingRemoteSettings && uiState.remoteApiUrl.isNotBlank(),
+                    secondary = true,
+                )
+                DriverActionButton(
+                    text = if (uiState.isValidatingRemoteSettings) "Sprawdzanie endpointu..." else "Sprawdź endpoint",
+                    onClick = viewModel::validateRemoteSettings,
+                    enabled = !uiState.isValidatingRemoteSettings && uiState.remoteApiUrl.isNotBlank(),
+                    secondary = true,
+                )
+            }
+        }
+        item {
             DriverSectionCard(title = "Dane logowania") {
                 DriverInputField(
                     value = uiState.login,
