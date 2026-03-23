@@ -83,6 +83,10 @@ function handleRequest_(e) {
       case 'driver_logs':
         return jsonResponse_(getMileageLogs_());
 
+      case 'get_driver':
+      case 'get_driver_by_login':
+        return jsonResponse_(getDriverByLogin_(payload));
+
       case 'get_drivers':
         return jsonResponse_({ status: 'ok', drivers: getDriversSnapshot_() });
 
@@ -626,6 +630,30 @@ function getMileageLogs_() {
   return {
     status: 'ok',
     logs: rows,
+  };
+}
+
+function getDriverByLogin_(payload) {
+  const login = normalizeLogin_(payload.login);
+  if (!login) throw new Error('Missing login');
+
+  const driver = findDriverByLogin_(login);
+  if (!driver) {
+    return {
+      status: 'error',
+      message: 'Driver not found',
+    };
+  }
+
+  return {
+    status: 'ok',
+    login: normalizeLogin_(driver.login),
+    password: String(driver.password || ''),
+    name: normalizeName_(driver.name),
+    registration: normalizeRegistration_(driver.registration),
+    change_password: toBooleanFlag_(driver.must_change_password),
+    last_mileage: Number(driver.last_mileage || 0) || 0,
+    updated_at: String(driver.updated_at || ''),
   };
 }
 

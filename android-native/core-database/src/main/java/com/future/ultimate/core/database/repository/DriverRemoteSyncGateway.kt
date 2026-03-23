@@ -225,6 +225,34 @@ internal object DriverRemoteSyncGateway {
         throw IllegalArgumentException("Nie udało się pobrać logów kierowców z endpointu")
     }
 
+    suspend fun findDriverAccount(dao: AppDao, login: String): DriverAccountEntity? {
+        val normalizedLogin = login.trim()
+        require(normalizedLogin.isNotBlank()) { "Brak loginu kierowcy" }
+        val endpoint = loadEndpoint(dao)
+        val payloads = listOf(
+            JSONObject().apply {
+                put("action", "get_driver")
+                put("login", normalizedLogin)
+            },
+            JSONObject().apply {
+                put("action", "get_driver_by_login")
+                put("login", normalizedLogin)
+            },
+        )
+
+        for (payload in payloads) {
+            val account = try {
+                val (statusCode, responseBody) = postPayloadToUrl(endpoint = endpoint, payload = payload)
+                require(statusCode in 200..299) { "HTTP $statusCode" }
+                parseDriverLookupResponse(responseBody, normalizedLogin)
+            } catch (_: Exception) {
+                null
+            }
+            if (account != null) return account
+        }
+        return null
+    }
+
     suspend fun loginDriver(
         dao: AppDao,
         login: String,
@@ -272,6 +300,33 @@ internal object DriverRemoteSyncGateway {
             password = normalizedPassword,
             driverName = resolvedResponse.driverName,
             changePassword = resolvedResponse.changePassword,
+        )
+    }
+
+    private fun parseDriverLookupResponse(
+        body: String,
+        fallbackLogin: String,
+    ): DriverAccountEntity? {
+        val trimmed = body.trim()
+        if (trimmed.isBlank()) return null
+        val json = runCatching { JSONObject(trimmed) }.getOrNull() ?: return null
+        val status = json.optString("status").trim().lowercase()
+        if (status.isNotBlank() && status !in okStatuses) return null
+
+        return DriverAccountEntity(
+            registration = json.optString("registration").trim().uppercase(),
+            login = json.optString("login").trim().ifBlank { fallbackLogin },
+            password = json.optString("password").trim(),
+            driverName = json.optString("name")
+                .ifBlank { json.optString("driverName") }
+                .ifBlank { json.optString("driver") }
+                .trim(),
+            changePassword = when (val raw = json.opt("change_password")) {
+                is Boolean -> if (raw) 1 else 0
+                is Number -> if (raw.toInt() != 0) 1 else 0
+                is String -> if (raw == "1" || raw.equals("true", ignoreCase = true)) 1 else 0
+                else -> 0
+            },
         )
     }
 
