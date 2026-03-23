@@ -55,6 +55,7 @@ data class CarEntity(
     val mileage: Int = 0,
     val serviceInterval: Int = 15000,
     val lastService: Int = 0,
+    val lastInspectionDate: String = "",
 )
 
 @Entity(tableName = "driver_accounts")
@@ -64,6 +65,8 @@ data class DriverAccountEntity(
     val password: String,
     val driverName: String,
     val changePassword: Int = 1,
+    val licenseType: String = "PL",
+    val licenseValidUntil: String = "",
 )
 
 @Entity(tableName = "workers")

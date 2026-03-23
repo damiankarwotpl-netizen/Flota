@@ -8,6 +8,7 @@ import com.future.ultimate.core.common.model.ContactDraft
 import com.future.ultimate.core.common.model.PlantDraft
 import com.future.ultimate.core.common.model.VehicleReportDraft
 import com.future.ultimate.core.common.model.WorkerDraft
+import java.time.LocalDate
 import kotlinx.coroutines.flow.Flow
 
 data class ContactListItem(
@@ -29,9 +30,12 @@ data class CarListItem(
     val mileage: Int,
     val serviceInterval: Int,
     val lastService: Int,
+    val lastInspectionDate: String = "",
     val driverLogin: String = "",
     val driverPassword: String = "",
     val changePasswordRequired: Boolean = false,
+    val licenseType: String = "",
+    val licenseValidUntil: String = "",
     val pendingMileageSync: Boolean = false,
     val queuedMileage: Int? = null,
     val lastMileageSyncAt: String = "",
@@ -42,7 +46,12 @@ data class CarListItem(
 ) {
     val remainingToService: Int
         get() = serviceInterval - (mileage - lastService)
+
+    val nextInspectionDate: String
+        get() = lastInspectionDate.toLocalDateOrNull()?.plusYears(1)?.toString().orEmpty()
 }
+
+private fun String.toLocalDateOrNull(): LocalDate? = runCatching { LocalDate.parse(this) }.getOrNull()
 
 data class WorkerListItem(
     val id: Long,
@@ -218,10 +227,12 @@ interface AdminRepository {
     suspend fun saveCar(draft: CarDraft)
     suspend fun updateCarMileage(id: Long, mileage: Int)
     suspend fun updateCarDriver(id: Long, driver: String)
+    suspend fun updateCarDriverLicense(id: Long, licenseType: String, validUntil: String)
     suspend fun resetCarDriverCredentials(id: Long): DriverAccountCredentials
     suspend fun retryCarDriverRemoteSync(id: Long)
     suspend fun deleteKnownCarDriver(driver: String)
     suspend fun confirmCarService(id: Long)
+    suspend fun confirmCarInspection(id: Long)
     suspend fun deleteCar(id: Long)
 
     fun observeWorkers(): Flow<List<WorkerListItem>>

@@ -58,6 +58,9 @@ interface AppDao {
     @Query("UPDATE cars SET lastService = mileage WHERE id = :id")
     suspend fun confirmService(id: Long)
 
+    @Query("UPDATE cars SET lastInspectionDate = :inspectionDate WHERE id = :id")
+    suspend fun updateLastInspectionDate(id: Long, inspectionDate: String)
+
     @Query("SELECT * FROM driver_accounts WHERE upper(registration) = upper(:registration) LIMIT 1")
     suspend fun getDriverAccountByRegistration(registration: String): DriverAccountEntity?
 
@@ -75,6 +78,9 @@ interface AppDao {
 
     @Query("UPDATE driver_accounts SET password = :password, changePassword = :changePassword WHERE upper(registration) = upper(:registration)")
     suspend fun updateDriverPassword(registration: String, password: String, changePassword: Int)
+
+    @Query("UPDATE driver_accounts SET licenseType = :licenseType, licenseValidUntil = :validUntil WHERE upper(registration) = upper(:registration)")
+    suspend fun updateDriverLicense(registration: String, licenseType: String, validUntil: String)
 
     @Query("DELETE FROM driver_accounts WHERE upper(registration) = upper(:registration)")
     suspend fun deleteDriverAccountByRegistration(registration: String)
