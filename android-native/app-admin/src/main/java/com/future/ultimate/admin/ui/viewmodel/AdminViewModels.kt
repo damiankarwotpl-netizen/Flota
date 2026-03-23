@@ -240,6 +240,12 @@ class CarsViewModel(private val repository: AdminRepository) : ViewModel() {
         repository.retryCarDriverRemoteSync(id)
         _uiState.value = _uiState.value.copy(actionInFlightId = null, actionMessage = "Ponowiono zdalną synchronizację kierowcy")
     }
+
+    fun deleteKnownDriver(driver: String, actionId: Long? = null) = viewModelScope.launch {
+        _uiState.value = _uiState.value.copy(actionInFlightId = actionId, actionMessage = null)
+        repository.deleteKnownCarDriver(driver)
+        _uiState.value = _uiState.value.copy(actionInFlightId = null, actionMessage = "Kierowca usunięty")
+    }
 }
 
 class VehicleReportViewModel(private val repository: AdminRepository) : ViewModel() {

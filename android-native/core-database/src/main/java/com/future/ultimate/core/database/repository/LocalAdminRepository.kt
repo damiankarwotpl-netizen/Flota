@@ -263,6 +263,19 @@ class LocalAdminRepository(
         syncDriverAccount(car.driver, car.registration, forceReset = false, forceRemote = true)
     }
 
+    override suspend fun deleteKnownCarDriver(driver: String) {
+        val normalizedDriver = driver.trim()
+        if (normalizedDriver.isBlank()) return
+        val matchingCars = dao.observeCars().first().filter { it.driver.equals(normalizedDriver, ignoreCase = true) }
+        matchingCars.forEach { car ->
+            dao.updateDriver(car.id, "")
+            dao.deleteDriverAccountByRegistration(car.registration)
+            syncRemoteDriverDeletion(car.registration)
+        }
+        val key = CarDriverHistoryPrefix + normalizedDriver.lowercase().replace(" ", "_")
+        dao.deleteSetting(key)
+    }
+
     override suspend fun confirmCarService(id: Long) = dao.confirmService(id)
 
     override suspend fun deleteCar(id: Long) {

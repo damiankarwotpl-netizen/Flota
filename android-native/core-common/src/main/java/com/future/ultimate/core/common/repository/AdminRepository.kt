@@ -219,6 +219,7 @@ interface AdminRepository {
     suspend fun updateCarDriver(id: Long, driver: String)
     suspend fun resetCarDriverCredentials(id: Long): DriverAccountCredentials
     suspend fun retryCarDriverRemoteSync(id: Long)
+    suspend fun deleteKnownCarDriver(driver: String)
     suspend fun confirmCarService(id: Long)
     suspend fun deleteCar(id: Long)
 
