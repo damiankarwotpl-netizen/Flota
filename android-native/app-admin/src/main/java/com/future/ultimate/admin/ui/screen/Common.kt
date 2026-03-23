@@ -58,13 +58,6 @@ fun ScreenColumn(
                     verticalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
                     Text(title, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-                    subtitle?.let {
-                        Text(
-                            text = it,
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
                 }
             }
         }
@@ -101,13 +94,6 @@ fun SectionCard(
         ) {
             title?.let {
                 Text(it, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-            }
-            subtitle?.let {
-                Text(
-                    text = it,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
             }
             content()
         }
