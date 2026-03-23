@@ -1,6 +1,7 @@
 package com.future.ultimate.admin
 
 import android.app.Application
+import com.future.ultimate.admin.sync.AdminDriverLogsSyncWorker
 import com.future.ultimate.core.database.DatabaseFactory
 import com.future.ultimate.core.database.repository.LocalAdminRepository
 
@@ -16,5 +17,6 @@ class AdminApp : Application() {
                 context = this,
             ),
         )
+        AdminDriverLogsSyncWorker.schedule(this)
     }
 }

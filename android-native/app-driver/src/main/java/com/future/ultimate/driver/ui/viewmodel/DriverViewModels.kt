@@ -8,6 +8,7 @@ import com.future.ultimate.core.common.repository.DriverRepository
 import com.future.ultimate.core.common.ui.DriverLoginUiState
 import com.future.ultimate.core.common.ui.DriverMileageUiState
 import com.future.ultimate.core.common.ui.DriverVehicleReportUiState
+import com.future.ultimate.core.database.repository.DriverRemoteSyncGateway
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -18,7 +19,13 @@ import kotlinx.coroutines.launch
 class DriverLoginViewModel(
     private val repository: DriverRepository,
 ) : ViewModel() {
-    private val _uiState = MutableStateFlow(DriverLoginUiState())
+    private companion object {
+        const val EndpointEditorPassword = "p@ssword1991"
+    }
+
+    private val _uiState = MutableStateFlow(
+        DriverLoginUiState(remoteApiUrl = DriverRemoteSyncGateway.DefaultDriverRemoteApiUrl),
+    )
     val uiState: StateFlow<DriverLoginUiState> = _uiState.asStateFlow()
 
     init {
@@ -30,6 +37,33 @@ class DriverLoginViewModel(
     fun updateLogin(value: String) { _uiState.value = _uiState.value.copy(login = value) }
     fun updatePassword(value: String) { _uiState.value = _uiState.value.copy(password = value) }
     fun updateRemoteApiUrl(value: String) { _uiState.value = _uiState.value.copy(remoteApiUrl = value, error = null) }
+    fun updateEndpointAccessPassword(value: String) {
+        _uiState.value = _uiState.value.copy(endpointAccessPassword = value, error = null)
+    }
+
+    fun unlockEndpointEditor() {
+        val password = _uiState.value.endpointAccessPassword
+        _uiState.value = if (password == EndpointEditorPassword) {
+            _uiState.value.copy(
+                endpointAccessPassword = "",
+                isEndpointEditorUnlocked = true,
+                error = "Odblokowano edycję endpointu",
+            )
+        } else {
+            _uiState.value.copy(
+                endpointAccessPassword = "",
+                error = "Nieprawidłowe hasło do edycji endpointu",
+            )
+        }
+    }
+
+    fun lockEndpointEditor() {
+        _uiState.value = _uiState.value.copy(
+            endpointAccessPassword = "",
+            isEndpointEditorUnlocked = false,
+            error = "Edycja endpointu została ukryta",
+        )
+    }
 
     fun login(onSuccess: (requiresPasswordChange: Boolean) -> Unit) {
         viewModelScope.launch {
