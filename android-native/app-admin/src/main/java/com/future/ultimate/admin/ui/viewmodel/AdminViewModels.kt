@@ -28,6 +28,7 @@ import com.future.ultimate.core.common.repository.ClothesSizeListItem
 import com.future.ultimate.core.common.repository.CarListItem
 import com.future.ultimate.core.common.repository.EmailTemplateData
 import com.future.ultimate.core.common.repository.ContactListItem
+import com.future.ultimate.core.common.repository.DriverRemoteSettingsData
 import com.future.ultimate.core.common.repository.MailApprovalRequest
 import com.future.ultimate.core.common.repository.PayrollWorkbookRow
 import com.future.ultimate.core.common.repository.PayrollPreviewRow
@@ -47,6 +48,7 @@ import com.future.ultimate.core.common.ui.TableUiState
 import com.future.ultimate.core.common.ui.TemplateUiState
 import com.future.ultimate.core.common.ui.VehicleReportUiState
 import com.future.ultimate.core.common.ui.WorkersUiState
+import com.future.ultimate.core.database.repository.DriverRemoteSyncGateway
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
@@ -1843,7 +1845,13 @@ class ReportsViewModel(private val repository: AdminRepository) : ViewModel() {
 }
 
 class SettingsViewModel(private val repository: AdminRepository) : ViewModel() {
-    private val _uiState = MutableStateFlow(SettingsUiState())
+    private companion object {
+        const val EndpointEditorPassword = "p@ssword1991"
+    }
+
+    private val _uiState = MutableStateFlow(
+        SettingsUiState(remoteSettings = DriverRemoteSettingsData(apiUrl = DriverRemoteSyncGateway.DefaultDriverRemoteApiUrl)),
+    )
     val uiState: StateFlow<SettingsUiState> = _uiState.asStateFlow()
 
     init {
@@ -1896,6 +1904,34 @@ class SettingsViewModel(private val repository: AdminRepository) : ViewModel() {
         )
     }
 
+    fun updateEndpointAccessPassword(value: String) {
+        _uiState.value = _uiState.value.copy(endpointAccessPassword = value, actionMessage = null)
+    }
+
+    fun unlockEndpointEditor() {
+        val password = _uiState.value.endpointAccessPassword
+        _uiState.value = if (password == EndpointEditorPassword) {
+            _uiState.value.copy(
+                endpointAccessPassword = "",
+                isEndpointEditorUnlocked = true,
+                actionMessage = "Odblokowano edycję endpointu admina",
+            )
+        } else {
+            _uiState.value.copy(
+                endpointAccessPassword = "",
+                actionMessage = "Nieprawidłowe hasło do edycji endpointu admina",
+            )
+        }
+    }
+
+    fun lockEndpointEditor() {
+        _uiState.value = _uiState.value.copy(
+            endpointAccessPassword = "",
+            isEndpointEditorUnlocked = false,
+            actionMessage = "Edycja endpointu admina została ukryta",
+        )
+    }
+
     fun saveDriverRemoteSettings() = viewModelScope.launch {
         _uiState.value = _uiState.value.copy(isSavingRemoteSettings = true, actionMessage = null)
         repository.saveDriverRemoteSettings(_uiState.value.remoteSettings)
@@ -1935,6 +1971,25 @@ class SettingsViewModel(private val repository: AdminRepository) : ViewModel() {
             _uiState.value = _uiState.value.copy(
                 isImportingRemoteLogs = false,
                 actionMessage = error.message ?: "Pobieranie logów kierowców nie powiodło się",
+            )
+        }
+    }
+
+    fun clearAllTestData() = viewModelScope.launch {
+        _uiState.value = _uiState.value.copy(isClearingDatabase = true, actionMessage = "Trwa czyszczenie lokalnej bazy i endpointu...")
+        runCatching {
+            repository.clearAllTestData(_uiState.value.remoteSettings)
+        }.onSuccess { message ->
+            _uiState.value = _uiState.value.copy(
+                isClearingDatabase = false,
+                isEndpointEditorUnlocked = false,
+                endpointAccessPassword = "",
+                actionMessage = message,
+            )
+        }.onFailure { error ->
+            _uiState.value = _uiState.value.copy(
+                isClearingDatabase = false,
+                actionMessage = error.message ?: "Czyszczenie danych testowych nie powiodło się",
             )
         }
     }
