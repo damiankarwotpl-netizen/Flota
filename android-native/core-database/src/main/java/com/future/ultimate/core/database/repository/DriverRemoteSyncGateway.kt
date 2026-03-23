@@ -166,6 +166,18 @@ internal object DriverRemoteSyncGateway {
                 )
                 require(statusCode in 200..299) { "HTTP $statusCode" }
                 validateResponse(responseBody, fallbackMessage = "Zdalny endpoint odrzucił aktualizację przebiegu")
+                if (
+                    confirmsMileageSaved(
+                        body = responseBody,
+                        registration = normalizedRegistration,
+                        mileage = normalizedMileage,
+                        timestamp = normalizedTimestamp,
+                        login = normalizedLogin,
+                        driverName = normalizedDriverName,
+                    )
+                ) {
+                    return
+                }
                 verifyMileageLogWritten(
                     dao = dao,
                     endpoint = endpoint,
@@ -560,6 +572,46 @@ internal object DriverRemoteSyncGateway {
                 ?: json.optString("error").takeIf { it.isNotBlank() }
                 ?: fallbackMessage
         }
+    }
+
+    private fun confirmsMileageSaved(
+        body: String,
+        registration: String,
+        mileage: Int,
+        timestamp: String,
+        login: String,
+        driverName: String,
+    ): Boolean {
+        val trimmed = body.trim()
+        if (trimmed.isBlank() || !trimmed.startsWith("{")) return false
+        val json = runCatching { JSONObject(trimmed) }.getOrNull() ?: return false
+        val status = json.optString("status").trim().lowercase()
+        if (status.isNotBlank() && status !in okStatuses) return false
+
+        val responseRegistration = json.optString("registration")
+            .ifBlank { json.optString("plate") }
+            .ifBlank { json.optString("rej") }
+            .trim()
+            .uppercase()
+        val responseMileage = json.opt("mileage")?.toString()?.toIntOrNull()
+            ?: json.optString("value").trim().toIntOrNull()
+        val responseTimestamp = json.optString("timestamp")
+            .ifBlank { json.optString("date") }
+            .trim()
+        val responseDriver = json.optString("driver")
+            .ifBlank { json.optString("login") }
+            .ifBlank { json.optString("driver_login") }
+            .ifBlank { json.optString("name") }
+            .trim()
+
+        val registrationMatches = responseRegistration.isBlank() || responseRegistration == registration
+        val mileageMatches = responseMileage == null || responseMileage == mileage
+        val timestampMatches = responseTimestamp.isBlank() || responseTimestamp == timestamp
+        val driverMatches = responseDriver.isBlank() || listOf(login, driverName)
+            .filter { it.isNotBlank() }
+            .any { expected -> responseDriver.equals(expected, ignoreCase = true) }
+
+        return registrationMatches && mileageMatches && timestampMatches && driverMatches
     }
 
     private fun validateProbeResponse(body: String) {
