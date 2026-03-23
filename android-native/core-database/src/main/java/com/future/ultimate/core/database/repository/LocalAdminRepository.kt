@@ -1810,14 +1810,30 @@ class LocalAdminRepository(
             return null
         }
 
-        val existing = dao.getDriverAccountByRegistration(normalizedRegistration)
-        val shouldRotateCredentials = forceReset || existing == null || !existing.driverName.equals(normalizedDriver, ignoreCase = true)
+        val generatedLogin = generateLogin(normalizedDriver)
+        val existingByRegistration = dao.getDriverAccountByRegistration(normalizedRegistration)
+        val existingByLogin = dao.getDriverAccountByLogin(generatedLogin)
+            ?: runCatching { DriverRemoteSyncGateway.findDriverAccount(dao, generatedLogin) }.getOrNull()
+        val authoritativeExisting = when {
+            existingByLogin != null && existingByLogin.login.equals(generatedLogin, ignoreCase = true) -> existingByLogin
+            existingByRegistration != null && existingByRegistration.driverName.equals(normalizedDriver, ignoreCase = true) -> existingByRegistration
+            else -> null
+        }
+
+        if (authoritativeExisting != null &&
+            authoritativeExisting.registration.isNotBlank() &&
+            !authoritativeExisting.registration.equals(normalizedRegistration, ignoreCase = true)
+        ) {
+            dao.deleteDriverAccountByRegistration(authoritativeExisting.registration)
+        }
+
+        val shouldRotateCredentials = forceReset || authoritativeExisting == null
         val account = DriverAccountEntity(
             registration = normalizedRegistration,
-            login = generateLogin(normalizedDriver),
-            password = if (shouldRotateCredentials) generatePassword() else existing.password,
+            login = authoritativeExisting?.login ?: generatedLogin,
+            password = if (shouldRotateCredentials) generatePassword() else authoritativeExisting.password,
             driverName = normalizedDriver,
-            changePassword = if (shouldRotateCredentials) 1 else existing.changePassword,
+            changePassword = if (shouldRotateCredentials) 1 else authoritativeExisting.changePassword,
         )
         dao.upsertDriverAccount(account)
         if (shouldRotateCredentials || forceRemote) {
