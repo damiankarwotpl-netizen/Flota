@@ -50,18 +50,30 @@ class LocalDriverRepository(
     override suspend fun login(login: String, password: String): DriverSession {
         val normalizedLogin = login.trim()
         val normalizedPassword = password.trim()
-        val account = dao.getDriverAccount(normalizedLogin, normalizedPassword)
-            ?: try {
-                DriverRemoteSyncGateway.loginDriver(
-                    dao = dao,
-                    login = normalizedLogin,
-                    password = normalizedPassword,
-                ).also { remoteAccount ->
+
+        val remoteAccount = runCatching {
+            DriverRemoteSyncGateway.loginDriver(
+                dao = dao,
+                login = normalizedLogin,
+                password = normalizedPassword,
+            )
+        }.getOrNull()
+
+        val account = when {
+            remoteAccount != null -> {
+                val previousAccount = dao.getDriverAccountByLogin(normalizedLogin)
+                if (previousAccount != null && !previousAccount.registration.equals(remoteAccount.registration, ignoreCase = true)) {
+                    dao.deleteDriverAccountByRegistration(previousAccount.registration)
+                }
+                if (remoteAccount.registration.isNotBlank()) {
                     dao.upsertDriverAccount(remoteAccount)
                 }
-            } catch (_: Exception) {
-                throw IllegalArgumentException("Błędny login lub hasło")
+                remoteAccount
             }
+
+            else -> dao.getDriverAccount(normalizedLogin, normalizedPassword)
+                ?: throw IllegalArgumentException("Błędny login lub hasło")
+        }
 
         return DriverSession(
             login = account.login,
@@ -109,10 +121,17 @@ class LocalDriverRepository(
     override suspend fun saveMileage(login: String, registration: String, mileage: Int) {
         val current = session.value ?: throw IllegalStateException("Brak aktywnej sesji kierowcy")
         val targetRegistration = registration.trim().ifBlank { current.registration }.uppercase()
+        val normalizedMileage = mileage.coerceAtLeast(0)
+        val localMileage = dao.getCarByRegistration(targetRegistration)?.mileage ?: 0
+        val syncedMileage = dao.getSetting("driver_last_mileage_$targetRegistration")?.valText?.toIntOrNull() ?: 0
+        val highestKnownMileage = maxOf(localMileage, syncedMileage)
+        require(normalizedMileage >= highestKnownMileage) {
+            "Przebieg mniejszy niż ostatni, sprawdź wprowadzone dane"
+        }
         DriverMileageSyncCoordinator.queueMileage(
             dao = dao,
             registration = targetRegistration,
-            mileage = mileage.coerceAtLeast(0),
+            mileage = normalizedMileage,
             login = current.login,
             driverName = current.driverName,
         )
