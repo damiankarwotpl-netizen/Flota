@@ -305,7 +305,6 @@ internal object DriverRemoteSyncGateway {
             .ifBlank { json.optString("rej") }
             .trim()
             .uppercase()
-        require(registration.isNotBlank()) { "Endpoint nie zwrócił numeru rejestracyjnego kierowcy" }
         val driverName = json.optString("name")
             .ifBlank { json.optString("driverName") }
             .ifBlank { json.optString("driver") }
