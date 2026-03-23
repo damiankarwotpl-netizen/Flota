@@ -183,4 +183,40 @@ interface AppDao {
 
     @Query("SELECT * FROM settings WHERE `key` = :key LIMIT 1")
     suspend fun getSetting(key: String): SettingEntity?
+
+    @Query("DELETE FROM contacts")
+    suspend fun clearContacts()
+
+    @Query("DELETE FROM cars")
+    suspend fun clearCars()
+
+    @Query("DELETE FROM driver_accounts")
+    suspend fun clearDriverAccounts()
+
+    @Query("DELETE FROM workers")
+    suspend fun clearWorkers()
+
+    @Query("DELETE FROM plants")
+    suspend fun clearPlants()
+
+    @Query("DELETE FROM clothes_sizes")
+    suspend fun clearClothesSizes()
+
+    @Query("DELETE FROM clothes_orders")
+    suspend fun clearClothesOrders()
+
+    @Query("DELETE FROM clothes_order_items")
+    suspend fun clearClothesOrderItems()
+
+    @Query("DELETE FROM clothes_history")
+    suspend fun clearClothesHistory()
+
+    @Query("DELETE FROM reports")
+    suspend fun clearReports()
+
+    @Query("DELETE FROM settings")
+    suspend fun clearSettings()
+
+    @Query("DELETE FROM sqlite_sequence")
+    suspend fun resetAutoincrement()
 }
