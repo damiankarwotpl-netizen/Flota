@@ -6,7 +6,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -192,23 +191,25 @@ fun CarsScreen() {
                     }
                 }
             } else {
-                items(filteredKnownDrivers) { driverName ->
-                    val currentAssignments = uiState.items.filter { it.driver.equals(driverName, ignoreCase = true) }
-                    SectionCard(
-                        title = driverName,
-                        subtitle = if (currentAssignments.isEmpty()) {
-                            "Brak aktywnie przypisanego auta"
-                        } else {
-                            "Aktualnie przypisane: ${currentAssignments.joinToString(", ") { it.registration }}"
-                        },
-                    ) {
-                        Text(
-                            if (currentAssignments.isEmpty()) {
-                                "Kierowca znajduje się w historii przypisań samochodów."
+                filteredKnownDrivers.forEach { driverName ->
+                    item {
+                        val currentAssignments = uiState.items.filter { it.driver.equals(driverName, ignoreCase = true) }
+                        SectionCard(
+                            title = driverName,
+                            subtitle = if (currentAssignments.isEmpty()) {
+                                "Brak aktywnie przypisanego auta"
                             } else {
-                                "Liczba aktywnych aut: ${currentAssignments.size}"
+                                "Aktualnie przypisane: ${currentAssignments.joinToString(", ") { it.registration }}"
                             },
-                        )
+                        ) {
+                            Text(
+                                if (currentAssignments.isEmpty()) {
+                                    "Kierowca znajduje się w historii przypisań samochodów."
+                                } else {
+                                    "Liczba aktywnych aut: ${currentAssignments.size}"
+                                },
+                            )
+                        }
                     }
                 }
             }
