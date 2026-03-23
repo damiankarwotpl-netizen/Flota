@@ -209,34 +209,37 @@ private fun CarCard(
             }
         }
         Text("Kierowca: ${car.driver.ifBlank { "nieprzypisany" }}")
-        Text("Przebieg: ${car.mileage} km")
-        Text("Status serwisu: $serviceStatus")
+        Text("Przebieg: ${car.mileage} km • status serwisu: $serviceStatus")
         Text(
             buildString {
                 append("Sync przebiegu: ")
                 append(car.lastMileageSyncStatus.ifBlank { "brak danych" })
                 if (car.pendingMileageSync) {
-                    append(" • w kolejce: ${car.queuedMileage ?: "-"} km")
+                    append(" • kolejka: ${car.queuedMileage ?: "-"} km")
+                }
+            },
+        )
+        Text(
+            buildString {
+                append("Sync kierowcy: ")
+                append(car.remoteDriverSyncStatus.ifBlank { "brak danych" })
+                if (car.remoteDriverSyncAt.isNotBlank()) {
+                    append(" • ${car.remoteDriverSyncAt}")
                 }
             },
         )
         if (car.lastMileageSyncAt.isNotBlank()) {
-            Text("Ostatnia synchronizacja przebiegu: ${car.lastMileageSyncAt}")
-        }
-        Text("Zdalny sync kierowcy: ${car.remoteDriverSyncStatus.ifBlank { "brak danych" }}")
-        if (car.remoteDriverSyncAt.isNotBlank()) {
-            Text("Ostatni zdalny sync kierowcy: ${car.remoteDriverSyncAt}")
+            Text("Ostatni sync przebiegu: ${car.lastMileageSyncAt}")
         }
         if (car.remoteDriverSyncError.isNotBlank()) {
-            Text("Błąd zdalnego syncu: ${car.remoteDriverSyncError}")
+            Text("Błąd syncu: ${car.remoteDriverSyncError}")
         }
         if (car.driverLogin.isNotBlank()) {
-            Text("Login kierowcy: ${car.driverLogin}")
             Text(
                 if (car.changePasswordRequired) {
-                    "Hasło startowe: ${car.driverPassword}"
+                    "Login: ${car.driverLogin} • Hasło startowe: ${car.driverPassword}"
                 } else {
-                    "Hasło zostało już zmienione przez kierowcę"
+                    "Login: ${car.driverLogin} • Hasło zmienione przez kierowcę"
                 },
             )
         }
@@ -253,14 +256,23 @@ private fun CarCard(
                     suggestion.lowercase().contains(driverDraft.lowercase()) &&
                     !suggestion.equals(driverDraft, ignoreCase = true)
             }
-            .take(3)
+            .take(2)
             .forEach { suggestion ->
                 Button(onClick = { onApplyDriverSuggestion(suggestion) }, modifier = Modifier.fillMaxWidth()) {
                     Text("Podpowiedź: $suggestion")
                 }
             }
-        Button(onClick = onSaveDriver, modifier = Modifier.fillMaxWidth()) {
-            Text(if (actionInFlightId == car.id) "Zapisywanie..." else "Zapisz kierowcę")
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Button(onClick = onSaveDriver, modifier = Modifier.weight(1f)) {
+                Text(if (actionInFlightId == car.id) "Zapisywanie..." else "Zapisz kierowcę")
+            }
+            Button(onClick = onResetDriverCredentials, modifier = Modifier.weight(1f)) {
+                Text(if (actionInFlightId == car.id) "Zapisywanie..." else "Resetuj dane")
+            }
         }
 
         OutlinedTextField(
@@ -269,20 +281,29 @@ private fun CarCard(
             label = { Text("Nowy przebieg") },
             modifier = Modifier.fillMaxWidth(),
         )
-        Button(onClick = onSaveMileage, modifier = Modifier.fillMaxWidth()) {
-            Text(if (actionInFlightId == car.id) "Zapisywanie..." else "Zapisz przebieg")
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Button(onClick = onSaveMileage, modifier = Modifier.weight(1f)) {
+                Text(if (actionInFlightId == car.id) "Zapisywanie..." else "Zapisz przebieg")
+            }
+            Button(onClick = onRetryRemoteDriverSync, modifier = Modifier.weight(1f)) {
+                Text(if (actionInFlightId == car.id) "Synchronizowanie..." else "Ponów sync")
+            }
         }
-        Button(onClick = onResetDriverCredentials, modifier = Modifier.fillMaxWidth()) {
-            Text(if (actionInFlightId == car.id) "Zapisywanie..." else "Resetuj dane kierowcy")
-        }
-        Button(onClick = onRetryRemoteDriverSync, modifier = Modifier.fillMaxWidth()) {
-            Text(if (actionInFlightId == car.id) "Synchronizowanie..." else "Ponów zdalny sync kierowcy")
-        }
-        Button(onClick = onConfirmService, modifier = Modifier.fillMaxWidth()) {
-            Text(if (actionInFlightId == car.id) "Zapisywanie..." else "Potwierdź serwis")
-        }
-        Button(onClick = onDelete, modifier = Modifier.fillMaxWidth()) {
-            Text(if (actionInFlightId == car.id) "Usuwanie..." else "Usuń samochód")
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Button(onClick = onConfirmService, modifier = Modifier.weight(1f)) {
+                Text(if (actionInFlightId == car.id) "Zapisywanie..." else "Potwierdź serwis")
+            }
+            Button(onClick = onDelete, modifier = Modifier.weight(1f)) {
+                Text(if (actionInFlightId == car.id) "Usuwanie..." else "Usuń auto")
+            }
         }
     }
 }
