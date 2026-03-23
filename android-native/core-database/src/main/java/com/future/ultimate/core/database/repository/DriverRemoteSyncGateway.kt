@@ -13,7 +13,7 @@ import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
 
-internal object DriverRemoteSyncGateway {
+object DriverRemoteSyncGateway {
     const val EndpointSettingKey = "driver_remote_api_url"
     const val DefaultDriverRemoteApiUrl =
         "https://script.google.com/macros/s/AKfycbxFQLZU-sg8Gg58J2dE-Bbt2jTyXrdcd1DOUM78vcqFLa789gpeOC9S4MyjGHpQ12_l/exec"
