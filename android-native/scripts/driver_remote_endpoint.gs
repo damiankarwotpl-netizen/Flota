@@ -563,6 +563,15 @@ function saveMileage_(payload) {
   }
 
   const mileage = normalizeMileage_(payload.mileage || payload.value || payload.odometer);
+  const car = findCarByRegistration_(registration);
+  const highestKnownMileage = Math.max(
+    Number((driver && driver.last_mileage) || 0) || 0,
+    Number((car && car.last_mileage) || 0) || 0,
+  );
+  if (mileage < highestKnownMileage) {
+    throw new Error('Przebieg mniejszy niż ostatni, sprawdź wprowadzone dane');
+  }
+
   const timestamp = String(payload.timestamp || '').trim() || nowText_();
   const driverIdentity = rawLogin || normalizeName_(payload.driver || payload.name || payload.driverName);
   if (!driverIdentity) throw new Error('Missing driver identity');
@@ -573,7 +582,6 @@ function saveMileage_(payload) {
     logSheet.appendRow([timestamp, driverIdentity, registration, mileage]);
   }
 
-  const car = findCarByRegistration_(registration);
   upsertCarRecord_({
     registration: registration,
     driver_login: rawLogin || normalizeLogin_(car && car.driver_login),

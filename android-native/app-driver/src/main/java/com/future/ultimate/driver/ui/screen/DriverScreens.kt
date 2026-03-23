@@ -340,11 +340,6 @@ fun DriverMileageScreen(navController: NavController) {
                     onClick = viewModel::save,
                     enabled = !uiState.isSaving && uiState.registration.isNotBlank() && uiState.mileage.isNotBlank(),
                 )
-                DriverActionButton(
-                    text = if (uiState.isSaving) "Synchronizowanie..." else "Wymuś synchronizację teraz",
-                    onClick = viewModel::flushSyncNow,
-                    secondary = true,
-                )
                 uiState.status?.let { StatusMessage(it, emphasis = true) }
             }
         }

@@ -121,10 +121,17 @@ class LocalDriverRepository(
     override suspend fun saveMileage(login: String, registration: String, mileage: Int) {
         val current = session.value ?: throw IllegalStateException("Brak aktywnej sesji kierowcy")
         val targetRegistration = registration.trim().ifBlank { current.registration }.uppercase()
+        val normalizedMileage = mileage.coerceAtLeast(0)
+        val localMileage = dao.getCarByRegistration(targetRegistration)?.mileage ?: 0
+        val syncedMileage = dao.getSetting("driver_last_mileage_$targetRegistration")?.valText?.toIntOrNull() ?: 0
+        val highestKnownMileage = maxOf(localMileage, syncedMileage)
+        require(normalizedMileage >= highestKnownMileage) {
+            "Przebieg mniejszy niż ostatni, sprawdź wprowadzone dane"
+        }
         DriverMileageSyncCoordinator.queueMileage(
             dao = dao,
             registration = targetRegistration,
-            mileage = mileage.coerceAtLeast(0),
+            mileage = normalizedMileage,
             login = current.login,
             driverName = current.driverName,
         )
