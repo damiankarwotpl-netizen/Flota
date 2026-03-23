@@ -304,6 +304,14 @@ fun DriverMileageScreen(navController: NavController) {
                     message = if (uiState.driverName.isNotBlank()) "Kierowca: ${uiState.driverName}" else "Brak aktywnego kierowcy.",
                     emphasis = true,
                 )
+                if (uiState.registration.isBlank()) {
+                    StatusMessage(
+                        message = "W tej chwili nie masz przypisanego samochodu. Zaloguj się ponownie po zmianie przypisania przez admina.",
+                        emphasis = true,
+                    )
+                } else {
+                    StatusMessage("Aktualnie przypisane auto: ${uiState.registration}")
+                }
                 StatusMessage("Status synchronizacji: ${uiState.syncStatus}")
                 StatusMessage("Kolejka: ${uiState.pendingSyncCount} • Oczekujący przebieg: ${uiState.queuedMileage.ifBlank { "-" }}")
                 StatusMessage("Ostatnia próba: ${uiState.lastAttemptAt.ifBlank { "-" }}")
@@ -317,8 +325,9 @@ fun DriverMileageScreen(navController: NavController) {
             DriverSectionCard(title = "Dodaj przebieg") {
                 DriverInputField(
                     value = uiState.registration,
-                    onValueChange = viewModel::setRegistration,
+                    onValueChange = {},
                     label = "Rejestracja",
+                    enabled = false,
                 )
                 DriverInputField(
                     value = uiState.mileage,
