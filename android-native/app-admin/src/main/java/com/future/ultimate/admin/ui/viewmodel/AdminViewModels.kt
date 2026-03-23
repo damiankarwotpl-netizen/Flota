@@ -69,7 +69,14 @@ class ContactsViewModel(private val repository: AdminRepository) : ViewModel() {
     private val _uiState = MutableStateFlow(ContactsUiState())
     val uiState: StateFlow<ContactsUiState> = _uiState.asStateFlow()
 
-    init { repository.observeContacts().onEach { _uiState.value = _uiState.value.copy(items = it) }.launchIn(viewModelScope) }
+    init {
+        repository.observeContacts().onEach { _uiState.value = _uiState.value.copy(items = it) }.launchIn(viewModelScope)
+        repository.observePlants().onEach { plants ->
+            _uiState.value = _uiState.value.copy(
+                plantSuggestions = plants.map { it.name.trim() }.filter { it.isNotBlank() }.distinct().sorted(),
+            )
+        }.launchIn(viewModelScope)
+    }
     fun updateQuery(value: String) { _uiState.value = _uiState.value.copy(query = value) }
     fun updateEditor(draft: ContactDraft) { _uiState.value = _uiState.value.copy(editor = draft) }
     fun save() = viewModelScope.launch {
@@ -138,6 +145,7 @@ class CarsViewModel(private val repository: AdminRepository) : ViewModel() {
                 registration = car.registration,
                 driver = car.driver,
                 serviceInterval = car.serviceInterval.toString(),
+                lastInspectionDate = car.lastInspectionDate,
             ),
             actionMessage = null,
         )
@@ -159,9 +167,25 @@ class CarsViewModel(private val repository: AdminRepository) : ViewModel() {
         _uiState.value = _uiState.value.copy(driverDrafts = _uiState.value.driverDrafts + (id to driver), actionMessage = null)
     }
 
-    fun assignDriver(id: Long, driver: String) {
+    fun assignDriverAllowConflict(id: Long, driver: String) {
         _uiState.value = _uiState.value.copy(driverDrafts = _uiState.value.driverDrafts + (id to driver), actionMessage = null)
         saveDriver(id)
+    }
+
+    fun assignDriverEnforceSingle(id: Long, driver: String) = viewModelScope.launch {
+        val normalizedDriver = driver.trim()
+        _uiState.value = _uiState.value.copy(actionInFlightId = id, actionMessage = null)
+        if (normalizedDriver.isNotBlank()) {
+            _uiState.value.items
+                .filter { it.id != id && it.driver.equals(normalizedDriver, ignoreCase = true) }
+                .forEach { repository.updateCarDriver(it.id, "") }
+        }
+        repository.updateCarDriver(id, normalizedDriver)
+        _uiState.value = _uiState.value.copy(
+            actionInFlightId = null,
+            driverDrafts = _uiState.value.driverDrafts + (id to normalizedDriver),
+            actionMessage = if (normalizedDriver.isBlank()) "Kierowca usunięty" else "Kierowca przypisany z zasadą 1 kierowca = 1 samochód",
+        )
     }
 
     fun save() = viewModelScope.launch {
@@ -216,10 +240,22 @@ class CarsViewModel(private val repository: AdminRepository) : ViewModel() {
         _uiState.value = _uiState.value.copy(actionInFlightId = null, actionMessage = "Serwis potwierdzony")
     }
 
+    fun confirmInspection(id: Long) = viewModelScope.launch {
+        _uiState.value = _uiState.value.copy(actionInFlightId = id, actionMessage = null)
+        repository.confirmCarInspection(id)
+        _uiState.value = _uiState.value.copy(actionInFlightId = null, actionMessage = "Przegląd potwierdzony")
+    }
+
     fun deleteCar(id: Long) = viewModelScope.launch {
         _uiState.value = _uiState.value.copy(actionInFlightId = id, actionMessage = null)
         repository.deleteCar(id)
         _uiState.value = _uiState.value.copy(actionInFlightId = null, actionMessage = "Samochód usunięty")
+    }
+
+    fun updateDriverLicense(id: Long, licenseType: String, validUntil: String) = viewModelScope.launch {
+        _uiState.value = _uiState.value.copy(actionInFlightId = id, actionMessage = null)
+        repository.updateCarDriverLicense(id, licenseType, validUntil)
+        _uiState.value = _uiState.value.copy(actionInFlightId = null, actionMessage = "Dane prawa jazdy zapisane")
     }
 
     fun resetDriverCredentials(id: Long) = viewModelScope.launch {
@@ -239,6 +275,12 @@ class CarsViewModel(private val repository: AdminRepository) : ViewModel() {
         _uiState.value = _uiState.value.copy(actionInFlightId = id, actionMessage = null)
         repository.retryCarDriverRemoteSync(id)
         _uiState.value = _uiState.value.copy(actionInFlightId = null, actionMessage = "Ponowiono zdalną synchronizację kierowcy")
+    }
+
+    fun deleteKnownDriver(driver: String, actionId: Long? = null) = viewModelScope.launch {
+        _uiState.value = _uiState.value.copy(actionInFlightId = actionId, actionMessage = null)
+        repository.deleteKnownCarDriver(driver)
+        _uiState.value = _uiState.value.copy(actionInFlightId = null, actionMessage = "Kierowca usunięty")
     }
 }
 

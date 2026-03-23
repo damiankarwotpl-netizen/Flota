@@ -2,6 +2,7 @@ package com.future.ultimate.admin.ui.screen
 
 import android.content.Intent
 import android.net.Uri
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -51,14 +52,14 @@ fun ContactsScreen() {
 
     val filteredContacts = remember(uiState.items, uiState.query) {
         uiState.items.filter {
-            val blob = "${it.name} ${it.surname} ${it.email} ${it.phone} ${it.workplace} ${it.apartment} ${it.notes}".lowercase()
+            val blob = "${it.name} ${it.surname} ${it.email} ${it.pesel} ${it.phone} ${it.workplace} ${it.apartment} ${it.notes}".lowercase()
             uiState.query.isBlank() || uiState.query.lowercase() in blob
         }
     }
 
     ScreenColumn("Kontakty", "Szukaj kontaktów i wykonuj szybkie akcje bez opuszczania listy.") {
         item {
-            SectionCard(title = "Wyszukiwarka", subtitle = "Szukaj po imieniu, nazwisku, emailu, telefonie lub zakładzie.") {
+            SectionCard {
                 OutlinedTextField(
                     value = uiState.query,
                     onValueChange = viewModel::updateQuery,
@@ -109,6 +110,7 @@ fun ContactsScreen() {
                                     name = contact.name,
                                     surname = contact.surname,
                                     email = contact.email,
+                                    pesel = contact.pesel,
                                     phone = contact.phone,
                                     workplace = contact.workplace,
                                     apartment = contact.apartment,
@@ -128,6 +130,7 @@ fun ContactsScreen() {
             draft = uiState.editor,
             isSaving = uiState.isSaving,
             isEditing = editedContact != null,
+            plantSuggestions = uiState.plantSuggestions,
             onDraftChange = viewModel::updateEditor,
             onDismiss = {
                 isDialogOpen = false
@@ -152,7 +155,6 @@ private fun ContactCard(
 ) {
     SectionCard(
         title = listOf(contact.name, contact.surname).joinToString(" ").trim().ifBlank { "Bez nazwy" },
-        subtitle = contact.workplace.ifBlank { "Brak przypisanego zakładu" },
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -167,6 +169,10 @@ private fun ContactCard(
                     contentDescription = "Edytuj kontakt",
                 )
             }
+        }
+        Text("Zakład: ${contact.workplace.ifBlank { "Brak przypisanego zakładu" }}")
+        if (contact.pesel.isNotBlank()) {
+            Text("PESEL: ${contact.pesel}")
         }
         Text("Telefon: ${contact.phone.ifBlank { "Brak numeru" }}")
         if (contact.email.isNotBlank()) {
@@ -216,11 +222,13 @@ private fun AddContactDialog(
     draft: ContactDraft,
     isSaving: Boolean,
     isEditing: Boolean,
+    plantSuggestions: List<String>,
     onDraftChange: (ContactDraft) -> Unit,
     onDismiss: () -> Unit,
     onSave: () -> Unit,
 ) {
     val isSaveEnabled = draft.name.isNotBlank() && draft.surname.isNotBlank() && draft.phone.isNotBlank()
+    var isPlantPickerOpen by remember { mutableStateOf(false) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -260,10 +268,19 @@ private fun AddContactDialog(
                     modifier = Modifier.fillMaxWidth(),
                 )
                 OutlinedTextField(
-                    value = draft.workplace,
-                    onValueChange = { onDraftChange(draft.copy(workplace = it)) },
-                    label = { Text("Zakład pracy") },
+                    value = draft.pesel,
+                    onValueChange = { onDraftChange(draft.copy(pesel = it)) },
+                    label = { Text("PESEL") },
                     modifier = Modifier.fillMaxWidth(),
+                )
+                OutlinedTextField(
+                    value = draft.workplace,
+                    onValueChange = {},
+                    label = { Text("Zakład") },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { isPlantPickerOpen = true },
+                    readOnly = true,
                 )
                 OutlinedTextField(
                     value = draft.apartment,
@@ -299,6 +316,49 @@ private fun AddContactDialog(
             }
         },
     )
+
+    if (isPlantPickerOpen) {
+        AlertDialog(
+            onDismissRequest = { isPlantPickerOpen = false },
+            title = { Text("Wybierz zakład", fontWeight = FontWeight.Bold) },
+            text = {
+                androidx.compose.foundation.layout.Column(
+                    modifier = Modifier.verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    if (plantSuggestions.isEmpty()) {
+                        Text("Brak dostępnych zakładów.")
+                    } else {
+                        plantSuggestions.forEach { plantName ->
+                            Button(
+                                onClick = {
+                                    onDraftChange(draft.copy(workplace = plantName))
+                                    isPlantPickerOpen = false
+                                },
+                                modifier = Modifier.fillMaxWidth(),
+                            ) {
+                                Text(plantName)
+                            }
+                        }
+                    }
+                    TextButton(
+                        onClick = {
+                            onDraftChange(draft.copy(workplace = ""))
+                            isPlantPickerOpen = false
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text("Wyczyść zakład")
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { isPlantPickerOpen = false }) {
+                    Text("Zamknij")
+                }
+            },
+        )
+    }
 }
 
 private fun openDialer(context: android.content.Context, phone: String) {

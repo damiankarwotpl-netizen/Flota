@@ -1,12 +1,13 @@
 package com.future.ultimate.admin.ui.screen
 
+import android.app.DatePickerDialog
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -41,10 +42,13 @@ import com.future.ultimate.admin.ui.viewmodel.CarsViewModel
 import com.future.ultimate.core.common.model.CarDraft
 import com.future.ultimate.core.common.repository.CarListItem
 import com.future.ultimate.core.common.ui.CarsServiceFilter
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
 
 @Composable
 fun CarsScreen() {
-    val app = LocalContext.current.applicationContext as AdminApp
+    val context = LocalContext.current
+    val app = context.applicationContext as AdminApp
     val viewModel: CarsViewModel = viewModel(factory = AdminViewModelFactory(app.container.repository))
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     var selectedTab by remember { mutableIntStateOf(0) }
@@ -53,6 +57,7 @@ fun CarsScreen() {
     var detailsCar by remember { mutableStateOf<CarListItem?>(null) }
     var assignDriverCar by remember { mutableStateOf<CarListItem?>(null) }
     var driverPickerQuery by remember { mutableStateOf("") }
+    var pendingAssignmentConflict by remember { mutableStateOf<DriverAssignmentConflict?>(null) }
 
     val urgentCars = uiState.items.count { it.remainingToService <= 0 }
     val dueSoonCars = uiState.items.count { it.remainingToService in 1..3000 }
@@ -86,7 +91,7 @@ fun CarsScreen() {
 
     ScreenColumn("Samochody", "Moduł aut i kierowców") {
         item {
-            SectionCard(title = "Widok modułu", subtitle = "Przełączaj się między listą aut a historią kierowców przypisanych do samochodów.") {
+            SectionCard {
                 TabRow(selectedTabIndex = selectedTab) {
                     Tab(selected = selectedTab == 0, onClick = { selectedTab = 0 }, text = { Text("Auta") })
                     Tab(selected = selectedTab == 1, onClick = { selectedTab = 1 }, text = { Text("Kierowcy") })
@@ -96,7 +101,6 @@ fun CarsScreen() {
 
         item {
             SectionCard(
-                title = if (selectedTab == 0) "Wyszukiwarka aut" else "Wyszukiwarka kierowców",
                 subtitle = if (selectedTab == 0) {
                     "Szukaj po nazwie, rejestracji lub kierowcy oraz filtruj status serwisu."
                 } else {
@@ -176,6 +180,7 @@ fun CarsScreen() {
                                 driverPickerQuery = ""
                             },
                             onConfirmService = { viewModel.confirmService(car.id) },
+                            onConfirmInspection = { viewModel.confirmInspection(car.id) },
                             onDelete = { viewModel.deleteCar(car.id) },
                         )
                     }
@@ -192,23 +197,93 @@ fun CarsScreen() {
                     }
                 }
             } else {
-                items(filteredKnownDrivers) { driverName ->
-                    val currentAssignments = uiState.items.filter { it.driver.equals(driverName, ignoreCase = true) }
-                    SectionCard(
-                        title = driverName,
-                        subtitle = if (currentAssignments.isEmpty()) {
-                            "Brak aktywnie przypisanego auta"
-                        } else {
-                            "Aktualnie przypisane: ${currentAssignments.joinToString(", ") { it.registration }}"
-                        },
-                    ) {
-                        Text(
+                filteredKnownDrivers.forEach { driverName ->
+                    item {
+                        val currentAssignments = uiState.items.filter { it.driver.equals(driverName, ignoreCase = true) }
+                        SectionCard(title = driverName) {
+                            Text(
+                                if (currentAssignments.isEmpty()) {
+                                    "Brak aktywnie przypisanego auta."
+                                } else {
+                                    "Aktywne auta: ${currentAssignments.joinToString(", ") { it.registration }}"
+                                },
+                            )
+                            Text("Liczba aktywnych aut: ${currentAssignments.size}")
                             if (currentAssignments.isEmpty()) {
-                                "Kierowca znajduje się w historii przypisań samochodów."
+                                Text("Login: brak")
+                                Text("Hasło startowe: brak")
                             } else {
-                                "Liczba aktywnych aut: ${currentAssignments.size}"
-                            },
-                        )
+                                currentAssignments.forEach { assignedCar ->
+                                    Text("Auto: ${assignedCar.registration}")
+                                    Text("Login: ${assignedCar.driverLogin.ifBlank { "brak" }}")
+                                    Text(
+                                        when {
+                                            assignedCar.driverPassword.isBlank() -> "Hasło startowe: brak"
+                                            assignedCar.changePasswordRequired -> "Hasło startowe: ${assignedCar.driverPassword}"
+                                            else -> "Hasło startowe zostało już zmienione"
+                                        },
+                                    )
+                                    Text("Typ prawa jazdy: ${assignedCar.licenseType.ifBlank { "PL" }}")
+                                    Text("Data ważności prawa jazdy: ${formatDateLabel(assignedCar.licenseValidUntil, "Brak daty")}")
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                    ) {
+                                        Button(
+                                            onClick = { viewModel.updateDriverLicense(assignedCar.id, "PL", assignedCar.licenseValidUntil) },
+                                            modifier = Modifier.weight(1f),
+                                        ) {
+                                            Text("PL")
+                                        }
+                                        Button(
+                                            onClick = { viewModel.updateDriverLicense(assignedCar.id, "MIĘDZYNARODOWE", assignedCar.licenseValidUntil) },
+                                            modifier = Modifier.weight(1f),
+                                        ) {
+                                            Text("MIĘDZYNARODOWE")
+                                        }
+                                    }
+                                    Button(
+                                        onClick = {
+                                            showDatePicker(context, assignedCar.licenseValidUntil) {
+                                                viewModel.updateDriverLicense(
+                                                    assignedCar.id,
+                                                    assignedCar.licenseType.ifBlank { "PL" },
+                                                    it,
+                                                )
+                                            }
+                                        },
+                                        modifier = Modifier.fillMaxWidth(),
+                                    ) {
+                                        Text("Ustaw datę ważności prawa jazdy")
+                                    }
+                                    Button(
+                                        onClick = { viewModel.resetDriverCredentials(assignedCar.id) },
+                                        modifier = Modifier.fillMaxWidth(),
+                                    ) {
+                                        Text(
+                                            if (uiState.actionInFlightId == assignedCar.id) {
+                                                "Resetowanie hasła..."
+                                            } else {
+                                                "Resetuj hasło dla ${assignedCar.registration}"
+                                            },
+                                        )
+                                    }
+                                }
+                            }
+                            Button(
+                                onClick = { viewModel.deleteKnownDriver(driverName, currentAssignments.firstOrNull()?.id) },
+                                modifier = Modifier.fillMaxWidth(),
+                            ) {
+                                Text(
+                                    if (currentAssignments.any { uiState.actionInFlightId == it.id }) {
+                                        "Usuwanie kierowcy..."
+                                    } else {
+                                        "Usuń kierowcę"
+                                    },
+                                )
+                            }
+                        }
                     }
                 }
             }
@@ -251,9 +326,36 @@ fun CarsScreen() {
                 driverPickerQuery = ""
             },
             onDriverSelected = { driverName ->
-                viewModel.assignDriver(car.id, driverName)
+                val otherAssignments = uiState.items.filter { it.id != car.id && it.driver.equals(driverName, ignoreCase = true) }
+                val currentDriver = car.driver.trim().takeIf { it.isNotBlank() && !it.equals(driverName, ignoreCase = true) }
+                if (otherAssignments.isNotEmpty() || currentDriver != null) {
+                    pendingAssignmentConflict = DriverAssignmentConflict(
+                        carId = car.id,
+                        registration = car.registration,
+                        selectedDriver = driverName,
+                        currentDriver = currentDriver,
+                        otherRegistrations = otherAssignments.map { it.registration },
+                    )
+                } else {
+                    viewModel.assignDriverAllowConflict(car.id, driverName)
+                }
                 assignDriverCar = null
                 driverPickerQuery = ""
+            },
+        )
+    }
+
+    pendingAssignmentConflict?.let { conflict ->
+        DriverAssignmentConflictDialog(
+            conflict = conflict,
+            onDismiss = { pendingAssignmentConflict = null },
+            onAllow = {
+                viewModel.assignDriverAllowConflict(conflict.carId, conflict.selectedDriver)
+                pendingAssignmentConflict = null
+            },
+            onEnforceSingle = {
+                viewModel.assignDriverEnforceSingle(conflict.carId, conflict.selectedDriver)
+                pendingAssignmentConflict = null
             },
         )
     }
@@ -267,6 +369,7 @@ private fun CarCard(
     onEdit: () -> Unit,
     onAssignDriver: () -> Unit,
     onConfirmService: () -> Unit,
+    onConfirmInspection: () -> Unit,
     onDelete: () -> Unit,
 ) {
     val serviceStatus = serviceStatusLabel(car.remainingToService)
@@ -278,6 +381,8 @@ private fun CarCard(
         Text("Kierowca: ${car.driver.ifBlank { "nieprzypisany" }}")
         Text("Przebieg: ${car.mileage} km")
         Text("Status serwisu: $serviceStatus")
+        Text("Ostatni przegląd: ${formatDateLabel(car.lastInspectionDate, "Brak daty")}")
+        Text("Następny przegląd: ${formatDateLabel(car.nextInspectionDate, "Brak daty")}")
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(10.dp),
@@ -308,8 +413,17 @@ private fun CarCard(
                 Text(if (actionInFlightId == car.id) "Zapisywanie..." else "Potwierdź serwis")
             }
         }
-        Button(onClick = onDelete, modifier = Modifier.fillMaxWidth()) {
-            Text(if (actionInFlightId == car.id) "Usuwanie..." else "Usuń auto")
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Button(onClick = onConfirmInspection, modifier = Modifier.weight(1f)) {
+                Text(if (actionInFlightId == car.id) "Zapisywanie..." else "Potwierdź przegląd")
+            }
+            Button(onClick = onDelete, modifier = Modifier.weight(1f)) {
+                Text(if (actionInFlightId == car.id) "Usuwanie..." else "Usuń auto")
+            }
         }
     }
 }
@@ -334,6 +448,8 @@ private fun CarDetailsDialog(
                 Text("Kierowca: ${car.driver.ifBlank { "nieprzypisany" }}")
                 Text("Interwał serwisowy: ${car.serviceInterval} km")
                 Text("Ostatni serwis przy: ${car.lastService} km")
+                Text("Ostatni przegląd: ${formatDateLabel(car.lastInspectionDate, "Brak daty")}")
+                Text("Następny przegląd: ${formatDateLabel(car.nextInspectionDate, "Brak daty")}")
                 Text("Sync przebiegu: ${car.lastMileageSyncStatus.ifBlank { "brak danych" }}")
                 if (car.pendingMileageSync) {
                     Text("Przebieg oczekujący w kolejce: ${car.queuedMileage ?: "-"} km")
@@ -350,6 +466,8 @@ private fun CarDetailsDialog(
                 }
                 if (car.driverLogin.isNotBlank()) {
                     Text("Login kierowcy: ${car.driverLogin}")
+                    Text("Typ prawa jazdy: ${car.licenseType.ifBlank { "PL" }}")
+                    Text("Ważność prawa jazdy: ${formatDateLabel(car.licenseValidUntil, "Brak daty")}")
                     Text(
                         if (car.changePasswordRequired) {
                             "Hasło startowe: ${car.driverPassword}"
@@ -428,6 +546,7 @@ private fun AddCarDialog(
     onDismiss: () -> Unit,
     onSave: () -> Unit,
 ) {
+    val context = LocalContext.current
     val isSaveEnabled = draft.name.isNotBlank() && draft.registration.isNotBlank() && (draft.serviceInterval.toIntOrNull()?.let { it > 0 } == true)
 
     AlertDialog(
@@ -479,6 +598,22 @@ private fun AddCarDialog(
                     label = { Text("Interwał serwisowy *") },
                     modifier = Modifier.fillMaxWidth(),
                 )
+                OutlinedTextField(
+                    value = draft.lastInspectionDate,
+                    onValueChange = {},
+                    label = { Text("Ostatni przegląd") },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable {
+                            showDatePicker(context, draft.lastInspectionDate) {
+                                onDraftChange(draft.copy(lastInspectionDate = it))
+                            }
+                        },
+                    readOnly = true,
+                )
+                TextButton(onClick = { onDraftChange(draft.copy(lastInspectionDate = "")) }) {
+                    Text("Wyczyść datę przeglądu")
+                }
             }
         },
         confirmButton = {
@@ -507,3 +642,67 @@ private fun serviceDistanceLabel(remainingToService: Int): String = when {
     remainingToService == 0 -> "serwis wymagany teraz"
     else -> "do serwisu: $remainingToService km"
 }
+
+
+private data class DriverAssignmentConflict(
+    val carId: Long,
+    val registration: String,
+    val selectedDriver: String,
+    val currentDriver: String?,
+    val otherRegistrations: List<String>,
+)
+
+@Composable
+private fun DriverAssignmentConflictDialog(
+    conflict: DriverAssignmentConflict,
+    onDismiss: () -> Unit,
+    onAllow: () -> Unit,
+    onEnforceSingle: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Konflikt przypisania", fontWeight = FontWeight.Bold) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text("Wybrany kierowca: ${conflict.selectedDriver}")
+                Text("Docelowe auto: ${conflict.registration}")
+                conflict.currentDriver?.let {
+                    Text("Auto ma już kierowcę: $it")
+                }
+                if (conflict.otherRegistrations.isNotEmpty()) {
+                    Text("Kierowca jest już przypisany do: ${conflict.otherRegistrations.joinToString(", ")}")
+                }
+                Text("TAK = zostaw dodatkowe przypisania jak są. NIE = wymuś zasadę 1 kierowca = 1 samochód i usuń inne przypisania tego kierowcy.")
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onAllow) { Text("Tak") }
+        },
+        dismissButton = {
+            TextButton(onClick = onEnforceSingle) { Text("Nie") }
+        },
+    )
+}
+
+private fun showDatePicker(
+    context: android.content.Context,
+    initialDate: String,
+    onDateSelected: (String) -> Unit,
+) {
+    val initial = initialDate.toLocalDateOrNull() ?: LocalDate.now()
+    DatePickerDialog(
+        context,
+        { _, year, month, dayOfMonth ->
+            onDateSelected(LocalDate.of(year, month + 1, dayOfMonth).toString())
+        },
+        initial.year,
+        initial.monthValue - 1,
+        initial.dayOfMonth,
+    ).show()
+}
+
+private fun formatDateLabel(date: String, fallback: String = "Brak daty"): String =
+    date.toLocalDateOrNull()?.format(DateTimeFormatter.ofPattern("dd.MM.yyyy"))
+        ?: if (date.isBlank()) fallback else date
+
+private fun String.toLocalDateOrNull(): LocalDate? = runCatching { LocalDate.parse(this) }.getOrNull()

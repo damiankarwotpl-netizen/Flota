@@ -99,6 +99,7 @@ class LocalAdminRepository(
                 name = it.name,
                 surname = it.surname,
                 email = it.email,
+                pesel = it.pesel,
                 phone = it.phone,
                 workplace = it.workplace,
                 apartment = it.apartment,
@@ -180,9 +181,12 @@ class LocalAdminRepository(
                         mileage = it.mileage,
                         serviceInterval = it.serviceInterval,
                         lastService = it.lastService,
+                        lastInspectionDate = it.lastInspectionDate,
                         driverLogin = driverAccount?.login.orEmpty(),
                         driverPassword = driverAccount?.password.orEmpty(),
                         changePasswordRequired = driverAccount?.changePassword == 1,
+                        licenseType = driverAccount?.licenseType.orEmpty(),
+                        licenseValidUntil = driverAccount?.licenseValidUntil.orEmpty(),
                         pendingMileageSync = queuedMileage != null,
                         queuedMileage = queuedMileage,
                         lastMileageSyncAt = settings["driver_mileage_sync_at_$registrationKey"].orEmpty(),
@@ -227,6 +231,7 @@ class LocalAdminRepository(
                 serviceInterval = serviceInterval,
                 mileage = existingCar?.mileage ?: 0,
                 lastService = existingCar?.lastService ?: 0,
+                lastInspectionDate = draft.lastInspectionDate.trim(),
             ),
         )
         rememberKnownCarDriver(normalizedDriver)
@@ -241,6 +246,20 @@ class LocalAdminRepository(
         rememberKnownCarDriver(normalizedDriver)
         val car = dao.getCar(id) ?: return
         syncDriverAccount(normalizedDriver, car.registration)
+    }
+
+    override suspend fun updateCarDriverLicense(id: Long, licenseType: String, validUntil: String) {
+        val car = dao.getCar(id) ?: return
+        val normalizedDriver = car.driver.trim()
+        if (normalizedDriver.isBlank()) return
+        val account = dao.getDriverAccountByRegistration(car.registration)
+            ?: syncDriverAccount(normalizedDriver, car.registration)
+            ?: return
+        dao.updateDriverLicense(
+            registration = account.registration,
+            licenseType = licenseType.trim().ifBlank { "PL" },
+            validUntil = validUntil.trim(),
+        )
     }
 
     override suspend fun resetCarDriverCredentials(id: Long): DriverAccountCredentials {
@@ -263,7 +282,24 @@ class LocalAdminRepository(
         syncDriverAccount(car.driver, car.registration, forceReset = false, forceRemote = true)
     }
 
+    override suspend fun deleteKnownCarDriver(driver: String) {
+        val normalizedDriver = driver.trim()
+        if (normalizedDriver.isBlank()) return
+        val matchingCars = dao.observeCars().first().filter { it.driver.equals(normalizedDriver, ignoreCase = true) }
+        matchingCars.forEach { car ->
+            dao.updateDriver(car.id, "")
+            dao.deleteDriverAccountByRegistration(car.registration)
+            syncRemoteDriverDeletion(car.registration)
+        }
+        val key = CarDriverHistoryPrefix + normalizedDriver.lowercase().replace(" ", "_")
+        dao.deleteSetting(key)
+    }
+
     override suspend fun confirmCarService(id: Long) = dao.confirmService(id)
+
+    override suspend fun confirmCarInspection(id: Long) {
+        dao.updateLastInspectionDate(id, LocalDate.now().toString())
+    }
 
     override suspend fun deleteCar(id: Long) {
         val car = dao.getCar(id)
@@ -898,6 +934,7 @@ class LocalAdminRepository(
                     mileage = maxOf(existingCar?.mileage ?: 0, log.mileage),
                     serviceInterval = existingCar?.serviceInterval ?: 15000,
                     lastService = existingCar?.lastService ?: 0,
+                    lastInspectionDate = existingCar?.lastInspectionDate.orEmpty(),
                 ),
             )
             if (existingAccount == null && (log.driverName.isNotBlank() || log.login.isNotBlank())) {
@@ -908,6 +945,8 @@ class LocalAdminRepository(
                         password = "",
                         driverName = log.driverName.ifBlank { existingCar?.driver.orEmpty() },
                         changePassword = 0,
+                        licenseType = existingAccount?.licenseType ?: "PL",
+                        licenseValidUntil = existingAccount?.licenseValidUntil.orEmpty(),
                     ),
                 )
             }
@@ -995,6 +1034,7 @@ class LocalAdminRepository(
                         name = it.name,
                         surname = it.surname,
                         email = it.email,
+                        pesel = it.pesel,
                         phone = it.phone,
                         workplace = it.workplace,
                         apartment = it.apartment,
@@ -1887,6 +1927,8 @@ class LocalAdminRepository(
             password = if (shouldRotateCredentials) generatePassword() else authoritativeExisting.password,
             driverName = normalizedDriver,
             changePassword = if (shouldRotateCredentials) 1 else authoritativeExisting.changePassword,
+            licenseType = authoritativeExisting?.licenseType ?: "PL",
+            licenseValidUntil = authoritativeExisting?.licenseValidUntil.orEmpty(),
         )
         dao.upsertDriverAccount(account)
         if (shouldRotateCredentials || forceRemote) {

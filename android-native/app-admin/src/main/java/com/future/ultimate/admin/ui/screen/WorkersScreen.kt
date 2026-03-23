@@ -50,7 +50,7 @@ fun WorkersScreen() {
 
     ScreenColumn("Pracownicy", "Lista i zarządzanie") {
         item {
-            SectionCard(title = "Wyszukiwarka", subtitle = "Szukaj po danych pracownika.") {
+            SectionCard {
                 OutlinedTextField(
                     value = uiState.query,
                     onValueChange = viewModel::updateQuery,
