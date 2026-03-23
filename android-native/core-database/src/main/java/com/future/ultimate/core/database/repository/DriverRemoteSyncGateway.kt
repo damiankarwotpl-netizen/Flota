@@ -105,6 +105,7 @@ internal object DriverRemoteSyncGateway {
             legacyAddMileagePayload(
                 registration = normalizedRegistration,
                 mileage = normalizedMileage,
+                timestamp = normalizedTimestamp,
                 login = normalizedLogin,
             ),
             legacyMileagePayload(
@@ -409,12 +410,14 @@ internal object DriverRemoteSyncGateway {
     private fun legacyAddMileagePayload(
         registration: String,
         mileage: Int,
+        timestamp: String,
         login: String,
     ): JSONObject = JSONObject().apply {
         put("action", "add_mileage")
         put("driver", login)
         put("registration", registration)
         put("mileage", mileage)
+        put("timestamp", timestamp)
     }
 
     private fun legacyMileagePayload(

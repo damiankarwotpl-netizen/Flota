@@ -563,8 +563,11 @@ function saveMileage_(payload) {
   const driverIdentity = rawLogin || normalizeName_(payload.driver || payload.name || payload.driverName);
   if (!driverIdentity) throw new Error('Missing driver identity');
 
+  const alreadyStored = hasMileageLog_(timestamp, driverIdentity, registration, mileage);
   const logSheet = ensureSheet_(SHEETS.mileageLogs, MILEAGE_LOG_HEADERS);
-  logSheet.appendRow([timestamp, driverIdentity, registration, mileage]);
+  if (!alreadyStored) {
+    logSheet.appendRow([timestamp, driverIdentity, registration, mileage]);
+  }
 
   const car = findCarByRegistration_(registration);
   upsertCarRecord_({
@@ -593,8 +596,19 @@ function saveMileage_(payload) {
     mileage: mileage,
     timestamp: timestamp,
     driver: driverIdentity,
-    message: 'Mileage saved',
+    duplicate: alreadyStored,
+    message: alreadyStored ? 'Mileage already stored' : 'Mileage saved',
   };
+}
+
+function hasMileageLog_(timestamp, driver, registration, mileage) {
+  const snapshot = getSheetRecords_(SHEETS.mileageLogs);
+  return snapshot.rows.some(function(row) {
+    return String(row.timestamp || '').trim() === String(timestamp || '').trim() &&
+      String(row.driver || '').trim() === String(driver || '').trim() &&
+      normalizeRegistration_(row.registration) === normalizeRegistration_(registration) &&
+      (Number(row.mileage || 0) || 0) === mileage;
+  });
 }
 
 function getMileageLogs_() {
