@@ -46,24 +46,6 @@ import com.future.ultimate.driver.ui.viewmodel.DriverMileageViewModel
 import com.future.ultimate.driver.ui.viewmodel.DriverVehicleReportViewModel
 import com.future.ultimate.driver.ui.viewmodel.DriverViewModelFactory
 
-private fun LazyListScope.screenHeader(title: String, subtitle: String? = null) {
-    item {
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            shape = FlotaThemeDefaults.screenShape,
-            colors = FlotaThemeDefaults.mutedCardColors(),
-            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-        ) {
-            Column(
-                modifier = Modifier.padding(horizontal = 22.dp, vertical = 24.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp),
-            ) {
-                Text(title, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-            }
-        }
-    }
-}
-
 @Composable
 private fun DriverSectionCard(
     title: String? = null,
@@ -109,7 +91,6 @@ private fun DriverScreen(
         contentPadding = PaddingValues(vertical = 18.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
-        screenHeader(title, subtitle)
         content()
     }
 }
@@ -239,7 +220,7 @@ fun DriverLoginScreen(navController: NavController) {
             }
         }
         item {
-            DriverSectionCard(title = "Dane logowania") {
+            DriverSectionCard {
                 DriverInputField(
                     value = uiState.login,
                     onValueChange = viewModel::updateLogin,
@@ -279,7 +260,7 @@ fun DriverChangePasswordScreen(navController: NavController) {
         subtitle = "Pierwsze logowanie wymaga ustawienia nowego hasła przed przejściem dalej.",
     ) {
         item {
-            DriverSectionCard(title = "Nowe hasło") {
+            DriverSectionCard {
                 DriverInputField(
                     value = uiState.login,
                     onValueChange = {},
@@ -314,7 +295,7 @@ fun DriverMileageScreen(navController: NavController) {
         subtitle = "Dodaj aktualny stan licznika i sprawdź status synchronizacji danych.",
     ) {
         item {
-            DriverSectionCard(title = "Bieżący kierowca") {
+            DriverSectionCard {
                 StatusMessage(
                     message = if (uiState.driverName.isNotBlank()) "Kierowca: ${uiState.driverName}" else "Brak aktywnego kierowcy.",
                     emphasis = true,
@@ -337,7 +318,7 @@ fun DriverMileageScreen(navController: NavController) {
             }
         }
         item {
-            DriverSectionCard(title = "Dodaj przebieg") {
+            DriverSectionCard {
                 DriverInputField(
                     value = uiState.registration,
                     onValueChange = {},
@@ -359,7 +340,7 @@ fun DriverMileageScreen(navController: NavController) {
             }
         }
         item {
-            DriverSectionCard(title = "Dalsze akcje") {
+            DriverSectionCard {
                 DriverActionButton(
                     text = "Przejdź do raportu stanu samochodu",
                     onClick = { navController.navigate(DriverRoute.VehicleReport.route) },
@@ -392,7 +373,7 @@ fun DriverVehicleReportScreen(navController: NavController) {
         subtitle = "Uzupełnij pola formularza, zaznacz wyposażenie i wygeneruj PDF.",
     ) {
         item {
-            DriverSectionCard(title = "Kierowca") {
+            DriverSectionCard {
                 StatusMessage(
                     message = if (uiState.driverName.isNotBlank()) "Kierowca: ${uiState.driverName}" else "Brak aktywnego kierowcy.",
                     emphasis = true,
@@ -400,17 +381,17 @@ fun DriverVehicleReportScreen(navController: NavController) {
             }
         }
         item {
-            DriverSectionCard(title = "Dane pojazdu i wpisy") {
+            DriverSectionCard {
                 editableFields(draft) { viewModel.updateDraft(it) }
             }
         }
         item {
-            DriverSectionCard(title = "Wyposażenie obowiązkowe") {
+            DriverSectionCard {
                 checklist(draft) { viewModel.updateDraft(it) }
             }
         }
         item {
-            DriverSectionCard(title = "Akcje") {
+            DriverSectionCard {
                 DriverActionButton(
                     text = "Wróć do przebiegu",
                     onClick = { navController.navigate(DriverRoute.Mileage.route) },

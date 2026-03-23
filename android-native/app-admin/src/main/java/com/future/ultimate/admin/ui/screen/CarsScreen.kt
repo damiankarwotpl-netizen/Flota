@@ -85,7 +85,7 @@ fun CarsScreen() {
 
     ScreenColumn("Samochody", "Moduł aut i kierowców") {
         item {
-            SectionCard(title = "Widok modułu", subtitle = "Przełączaj się między listą aut a historią kierowców przypisanych do samochodów.") {
+            SectionCard {
                 TabRow(selectedTabIndex = selectedTab) {
                     Tab(selected = selectedTab == 0, onClick = { selectedTab = 0 }, text = { Text("Auta") })
                     Tab(selected = selectedTab == 1, onClick = { selectedTab = 1 }, text = { Text("Kierowcy") })
@@ -95,7 +95,6 @@ fun CarsScreen() {
 
         item {
             SectionCard(
-                title = if (selectedTab == 0) "Wyszukiwarka aut" else "Wyszukiwarka kierowców",
                 subtitle = if (selectedTab == 0) {
                     "Szukaj po nazwie, rejestracji lub kierowcy oraz filtruj status serwisu."
                 } else {

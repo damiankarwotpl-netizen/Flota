@@ -50,7 +50,7 @@ fun PlantsScreen() {
 
     ScreenColumn("Zakłady", "Szybkie wyszukiwanie") {
         item {
-            SectionCard(title = "Wyszukiwarka", subtitle = "Szukaj po nazwie, mieście, adresie i notatkach.") {
+            SectionCard {
                 OutlinedTextField(
                     value = uiState.query,
                     onValueChange = viewModel::updateQuery,

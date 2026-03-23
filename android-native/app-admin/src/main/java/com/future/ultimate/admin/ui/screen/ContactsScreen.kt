@@ -58,7 +58,7 @@ fun ContactsScreen() {
 
     ScreenColumn("Kontakty", "Szukaj kontaktów i wykonuj szybkie akcje bez opuszczania listy.") {
         item {
-            SectionCard(title = "Wyszukiwarka", subtitle = "Szukaj po imieniu, nazwisku, emailu, telefonie lub zakładzie.") {
+            SectionCard {
                 OutlinedTextField(
                     value = uiState.query,
                     onValueChange = viewModel::updateQuery,
