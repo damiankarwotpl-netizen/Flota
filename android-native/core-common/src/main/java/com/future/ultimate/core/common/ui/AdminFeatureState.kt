@@ -41,6 +41,8 @@ data class CarsUiState(
     val items: List<CarListItem> = emptyList(),
     val editor: CarDraft = CarDraft(),
     val driverSuggestions: List<String> = emptyList(),
+    val contactDriverSuggestions: List<String> = emptyList(),
+    val knownCarDrivers: List<String> = emptyList(),
     val isSaving: Boolean = false,
     val mileageDrafts: Map<Long, String> = emptyMap(),
     val driverDrafts: Map<Long, String> = emptyMap(),
@@ -186,10 +188,13 @@ data class ReportsUiState(
 data class SettingsUiState(
     val stats: DashboardStats = DashboardStats(),
     val remoteSettings: DriverRemoteSettingsData = DriverRemoteSettingsData(),
+    val endpointAccessPassword: String = "",
+    val isEndpointEditorUnlocked: Boolean = false,
     val isExportingDatabase: Boolean = false,
     val isImportingDatabase: Boolean = false,
     val isImportingRemoteLogs: Boolean = false,
     val isSavingRemoteSettings: Boolean = false,
     val isValidatingRemoteSettings: Boolean = false,
+    val isClearingDatabase: Boolean = false,
     val actionMessage: String? = null,
 )

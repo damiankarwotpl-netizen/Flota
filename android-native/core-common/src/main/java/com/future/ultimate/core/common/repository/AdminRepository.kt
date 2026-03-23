@@ -213,6 +213,7 @@ interface AdminRepository {
     suspend fun deleteContact(name: String, surname: String)
 
     fun observeCars(): Flow<List<CarListItem>>
+    fun observeKnownCarDrivers(): Flow<List<String>>
     suspend fun saveCar(draft: CarDraft)
     suspend fun updateCarMileage(id: Long, mileage: Int)
     suspend fun updateCarDriver(id: Long, driver: String)
@@ -266,6 +267,7 @@ interface AdminRepository {
     suspend fun saveDriverRemoteSettings(settings: DriverRemoteSettingsData)
     suspend fun validateDriverRemoteSettings(settings: DriverRemoteSettingsData): String
     suspend fun importDriverRemoteLogs(settings: DriverRemoteSettingsData): Int
+    suspend fun clearAllTestData(settings: DriverRemoteSettingsData): String
 
     fun observeEmailTemplate(): Flow<EmailTemplateData>
     suspend fun saveEmailTemplate(template: EmailTemplateData)

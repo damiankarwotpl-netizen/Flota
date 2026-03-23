@@ -24,6 +24,7 @@ import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.platform.LocalContext
@@ -201,26 +202,54 @@ fun DriverLoginScreen(navController: NavController) {
         item {
             DriverSectionCard(
                 title = "Endpoint synchronizacji",
-                subtitle = "Jeżeli APK kierowcy wskazuje zły backend, tutaj możesz go nadpisać i sprawdzić połączenie.",
+                subtitle = "APK kierowcy działa domyślnie na stałym endpointcie. Edycja jest ukryta za hasłem serwisowym.",
             ) {
-                DriverInputField(
-                    value = uiState.remoteApiUrl,
-                    onValueChange = viewModel::updateRemoteApiUrl,
-                    label = "Endpoint zdalnego syncu kierowców",
-                    singleLine = false,
+                StatusMessage("Aktywny endpoint APK:", emphasis = true)
+                Text(
+                    text = uiState.remoteApiUrl,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 3,
+                    overflow = TextOverflow.Ellipsis,
                 )
-                DriverActionButton(
-                    text = if (uiState.isSavingRemoteSettings) "Zapisywanie endpointu..." else "Zapisz endpoint",
-                    onClick = viewModel::saveRemoteSettings,
-                    enabled = !uiState.isSavingRemoteSettings && uiState.remoteApiUrl.isNotBlank(),
-                    secondary = true,
-                )
-                DriverActionButton(
-                    text = if (uiState.isValidatingRemoteSettings) "Sprawdzanie endpointu..." else "Sprawdź endpoint",
-                    onClick = viewModel::validateRemoteSettings,
-                    enabled = !uiState.isValidatingRemoteSettings && uiState.remoteApiUrl.isNotBlank(),
-                    secondary = true,
-                )
+                if (uiState.isEndpointEditorUnlocked) {
+                    DriverInputField(
+                        value = uiState.remoteApiUrl,
+                        onValueChange = viewModel::updateRemoteApiUrl,
+                        label = "Endpoint zdalnego syncu kierowców",
+                        singleLine = false,
+                    )
+                    DriverActionButton(
+                        text = if (uiState.isSavingRemoteSettings) "Zapisywanie endpointu..." else "Zapisz endpoint",
+                        onClick = viewModel::saveRemoteSettings,
+                        enabled = !uiState.isSavingRemoteSettings && uiState.remoteApiUrl.isNotBlank(),
+                        secondary = true,
+                    )
+                    DriverActionButton(
+                        text = if (uiState.isValidatingRemoteSettings) "Sprawdzanie endpointu..." else "Sprawdź endpoint",
+                        onClick = viewModel::validateRemoteSettings,
+                        enabled = !uiState.isValidatingRemoteSettings && uiState.remoteApiUrl.isNotBlank(),
+                        secondary = true,
+                    )
+                    DriverActionButton(
+                        text = "Ukryj edycję endpointu",
+                        onClick = viewModel::lockEndpointEditor,
+                        secondary = true,
+                    )
+                } else {
+                    DriverInputField(
+                        value = uiState.endpointAccessPassword,
+                        onValueChange = viewModel::updateEndpointAccessPassword,
+                        label = "Hasło serwisowe do edycji endpointu",
+                        visualTransformation = PasswordVisualTransformation(),
+                    )
+                    DriverActionButton(
+                        text = "Odblokuj edycję endpointu",
+                        onClick = viewModel::unlockEndpointEditor,
+                        enabled = uiState.endpointAccessPassword.isNotBlank(),
+                        secondary = true,
+                    )
+                }
             }
         }
         item {
@@ -304,6 +333,14 @@ fun DriverMileageScreen(navController: NavController) {
                     message = if (uiState.driverName.isNotBlank()) "Kierowca: ${uiState.driverName}" else "Brak aktywnego kierowcy.",
                     emphasis = true,
                 )
+                if (uiState.registration.isBlank()) {
+                    StatusMessage(
+                        message = "W tej chwili nie masz przypisanego samochodu. Zaloguj się ponownie po zmianie przypisania przez admina.",
+                        emphasis = true,
+                    )
+                } else {
+                    StatusMessage("Aktualnie przypisane auto: ${uiState.registration}")
+                }
                 StatusMessage("Status synchronizacji: ${uiState.syncStatus}")
                 StatusMessage("Kolejka: ${uiState.pendingSyncCount} • Oczekujący przebieg: ${uiState.queuedMileage.ifBlank { "-" }}")
                 StatusMessage("Ostatnia próba: ${uiState.lastAttemptAt.ifBlank { "-" }}")
@@ -317,8 +354,9 @@ fun DriverMileageScreen(navController: NavController) {
             DriverSectionCard(title = "Dodaj przebieg") {
                 DriverInputField(
                     value = uiState.registration,
-                    onValueChange = viewModel::setRegistration,
+                    onValueChange = {},
                     label = "Rejestracja",
+                    enabled = false,
                 )
                 DriverInputField(
                     value = uiState.mileage,
@@ -330,11 +368,6 @@ fun DriverMileageScreen(navController: NavController) {
                     text = if (uiState.isSaving) "Zapisywanie..." else "Zapisz przebieg",
                     onClick = viewModel::save,
                     enabled = !uiState.isSaving && uiState.registration.isNotBlank() && uiState.mileage.isNotBlank(),
-                )
-                DriverActionButton(
-                    text = if (uiState.isSaving) "Synchronizowanie..." else "Wymuś synchronizację teraz",
-                    onClick = viewModel::flushSyncNow,
-                    secondary = true,
                 )
                 uiState.status?.let { StatusMessage(it, emphasis = true) }
             }

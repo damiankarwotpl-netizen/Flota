@@ -13,10 +13,10 @@ import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
 
-internal object DriverRemoteSyncGateway {
+object DriverRemoteSyncGateway {
     const val EndpointSettingKey = "driver_remote_api_url"
     const val DefaultDriverRemoteApiUrl =
-        "https://script.google.com/macros/s/AKfycbxFQLZU-sg8Gg58J2dE-Bbt2jTyXrdcd1DOUM78vcqFLa789gpeOC9S4MyjGHpQ12_l/exec"
+        "https://script.google.com/macros/s/AKfycby17lUy-SqVKqs0nO_w8Q02U3gNVIaBLZUzRAMJmy4YFN_V3tJhG_gv197GLL9-kmCT/exec"
 
     private val okStatuses = setOf("", "ok", "queued", "saved", "created", "success")
     private val timestampFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
@@ -102,6 +102,27 @@ internal object DriverRemoteSyncGateway {
         val endpoint = loadEndpoint(dao)
         val logsBefore = runCatching { fetchRemoteLogs(dao, endpoint) }.getOrDefault(emptyList())
         val payloads = listOf(
+            legacyAddMileagePayload(
+                registration = normalizedRegistration,
+                mileage = normalizedMileage,
+                timestamp = normalizedTimestamp,
+                login = normalizedLogin,
+            ),
+            legacyMileagePayload(
+                registration = normalizedRegistration,
+                mileage = normalizedMileage,
+                timestamp = normalizedTimestamp,
+                login = normalizedLogin,
+                driverName = normalizedDriverName,
+            ),
+            mileagePayload(
+                action = "mileage_update",
+                registration = normalizedRegistration,
+                mileage = normalizedMileage,
+                timestamp = normalizedTimestamp,
+                login = normalizedLogin,
+                driverName = normalizedDriverName,
+            ),
             mileagePayload(
                 action = "add_mileage",
                 registration = normalizedRegistration,
@@ -145,12 +166,25 @@ internal object DriverRemoteSyncGateway {
                 )
                 require(statusCode in 200..299) { "HTTP $statusCode" }
                 validateResponse(responseBody, fallbackMessage = "Zdalny endpoint odrzucił aktualizację przebiegu")
+                if (
+                    confirmsMileageSaved(
+                        body = responseBody,
+                        registration = normalizedRegistration,
+                        mileage = normalizedMileage,
+                        timestamp = normalizedTimestamp,
+                        login = normalizedLogin,
+                        driverName = normalizedDriverName,
+                    )
+                ) {
+                    return
+                }
                 verifyMileageLogWritten(
                     dao = dao,
                     endpoint = endpoint,
                     logsBefore = logsBefore,
                     registration = normalizedRegistration,
                     mileage = normalizedMileage,
+                    timestamp = normalizedTimestamp,
                     login = normalizedLogin,
                     driverName = normalizedDriverName,
                 )
@@ -203,6 +237,60 @@ internal object DriverRemoteSyncGateway {
         throw IllegalArgumentException("Nie udało się pobrać logów kierowców z endpointu")
     }
 
+    suspend fun clearRemoteTestData(dao: AppDao, endpointOverride: String = ""): String {
+        val endpoint = endpointOverride.trim().ifBlank { loadEndpoint(dao) }
+        require(endpoint.isNotBlank()) { "Brak endpointu zdalnej synchronizacji kierowców" }
+        val payloads = listOf(
+            JSONObject().apply { put("action", "clear_all") },
+            JSONObject().apply { put("action", "clear_test_data") },
+            JSONObject().apply { put("action", "reset_all") },
+        )
+
+        payloads.forEach { payload ->
+            try {
+                val (statusCode, responseBody) = postPayloadToUrl(endpoint = endpoint, payload = payload)
+                require(statusCode in 200..299) { "HTTP $statusCode" }
+                validateResponse(responseBody, fallbackMessage = "Endpoint nie wyczyścił danych testowych")
+                val json = runCatching { JSONObject(responseBody) }.getOrNull()
+                return json?.optString("message")?.takeIf { it.isNotBlank() }
+                    ?: "Wyczyszczono dane testowe w endpointcie kierowców"
+            } catch (_: Exception) {
+                // try next payload variant
+            }
+        }
+        throw IllegalArgumentException("Nie udało się wyczyścić danych w zdalnym endpointcie kierowców")
+    }
+
+    suspend fun findDriverAccount(dao: AppDao, login: String): DriverAccountEntity? {
+        val normalizedLogin = login.trim()
+        require(normalizedLogin.isNotBlank()) { "Brak loginu kierowcy" }
+        val endpoint = loadEndpoint(dao)
+        val payloads = listOf(
+            JSONObject().apply {
+                put("action", "get_driver")
+                put("login", normalizedLogin)
+            },
+            JSONObject().apply {
+                put("action", "get_driver_by_login")
+                put("login", normalizedLogin)
+            },
+        )
+
+        var lastError: Exception? = null
+        for (payload in payloads) {
+            try {
+                val (statusCode, responseBody) = postPayloadToUrl(endpoint = endpoint, payload = payload)
+                require(statusCode in 200..299) { "HTTP $statusCode" }
+                val account = parseDriverLookupResponse(responseBody, normalizedLogin)
+                if (account != null) return account
+            } catch (error: Exception) {
+                lastError = error
+            }
+        }
+        if (lastError != null) throw lastError
+        return null
+    }
+
     suspend fun loginDriver(
         dao: AppDao,
         login: String,
@@ -253,6 +341,33 @@ internal object DriverRemoteSyncGateway {
         )
     }
 
+    private fun parseDriverLookupResponse(
+        body: String,
+        fallbackLogin: String,
+    ): DriverAccountEntity? {
+        val trimmed = body.trim()
+        if (trimmed.isBlank()) return null
+        val json = runCatching { JSONObject(trimmed) }.getOrNull() ?: return null
+        val status = json.optString("status").trim().lowercase()
+        if (status.isNotBlank() && status !in okStatuses) return null
+
+        return DriverAccountEntity(
+            registration = json.optString("registration").trim().uppercase(),
+            login = json.optString("login").trim().ifBlank { fallbackLogin },
+            password = json.optString("password").trim(),
+            driverName = json.optString("name")
+                .ifBlank { json.optString("driverName") }
+                .ifBlank { json.optString("driver") }
+                .trim(),
+            changePassword = when (val raw = json.opt("change_password")) {
+                is Boolean -> if (raw) 1 else 0
+                is Number -> if (raw.toInt() != 0) 1 else 0
+                is String -> if (raw == "1" || raw.equals("true", ignoreCase = true)) 1 else 0
+                else -> 0
+            },
+        )
+    }
+
     private fun parseDriverLoginResponse(
         body: String,
         fallbackLogin: String,
@@ -283,7 +398,6 @@ internal object DriverRemoteSyncGateway {
             .ifBlank { json.optString("rej") }
             .trim()
             .uppercase()
-        require(registration.isNotBlank()) { "Endpoint nie zwrócił numeru rejestracyjnego kierowcy" }
         val driverName = json.optString("name")
             .ifBlank { json.optString("driverName") }
             .ifBlank { json.optString("driver") }
@@ -385,6 +499,35 @@ internal object DriverRemoteSyncGateway {
         }
     }
 
+    private fun legacyAddMileagePayload(
+        registration: String,
+        mileage: Int,
+        timestamp: String,
+        login: String,
+    ): JSONObject = JSONObject().apply {
+        put("action", "add_mileage")
+        put("driver", login)
+        put("registration", registration)
+        put("mileage", mileage)
+        put("timestamp", timestamp)
+    }
+
+    private fun legacyMileagePayload(
+        registration: String,
+        mileage: Int,
+        timestamp: String,
+        login: String,
+        driverName: String,
+    ): JSONObject = JSONObject().apply {
+        put("action", "mileage_update")
+        put("registration", registration)
+        put("plate", registration)
+        put("mileage", mileage)
+        put("timestamp", timestamp)
+        if (login.isNotBlank()) put("login", login)
+        if (driverName.isNotBlank()) put("name", driverName)
+    }
+
     private fun mileagePayload(
         action: String,
         registration: String,
@@ -401,7 +544,7 @@ internal object DriverRemoteSyncGateway {
         put("value", mileage)
         put("timestamp", timestamp)
         put("driver_login", login)
-        put("driver", driverName)
+        put("driver", login.ifBlank { driverName })
         put("name", driverName)
         if (login.isNotBlank()) put("login", login)
         if (driverName.isNotBlank()) put("driverName", driverName)
@@ -457,6 +600,46 @@ internal object DriverRemoteSyncGateway {
         }
     }
 
+    private fun confirmsMileageSaved(
+        body: String,
+        registration: String,
+        mileage: Int,
+        timestamp: String,
+        login: String,
+        driverName: String,
+    ): Boolean {
+        val trimmed = body.trim()
+        if (trimmed.isBlank() || !trimmed.startsWith("{")) return false
+        val json = runCatching { JSONObject(trimmed) }.getOrNull() ?: return false
+        val status = json.optString("status").trim().lowercase()
+        if (status.isNotBlank() && status !in okStatuses) return false
+
+        val responseRegistration = json.optString("registration")
+            .ifBlank { json.optString("plate") }
+            .ifBlank { json.optString("rej") }
+            .trim()
+            .uppercase()
+        val responseMileage = json.opt("mileage")?.toString()?.toIntOrNull()
+            ?: json.optString("value").trim().toIntOrNull()
+        val responseTimestamp = json.optString("timestamp")
+            .ifBlank { json.optString("date") }
+            .trim()
+        val responseDriver = json.optString("driver")
+            .ifBlank { json.optString("login") }
+            .ifBlank { json.optString("driver_login") }
+            .ifBlank { json.optString("name") }
+            .trim()
+
+        val registrationMatches = responseRegistration.isBlank() || responseRegistration == registration
+        val mileageMatches = responseMileage == null || responseMileage == mileage
+        val timestampMatches = responseTimestamp.isBlank() || responseTimestamp == timestamp
+        val driverMatches = responseDriver.isBlank() || listOf(login, driverName)
+            .filter { it.isNotBlank() }
+            .any { expected -> responseDriver.equals(expected, ignoreCase = true) }
+
+        return registrationMatches && mileageMatches && timestampMatches && driverMatches
+    }
+
     private fun validateProbeResponse(body: String) {
         if (body.isBlank()) return
         val trimmed = body.trim()
@@ -510,7 +693,7 @@ internal object DriverRemoteSyncGateway {
                             registration = registration,
                             mileage = mileage.coerceAtLeast(0),
                             driverName = valueByHeader(row, headers, listOf("driver", "name", "drivername")),
-                            login = valueByHeader(row, headers, listOf("driver_login", "login", "driver")),
+                            login = valueByHeader(row, headers, listOf("driver_login", "login")),
                             timestamp = valueByHeader(row, headers, listOf("timestamp", "date", "createdat")),
                         ),
                     )
@@ -562,24 +745,59 @@ internal object DriverRemoteSyncGateway {
         logsBefore: List<RemoteDriverLog>,
         registration: String,
         mileage: Int,
+        timestamp: String,
         login: String,
         driverName: String,
     ) {
         val logsAfter = fetchRemoteLogs(dao, endpoint)
         val previousCount = logsBefore.count {
-            it.registration == registration &&
-                it.mileage == mileage &&
-                (login.isBlank() || it.login.equals(login, ignoreCase = true) || it.driverName.equals(login, ignoreCase = true)) &&
-                (driverName.isBlank() || it.driverName.equals(driverName, ignoreCase = true))
+            matchesMileageLog(
+                log = it,
+                registration = registration,
+                mileage = mileage,
+                timestamp = timestamp,
+                login = login,
+                driverName = driverName,
+            )
         }
         val currentCount = logsAfter.count {
-            it.registration == registration &&
-                it.mileage == mileage &&
-                (login.isBlank() || it.login.equals(login, ignoreCase = true) || it.driverName.equals(login, ignoreCase = true)) &&
-                (driverName.isBlank() || it.driverName.equals(driverName, ignoreCase = true))
+            matchesMileageLog(
+                log = it,
+                registration = registration,
+                mileage = mileage,
+                timestamp = timestamp,
+                login = login,
+                driverName = driverName,
+            )
         }
         require(currentCount > previousCount) {
             "Endpoint odpowiedział poprawnie, ale nie zapisał przebiegu do mileage_logs"
+        }
+    }
+
+    private fun matchesMileageLog(
+        log: RemoteDriverLog,
+        registration: String,
+        mileage: Int,
+        timestamp: String,
+        login: String,
+        driverName: String,
+    ): Boolean {
+        if (log.registration != registration || log.mileage != mileage) return false
+        if (timestamp.isNotBlank() && log.timestamp.isNotBlank() && log.timestamp != timestamp) return false
+
+        val normalizedLogin = login.trim()
+        val normalizedDriverName = driverName.trim()
+        val logLogin = log.login.trim()
+        val logDriverName = log.driverName.trim()
+        val logHasIdentity = logLogin.isNotBlank() || logDriverName.isNotBlank()
+        if (!logHasIdentity) return true
+
+        val expectedIdentities = listOf(normalizedLogin, normalizedDriverName).filter { it.isNotBlank() }
+        if (expectedIdentities.isEmpty()) return true
+
+        return expectedIdentities.any { expected ->
+            logLogin.equals(expected, ignoreCase = true) || logDriverName.equals(expected, ignoreCase = true)
         }
     }
 

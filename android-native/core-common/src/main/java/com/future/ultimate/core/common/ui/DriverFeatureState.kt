@@ -6,6 +6,8 @@ data class DriverLoginUiState(
     val login: String = "",
     val password: String = "",
     val remoteApiUrl: String = "",
+    val endpointAccessPassword: String = "",
+    val isEndpointEditorUnlocked: Boolean = false,
     val error: String? = null,
     val isLoading: Boolean = false,
     val isSavingRemoteSettings: Boolean = false,

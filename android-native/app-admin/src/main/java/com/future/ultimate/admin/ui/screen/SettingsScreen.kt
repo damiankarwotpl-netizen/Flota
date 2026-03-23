@@ -13,6 +13,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -83,24 +84,55 @@ fun SettingsScreen(
         item {
             SectionCard(
                 title = "Integracja kierowców",
-                subtitle = "Skonfiguruj endpoint synchronizacji i sprawdź połączenie.",
+                subtitle = "APK admin działa domyślnie na stałym endpointcie. Edycja jest ukryta za hasłem serwisowym.",
             ) {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    // TODO(main.py parity): legacy `show_logs` opened the app log buffer/file.
-                    // Native admin currently exposes session reports, but there is no repository-backed application-log source here yet.
-                    OutlinedTextField(
-                        value = uiState.remoteSettings.apiUrl,
-                        onValueChange = viewModel::updateDriverRemoteApiUrl,
-                        label = { Text("Endpoint zdalnego syncu kierowców") },
+                    Text("Aktywny endpoint APK admin: ${uiState.remoteSettings.apiUrl}")
+                    if (uiState.isEndpointEditorUnlocked) {
+                        OutlinedTextField(
+                            value = uiState.remoteSettings.apiUrl,
+                            onValueChange = viewModel::updateDriverRemoteApiUrl,
+                            label = { Text("Endpoint zdalnego syncu kierowców") },
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                        Button(
+                            onClick = viewModel::saveDriverRemoteSettings,
+                            modifier = Modifier.fillMaxWidth(),
+                            enabled = !uiState.isSavingRemoteSettings && uiState.remoteSettings.apiUrl.isNotBlank(),
+                        ) {
+                            Text(if (uiState.isSavingRemoteSettings) "Zapisywanie integracji..." else "Zapisz ustawienia integracji")
+                        }
+                        Button(
+                            onClick = viewModel::validateDriverRemoteSettings,
+                            modifier = Modifier.fillMaxWidth(),
+                            enabled = !uiState.isValidatingRemoteSettings && uiState.remoteSettings.apiUrl.isNotBlank(),
+                        ) {
+                            Text(if (uiState.isValidatingRemoteSettings) "Sprawdzanie endpointu..." else "Sprawdź endpoint kierowców")
+                        }
+                        OutlinedButton(onClick = viewModel::lockEndpointEditor, modifier = Modifier.fillMaxWidth()) {
+                            Text("Ukryj edycję endpointu")
+                        }
+                    } else {
+                        OutlinedTextField(
+                            value = uiState.endpointAccessPassword,
+                            onValueChange = viewModel::updateEndpointAccessPassword,
+                            label = { Text("Hasło serwisowe do edycji endpointu") },
+                            modifier = Modifier.fillMaxWidth(),
+                            visualTransformation = PasswordVisualTransformation(),
+                        )
+                        OutlinedButton(
+                            onClick = viewModel::unlockEndpointEditor,
+                            modifier = Modifier.fillMaxWidth(),
+                            enabled = uiState.endpointAccessPassword.isNotBlank(),
+                        ) {
+                            Text("Odblokuj edycję endpointu")
+                        }
+                    }
+                    Button(
+                        onClick = viewModel::importDriverRemoteLogs,
                         modifier = Modifier.fillMaxWidth(),
-                    )
-                    Button(onClick = viewModel::saveDriverRemoteSettings, modifier = Modifier.fillMaxWidth()) {
-                        Text(if (uiState.isSavingRemoteSettings) "Zapisywanie integracji..." else "Zapisz ustawienia integracji")
-                    }
-                    Button(onClick = viewModel::validateDriverRemoteSettings, modifier = Modifier.fillMaxWidth()) {
-                        Text(if (uiState.isValidatingRemoteSettings) "Sprawdzanie endpointu..." else "Sprawdź endpoint kierowców")
-                    }
-                    Button(onClick = viewModel::importDriverRemoteLogs, modifier = Modifier.fillMaxWidth()) {
+                        enabled = !uiState.isImportingRemoteLogs,
+                    ) {
                         Text(if (uiState.isImportingRemoteLogs) "Pobieranie logów kierowców..." else "Zaczytaj logi kierowców z endpointu")
                     }
                     uiState.actionMessage?.let { Text(it) }
@@ -132,6 +164,13 @@ fun SettingsScreen(
                     }
                     Button(onClick = { navController.navigate(AdminRoute.Template.route) }, modifier = Modifier.fillMaxWidth()) {
                         Text("Edytuj szablon email")
+                    }
+                    Button(
+                        onClick = viewModel::clearAllTestData,
+                        modifier = Modifier.fillMaxWidth(),
+                        enabled = !uiState.isClearingDatabase,
+                    ) {
+                        Text(if (uiState.isClearingDatabase) "Czyszczenie bazy i endpointu..." else "Wyczyść bazę lokalną i endpoint")
                     }
                     uiState.actionMessage?.let { Text(it) }
                 }
