@@ -14,6 +14,7 @@ data class ContactListItem(
     val name: String,
     val surname: String,
     val email: String,
+    val pesel: String,
     val phone: String,
     val workplace: String,
     val apartment: String,
@@ -219,6 +220,7 @@ interface AdminRepository {
     suspend fun updateCarDriver(id: Long, driver: String)
     suspend fun resetCarDriverCredentials(id: Long): DriverAccountCredentials
     suspend fun retryCarDriverRemoteSync(id: Long)
+    suspend fun deleteKnownCarDriver(driver: String)
     suspend fun confirmCarService(id: Long)
     suspend fun deleteCar(id: Long)
 

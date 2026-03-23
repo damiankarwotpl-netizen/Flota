@@ -99,6 +99,7 @@ class LocalAdminRepository(
                 name = it.name,
                 surname = it.surname,
                 email = it.email,
+                pesel = it.pesel,
                 phone = it.phone,
                 workplace = it.workplace,
                 apartment = it.apartment,
@@ -261,6 +262,19 @@ class LocalAdminRepository(
     override suspend fun retryCarDriverRemoteSync(id: Long) {
         val car = dao.getCar(id) ?: return
         syncDriverAccount(car.driver, car.registration, forceReset = false, forceRemote = true)
+    }
+
+    override suspend fun deleteKnownCarDriver(driver: String) {
+        val normalizedDriver = driver.trim()
+        if (normalizedDriver.isBlank()) return
+        val matchingCars = dao.observeCars().first().filter { it.driver.equals(normalizedDriver, ignoreCase = true) }
+        matchingCars.forEach { car ->
+            dao.updateDriver(car.id, "")
+            dao.deleteDriverAccountByRegistration(car.registration)
+            syncRemoteDriverDeletion(car.registration)
+        }
+        val key = CarDriverHistoryPrefix + normalizedDriver.lowercase().replace(" ", "_")
+        dao.deleteSetting(key)
     }
 
     override suspend fun confirmCarService(id: Long) = dao.confirmService(id)
@@ -995,6 +1009,7 @@ class LocalAdminRepository(
                         name = it.name,
                         surname = it.surname,
                         email = it.email,
+                        pesel = it.pesel,
                         phone = it.phone,
                         workplace = it.workplace,
                         apartment = it.apartment,

@@ -90,7 +90,7 @@ fun PayrollScreen(_navController: NavController) {
 
     ScreenColumn("Wypłaty", "Nowy moduł: import Excel + podgląd + eksport") {
         item {
-            SectionCard(title = "Wczytaj Excel", subtitle = "Wczytuje plik z pamięci telefonu.") {
+            SectionCard {
                 Button(onClick = { excelPicker.launch("*/*") }, modifier = Modifier.fillMaxWidth()) { Text("Wczytaj Excel") }
                 Button(onClick = { folderPicker.launch(null) }, modifier = Modifier.fillMaxWidth()) { Text("Wybierz folder eksportu") }
 
@@ -109,7 +109,7 @@ fun PayrollScreen(_navController: NavController) {
         }
 
         item {
-            SectionCard(title = "Podgląd/Export", subtitle = "Otwiera osobne okno z tabelą jak w Excelu.") {
+            SectionCard {
                 Button(
                     onClick = { isPreviewDialogOpen = true },
                     modifier = Modifier.fillMaxWidth(),

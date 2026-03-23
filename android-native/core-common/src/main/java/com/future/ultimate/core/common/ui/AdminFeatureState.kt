@@ -31,6 +31,7 @@ data class ContactsUiState(
     val workplaceFilter: String = "",
     val cityFilter: String = "",
     val items: List<ContactListItem> = emptyList(),
+    val plantSuggestions: List<String> = emptyList(),
     val editor: ContactDraft = ContactDraft(),
     val isSaving: Boolean = false,
 )

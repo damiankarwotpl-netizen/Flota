@@ -184,6 +184,9 @@ interface AppDao {
     @Query("SELECT * FROM settings WHERE `key` = :key LIMIT 1")
     suspend fun getSetting(key: String): SettingEntity?
 
+    @Query("DELETE FROM settings WHERE `key` = :key")
+    suspend fun deleteSetting(key: String)
+
     @Query("DELETE FROM contacts")
     suspend fun clearContacts()
 
