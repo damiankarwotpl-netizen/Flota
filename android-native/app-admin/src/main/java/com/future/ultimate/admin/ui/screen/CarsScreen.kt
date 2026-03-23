@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -17,10 +18,13 @@ import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Tab
+import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -43,8 +47,12 @@ fun CarsScreen() {
     val app = LocalContext.current.applicationContext as AdminApp
     val viewModel: CarsViewModel = viewModel(factory = AdminViewModelFactory(app.container.repository))
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    var selectedTab by remember { mutableIntStateOf(0) }
     var isDialogOpen by remember { mutableStateOf(false) }
     var editedCarId by remember { mutableStateOf<Long?>(null) }
+    var detailsCar by remember { mutableStateOf<CarListItem?>(null) }
+    var assignDriverCar by remember { mutableStateOf<CarListItem?>(null) }
+    var driverPickerQuery by remember { mutableStateOf("") }
 
     val urgentCars = uiState.items.count { it.remainingToService <= 0 }
     val dueSoonCars = uiState.items.count { it.remainingToService in 1..3000 }
@@ -62,42 +70,73 @@ fun CarsScreen() {
             matchesQuery && matchesService
         }
     }
+    val filteredKnownDrivers = remember(uiState.knownCarDrivers, uiState.query, uiState.items) {
+        uiState.knownCarDrivers.filter { driverName ->
+            val currentAssignments = uiState.items.filter { it.driver.equals(driverName, ignoreCase = true) }
+                .joinToString(", ") { it.registration }
+            val blob = "$driverName $currentAssignments".lowercase()
+            uiState.query.isBlank() || uiState.query.lowercase() in blob
+        }
+    }
+    val filteredContactDrivers = remember(uiState.contactDriverSuggestions, driverPickerQuery) {
+        uiState.contactDriverSuggestions.filter { suggestion ->
+            driverPickerQuery.isBlank() || suggestion.lowercase().contains(driverPickerQuery.lowercase())
+        }
+    }
 
-    ScreenColumn("Samochody", "Szukaj pojazdów i wykonuj szybkie akcje bez opuszczania listy.") {
+    ScreenColumn("Samochody", "Moduł aut i kierowców") {
         item {
-            SectionCard(title = "Wyszukiwarka", subtitle = "Szukaj po nazwie, rejestracji lub kierowcy oraz filtruj status serwisu.") {
+            SectionCard(title = "Widok modułu", subtitle = "Przełączaj się między listą aut a historią kierowców przypisanych do samochodów.") {
+                TabRow(selectedTabIndex = selectedTab) {
+                    Tab(selected = selectedTab == 0, onClick = { selectedTab = 0 }, text = { Text("Auta") })
+                    Tab(selected = selectedTab == 1, onClick = { selectedTab = 1 }, text = { Text("Kierowcy") })
+                }
+            }
+        }
+
+        item {
+            SectionCard(
+                title = if (selectedTab == 0) "Wyszukiwarka aut" else "Wyszukiwarka kierowców",
+                subtitle = if (selectedTab == 0) {
+                    "Szukaj po nazwie, rejestracji lub kierowcy oraz filtruj status serwisu."
+                } else {
+                    "Lista kierowców, którzy mają albo mieli przypisane auto."
+                },
+            ) {
                 OutlinedTextField(
                     value = uiState.query,
                     onValueChange = viewModel::updateQuery,
-                    label = { Text("Szukaj samochodu") },
+                    label = { Text(if (selectedTab == 0) "Szukaj samochodu" else "Szukaj kierowcy") },
                     modifier = Modifier.fillMaxWidth(),
                 )
-                Text("Serwis — pilne: $urgentCars • wkrótce: $dueSoonCars • OK: $okCars")
-                Button(onClick = viewModel::cycleServiceFilter, modifier = Modifier.fillMaxWidth()) {
-                    Text(
-                        when (uiState.serviceFilter) {
-                            CarsServiceFilter.All -> "Filtr serwisu: wszystkie auta"
-                            CarsServiceFilter.DueSoon -> "Filtr serwisu: do serwisu wkrótce"
-                            CarsServiceFilter.Urgent -> "Filtr serwisu: tylko pilne"
-                        },
-                    )
-                }
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.End,
-                ) {
-                    FilledIconButton(
-                        onClick = {
-                            viewModel.clearEditor()
-                            editedCarId = null
-                            isDialogOpen = true
-                        },
-                        modifier = Modifier.size(42.dp),
-                    ) {
-                        Icon(
-                            imageVector = Icons.Rounded.Add,
-                            contentDescription = "Dodaj nowy samochód",
+                if (selectedTab == 0) {
+                    Text("Serwis — pilne: $urgentCars • wkrótce: $dueSoonCars • OK: $okCars")
+                    Button(onClick = viewModel::cycleServiceFilter, modifier = Modifier.fillMaxWidth()) {
+                        Text(
+                            when (uiState.serviceFilter) {
+                                CarsServiceFilter.All -> "Filtr serwisu: wszystkie auta"
+                                CarsServiceFilter.DueSoon -> "Filtr serwisu: do serwisu wkrótce"
+                                CarsServiceFilter.Urgent -> "Filtr serwisu: tylko pilne"
+                            },
                         )
+                    }
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.End,
+                    ) {
+                        FilledIconButton(
+                            onClick = {
+                                viewModel.clearEditor()
+                                editedCarId = null
+                                isDialogOpen = true
+                            },
+                            modifier = Modifier.size(42.dp),
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.Add,
+                                contentDescription = "Dodaj nowy samochód",
+                            )
+                        }
                     }
                 }
                 uiState.actionMessage?.let {
@@ -110,39 +149,67 @@ fun CarsScreen() {
             }
         }
 
-        if (filteredCars.isEmpty()) {
-            item {
-                SectionCard {
-                    Text(
-                        text = "Brak samochodów pasujących do wyszukiwania lub filtra serwisu.",
-                        style = MaterialTheme.typography.bodyLarge,
-                    )
+        if (selectedTab == 0) {
+            if (filteredCars.isEmpty()) {
+                item {
+                    SectionCard {
+                        Text(
+                            text = "Brak samochodów pasujących do wyszukiwania lub filtra serwisu.",
+                            style = MaterialTheme.typography.bodyLarge,
+                        )
+                    }
+                }
+            } else {
+                filteredCars.forEach { car ->
+                    item {
+                        CarCard(
+                            car = car,
+                            actionInFlightId = uiState.actionInFlightId,
+                            onDetails = { detailsCar = car },
+                            onEdit = {
+                                editedCarId = car.id
+                                viewModel.editCar(car)
+                                isDialogOpen = true
+                            },
+                            onAssignDriver = {
+                                assignDriverCar = car
+                                driverPickerQuery = ""
+                            },
+                            onConfirmService = { viewModel.confirmService(car.id) },
+                            onDelete = { viewModel.deleteCar(car.id) },
+                        )
+                    }
                 }
             }
         } else {
-            filteredCars.forEach { car ->
+            if (filteredKnownDrivers.isEmpty()) {
                 item {
-                    CarCard(
-                        car = car,
-                        driverDraft = uiState.driverDrafts[car.id].orEmpty(),
-                        mileageDraft = uiState.mileageDrafts[car.id].orEmpty(),
-                        driverSuggestions = uiState.driverSuggestions,
-                        actionInFlightId = uiState.actionInFlightId,
-                        onEdit = {
-                            editedCarId = car.id
-                            viewModel.editCar(car)
-                            isDialogOpen = true
+                    SectionCard {
+                        Text(
+                            text = "Brak kierowców pasujących do wyszukiwania.",
+                            style = MaterialTheme.typography.bodyLarge,
+                        )
+                    }
+                }
+            } else {
+                items(filteredKnownDrivers) { driverName ->
+                    val currentAssignments = uiState.items.filter { it.driver.equals(driverName, ignoreCase = true) }
+                    SectionCard(
+                        title = driverName,
+                        subtitle = if (currentAssignments.isEmpty()) {
+                            "Brak aktywnie przypisanego auta"
+                        } else {
+                            "Aktualnie przypisane: ${currentAssignments.joinToString(", ") { it.registration }}"
                         },
-                        onDriverDraftChange = { viewModel.updateDriverDraft(car.id, it) },
-                        onMileageDraftChange = { viewModel.updateMileageDraft(car.id, it) },
-                        onApplyDriverSuggestion = { viewModel.applyDriverDraftSuggestion(car.id, it) },
-                        onSaveDriver = { viewModel.saveDriver(car.id) },
-                        onSaveMileage = { viewModel.saveMileage(car.id) },
-                        onResetDriverCredentials = { viewModel.resetDriverCredentials(car.id) },
-                        onRetryRemoteDriverSync = { viewModel.retryRemoteDriverSync(car.id) },
-                        onConfirmService = { viewModel.confirmService(car.id) },
-                        onDelete = { viewModel.deleteCar(car.id) },
-                    )
+                    ) {
+                        Text(
+                            if (currentAssignments.isEmpty()) {
+                                "Kierowca znajduje się w historii przypisań samochodów."
+                            } else {
+                                "Liczba aktywnych aut: ${currentAssignments.size}"
+                            },
+                        )
+                    }
                 }
             }
         }
@@ -168,23 +235,37 @@ fun CarsScreen() {
             },
         )
     }
+
+    detailsCar?.let { car ->
+        CarDetailsDialog(car = car, onDismiss = { detailsCar = null })
+    }
+
+    assignDriverCar?.let { car ->
+        DriverAssignmentDialog(
+            car = car,
+            query = driverPickerQuery,
+            availableDrivers = filteredContactDrivers,
+            onQueryChange = { driverPickerQuery = it },
+            onDismiss = {
+                assignDriverCar = null
+                driverPickerQuery = ""
+            },
+            onDriverSelected = { driverName ->
+                viewModel.assignDriver(car.id, driverName)
+                assignDriverCar = null
+                driverPickerQuery = ""
+            },
+        )
+    }
 }
 
 @Composable
 private fun CarCard(
     car: CarListItem,
-    driverDraft: String,
-    mileageDraft: String,
-    driverSuggestions: List<String>,
     actionInFlightId: Long?,
+    onDetails: () -> Unit,
     onEdit: () -> Unit,
-    onDriverDraftChange: (String) -> Unit,
-    onMileageDraftChange: (String) -> Unit,
-    onApplyDriverSuggestion: (String) -> Unit,
-    onSaveDriver: () -> Unit,
-    onSaveMileage: () -> Unit,
-    onResetDriverCredentials: () -> Unit,
-    onRetryRemoteDriverSync: () -> Unit,
+    onAssignDriver: () -> Unit,
     onConfirmService: () -> Unit,
     onDelete: () -> Unit,
 ) {
@@ -192,15 +273,22 @@ private fun CarCard(
 
     SectionCard(
         title = "${car.name} • ${car.registration}",
-        subtitle = "${serviceStatus} • ${serviceDistanceLabel(car.remainingToService)}",
+        subtitle = serviceDistanceLabel(car.remainingToService),
     ) {
+        Text("Kierowca: ${car.driver.ifBlank { "nieprzypisany" }}")
+        Text("Przebieg: ${car.mileage} km")
+        Text("Status serwisu: $serviceStatus")
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.End,
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
+            Button(onClick = onDetails, modifier = Modifier.weight(1f)) {
+                Text("Szczegóły")
+            }
             FilledIconButton(
                 onClick = onEdit,
-                modifier = Modifier.size(32.dp),
+                modifier = Modifier.size(42.dp),
             ) {
                 Icon(
                     imageVector = Icons.Rounded.Edit,
@@ -208,104 +296,125 @@ private fun CarCard(
                 )
             }
         }
-        Text("Kierowca: ${car.driver.ifBlank { "nieprzypisany" }}")
-        Text("Przebieg: ${car.mileage} km • status serwisu: $serviceStatus")
-        Text(
-            buildString {
-                append("Sync przebiegu: ")
-                append(car.lastMileageSyncStatus.ifBlank { "brak danych" })
-                if (car.pendingMileageSync) {
-                    append(" • kolejka: ${car.queuedMileage ?: "-"} km")
-                }
-            },
-        )
-        Text(
-            buildString {
-                append("Sync kierowcy: ")
-                append(car.remoteDriverSyncStatus.ifBlank { "brak danych" })
-                if (car.remoteDriverSyncAt.isNotBlank()) {
-                    append(" • ${car.remoteDriverSyncAt}")
-                }
-            },
-        )
-        if (car.lastMileageSyncAt.isNotBlank()) {
-            Text("Ostatni sync przebiegu: ${car.lastMileageSyncAt}")
-        }
-        if (car.remoteDriverSyncError.isNotBlank()) {
-            Text("Błąd syncu: ${car.remoteDriverSyncError}")
-        }
-        if (car.driverLogin.isNotBlank()) {
-            Text(
-                if (car.changePasswordRequired) {
-                    "Login: ${car.driverLogin} • Hasło startowe: ${car.driverPassword}"
-                } else {
-                    "Login: ${car.driverLogin} • Hasło zmienione przez kierowcę"
-                },
-            )
-        }
-
-        OutlinedTextField(
-            value = driverDraft,
-            onValueChange = onDriverDraftChange,
-            label = { Text("Zmień kierowcę") },
-            modifier = Modifier.fillMaxWidth(),
-        )
-        driverSuggestions
-            .filter { suggestion ->
-                driverDraft.isNotBlank() &&
-                    suggestion.lowercase().contains(driverDraft.lowercase()) &&
-                    !suggestion.equals(driverDraft, ignoreCase = true)
-            }
-            .take(2)
-            .forEach { suggestion ->
-                Button(onClick = { onApplyDriverSuggestion(suggestion) }, modifier = Modifier.fillMaxWidth()) {
-                    Text("Podpowiedź: $suggestion")
-                }
-            }
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(10.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Button(onClick = onSaveDriver, modifier = Modifier.weight(1f)) {
-                Text(if (actionInFlightId == car.id) "Zapisywanie..." else "Zapisz kierowcę")
+            Button(onClick = onAssignDriver, modifier = Modifier.weight(1f)) {
+                Text("Przypisz kierowcę")
             }
-            Button(onClick = onResetDriverCredentials, modifier = Modifier.weight(1f)) {
-                Text(if (actionInFlightId == car.id) "Zapisywanie..." else "Resetuj dane")
-            }
-        }
-
-        OutlinedTextField(
-            value = mileageDraft,
-            onValueChange = onMileageDraftChange,
-            label = { Text("Nowy przebieg") },
-            modifier = Modifier.fillMaxWidth(),
-        )
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Button(onClick = onSaveMileage, modifier = Modifier.weight(1f)) {
-                Text(if (actionInFlightId == car.id) "Zapisywanie..." else "Zapisz przebieg")
-            }
-            Button(onClick = onRetryRemoteDriverSync, modifier = Modifier.weight(1f)) {
-                Text(if (actionInFlightId == car.id) "Synchronizowanie..." else "Ponów sync")
-            }
-        }
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
             Button(onClick = onConfirmService, modifier = Modifier.weight(1f)) {
                 Text(if (actionInFlightId == car.id) "Zapisywanie..." else "Potwierdź serwis")
             }
-            Button(onClick = onDelete, modifier = Modifier.weight(1f)) {
-                Text(if (actionInFlightId == car.id) "Usuwanie..." else "Usuń auto")
-            }
+        }
+        Button(onClick = onDelete, modifier = Modifier.fillMaxWidth()) {
+            Text(if (actionInFlightId == car.id) "Usuwanie..." else "Usuń auto")
         }
     }
+}
+
+@Composable
+private fun CarDetailsDialog(
+    car: CarListItem,
+    onDismiss: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text("Szczegóły auta", fontWeight = FontWeight.Bold)
+        },
+        text = {
+            Column(
+                modifier = Modifier.verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                Text("Nazwa: ${car.name}")
+                Text("Rejestracja: ${car.registration}")
+                Text("Kierowca: ${car.driver.ifBlank { "nieprzypisany" }}")
+                Text("Interwał serwisowy: ${car.serviceInterval} km")
+                Text("Ostatni serwis przy: ${car.lastService} km")
+                Text("Sync przebiegu: ${car.lastMileageSyncStatus.ifBlank { "brak danych" }}")
+                if (car.pendingMileageSync) {
+                    Text("Przebieg oczekujący w kolejce: ${car.queuedMileage ?: "-"} km")
+                }
+                if (car.lastMileageSyncAt.isNotBlank()) {
+                    Text("Ostatni sync przebiegu: ${car.lastMileageSyncAt}")
+                }
+                Text("Zdalny sync kierowcy: ${car.remoteDriverSyncStatus.ifBlank { "brak danych" }}")
+                if (car.remoteDriverSyncAt.isNotBlank()) {
+                    Text("Ostatni zdalny sync kierowcy: ${car.remoteDriverSyncAt}")
+                }
+                if (car.remoteDriverSyncError.isNotBlank()) {
+                    Text("Błąd zdalnego syncu: ${car.remoteDriverSyncError}")
+                }
+                if (car.driverLogin.isNotBlank()) {
+                    Text("Login kierowcy: ${car.driverLogin}")
+                    Text(
+                        if (car.changePasswordRequired) {
+                            "Hasło startowe: ${car.driverPassword}"
+                        } else {
+                            "Hasło zostało już zmienione przez kierowcę"
+                        },
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Zamknij")
+            }
+        },
+    )
+}
+
+@Composable
+private fun DriverAssignmentDialog(
+    car: CarListItem,
+    query: String,
+    availableDrivers: List<String>,
+    onQueryChange: (String) -> Unit,
+    onDismiss: () -> Unit,
+    onDriverSelected: (String) -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text("Przypisz kierowcę • ${car.registration}", fontWeight = FontWeight.Bold)
+        },
+        text = {
+            Column(
+                modifier = Modifier.verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                OutlinedTextField(
+                    value = query,
+                    onValueChange = onQueryChange,
+                    label = { Text("Szukaj kierowcy z kontaktów") },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                if (availableDrivers.isEmpty()) {
+                    Text("Brak kierowców pasujących do wyszukiwania.")
+                } else {
+                    availableDrivers.take(20).forEach { driverName ->
+                        SectionCard(
+                            title = driverName,
+                            subtitle = "Dostępny z kontaktów",
+                        ) {
+                            Button(onClick = { onDriverSelected(driverName) }, modifier = Modifier.fillMaxWidth()) {
+                                Text("Przypisz do ${car.registration}")
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Zamknij")
+            }
+        },
+    )
 }
 
 @Composable

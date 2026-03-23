@@ -102,11 +102,18 @@ class CarsViewModel(private val repository: AdminRepository) : ViewModel() {
             contactDriverSuggestions = contacts.map { "${it.name} ${it.surname}".trim() }.filter { it.isNotBlank() }
             refreshDriverSuggestions()
         }.launchIn(viewModelScope)
+        repository.observeKnownCarDrivers().onEach { knownDrivers ->
+            _uiState.value = _uiState.value.copy(knownCarDrivers = knownDrivers)
+        }.launchIn(viewModelScope)
     }
 
     private fun refreshDriverSuggestions() {
         _uiState.value = _uiState.value.copy(
             driverSuggestions = (workerDriverSuggestions + contactDriverSuggestions)
+                .groupBy { it.trim().lowercase() }
+                .mapNotNull { (_, values) -> values.firstOrNull()?.trim()?.takeIf { it.isNotBlank() } }
+                .sorted(),
+            contactDriverSuggestions = contactDriverSuggestions
                 .groupBy { it.trim().lowercase() }
                 .mapNotNull { (_, values) -> values.firstOrNull()?.trim()?.takeIf { it.isNotBlank() } }
                 .sorted(),
@@ -150,6 +157,11 @@ class CarsViewModel(private val repository: AdminRepository) : ViewModel() {
 
     fun applyDriverDraftSuggestion(id: Long, driver: String) {
         _uiState.value = _uiState.value.copy(driverDrafts = _uiState.value.driverDrafts + (id to driver), actionMessage = null)
+    }
+
+    fun assignDriver(id: Long, driver: String) {
+        _uiState.value = _uiState.value.copy(driverDrafts = _uiState.value.driverDrafts + (id to driver), actionMessage = null)
+        saveDriver(id)
     }
 
     fun save() = viewModelScope.launch {

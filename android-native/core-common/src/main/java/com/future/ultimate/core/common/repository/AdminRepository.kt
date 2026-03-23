@@ -213,6 +213,7 @@ interface AdminRepository {
     suspend fun deleteContact(name: String, surname: String)
 
     fun observeCars(): Flow<List<CarListItem>>
+    fun observeKnownCarDrivers(): Flow<List<String>>
     suspend fun saveCar(draft: CarDraft)
     suspend fun updateCarMileage(id: Long, mileage: Int)
     suspend fun updateCarDriver(id: Long, driver: String)

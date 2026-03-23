@@ -90,6 +90,9 @@ class LocalAdminRepository(
     private val dao: AppDao,
     private val context: Context,
 ) : AdminRepository {
+    private companion object {
+        const val CarDriverHistoryPrefix = "car_driver_history_"
+    }
     override fun observeContacts(): Flow<List<ContactListItem>> = dao.observeContacts().map { items ->
         items.map {
             ContactListItem(
@@ -191,6 +194,20 @@ class LocalAdminRepository(
                 }
             }
 
+    override fun observeKnownCarDrivers(): Flow<List<String>> =
+        dao.observeCars().combine(dao.observeSettings()) { cars, settings ->
+            val activeDrivers = cars.map { it.driver.trim() }.filter { it.isNotBlank() }
+            val historicalDrivers = settings
+                .asSequence()
+                .filter { it.key.startsWith(CarDriverHistoryPrefix) }
+                .map { it.valText.trim() }
+                .filter { it.isNotBlank() }
+                .toList()
+            (activeDrivers + historicalDrivers)
+                .distinctBy { it.lowercase() }
+                .sortedBy { it.lowercase() }
+        }
+
     override suspend fun saveCar(draft: CarDraft) {
         val serviceInterval = draft.serviceInterval.toIntOrNull()?.coerceAtLeast(1) ?: 15000
         val registration = draft.registration.trim().uppercase()
@@ -200,18 +217,20 @@ class LocalAdminRepository(
         } else {
             dao.getCarByRegistration(registration)
         }
+        val normalizedDriver = draft.driver.trim()
         dao.upsertCar(
             CarEntity(
                 id = existingCar?.id ?: draftId ?: 0,
                 name = draft.name.trim(),
                 registration = registration,
-                driver = draft.driver.trim(),
+                driver = normalizedDriver,
                 serviceInterval = serviceInterval,
                 mileage = existingCar?.mileage ?: 0,
                 lastService = existingCar?.lastService ?: 0,
             ),
         )
-        syncDriverAccount(draft.driver, registration)
+        rememberKnownCarDriver(normalizedDriver)
+        syncDriverAccount(normalizedDriver, registration)
     }
 
     override suspend fun updateCarMileage(id: Long, mileage: Int) = dao.updateMileage(id, mileage.coerceAtLeast(0))
@@ -219,6 +238,7 @@ class LocalAdminRepository(
     override suspend fun updateCarDriver(id: Long, driver: String) {
         val normalizedDriver = driver.trim()
         dao.updateDriver(id, normalizedDriver)
+        rememberKnownCarDriver(normalizedDriver)
         val car = dao.getCar(id) ?: return
         syncDriverAccount(normalizedDriver, car.registration)
     }
@@ -252,6 +272,13 @@ class LocalAdminRepository(
             dao.deleteDriverAccountByRegistration(registration)
             syncRemoteDriverDeletion(registration)
         }
+    }
+
+    private suspend fun rememberKnownCarDriver(driver: String) {
+        val normalizedDriver = driver.trim()
+        if (normalizedDriver.isBlank()) return
+        val key = CarDriverHistoryPrefix + normalizedDriver.lowercase().replace(" ", "_")
+        dao.upsertSetting(SettingEntity(key = key, valText = normalizedDriver))
     }
 
     override fun observeWorkers(): Flow<List<WorkerListItem>> = dao.observeWorkers().map { items ->

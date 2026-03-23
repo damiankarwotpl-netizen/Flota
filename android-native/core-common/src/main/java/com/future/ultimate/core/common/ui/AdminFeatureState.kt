@@ -41,6 +41,8 @@ data class CarsUiState(
     val items: List<CarListItem> = emptyList(),
     val editor: CarDraft = CarDraft(),
     val driverSuggestions: List<String> = emptyList(),
+    val contactDriverSuggestions: List<String> = emptyList(),
+    val knownCarDrivers: List<String> = emptyList(),
     val isSaving: Boolean = false,
     val mileageDrafts: Map<Long, String> = emptyMap(),
     val driverDrafts: Map<Long, String> = emptyMap(),
