@@ -120,7 +120,11 @@ class LocalDriverRepository(
 
     override suspend fun saveMileage(login: String, registration: String, mileage: Int) {
         val current = session.value ?: throw IllegalStateException("Brak aktywnej sesji kierowcy")
-        val targetRegistration = registration.trim().ifBlank { current.registration }.uppercase()
+        val assignedRegistration = requireActiveAssignment(current)
+        val targetRegistration = registration.trim().ifBlank { assignedRegistration }.uppercase()
+        require(targetRegistration == assignedRegistration) {
+            "Nie możesz wysłać przebiegu dla innego samochodu niż aktualnie przypisany"
+        }
         val normalizedMileage = mileage.coerceAtLeast(0)
         val localMileage = dao.getCarByRegistration(targetRegistration)?.mileage ?: 0
         val syncedMileage = dao.getSetting("driver_last_mileage_$targetRegistration")?.valText?.toIntOrNull() ?: 0
@@ -181,5 +185,35 @@ class LocalDriverRepository(
                 valText = registration.trim().uppercase(),
             ),
         )
+    }
+
+    private suspend fun requireActiveAssignment(current: DriverSession): String {
+        val sessionRegistration = current.registration.trim().uppercase()
+        if (sessionRegistration.isBlank()) {
+            invalidateSession()
+            throw IllegalStateException("Nie masz już przypisanego samochodu. Zaloguj się ponownie po nowym przypisaniu.")
+        }
+
+        val remoteLookup = runCatching { DriverRemoteSyncGateway.findDriverAccount(dao, current.login) }
+        remoteLookup.getOrNull()?.let { remoteAccount ->
+            val remoteRegistration = remoteAccount.registration.trim().uppercase()
+            if (remoteRegistration.isBlank() || remoteRegistration != sessionRegistration) {
+                invalidateSession()
+                throw IllegalStateException("Przypisanie samochodu zostało usunięte. Zaloguj się ponownie po nowym przypisaniu.")
+            }
+            return remoteRegistration
+        }
+
+        if (remoteLookup.isSuccess) {
+            invalidateSession()
+            throw IllegalStateException("Nie masz już przypisanego samochodu. Zaloguj się ponownie po nowym przypisaniu.")
+        }
+
+        return sessionRegistration
+    }
+
+    private suspend fun invalidateSession() {
+        session.value = null
+        persistSessionRegistration("")
     }
 }

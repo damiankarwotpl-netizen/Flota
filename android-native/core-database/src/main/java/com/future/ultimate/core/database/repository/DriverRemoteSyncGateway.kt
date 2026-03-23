@@ -276,16 +276,18 @@ object DriverRemoteSyncGateway {
             },
         )
 
+        var lastError: Exception? = null
         for (payload in payloads) {
-            val account = try {
+            try {
                 val (statusCode, responseBody) = postPayloadToUrl(endpoint = endpoint, payload = payload)
                 require(statusCode in 200..299) { "HTTP $statusCode" }
-                parseDriverLookupResponse(responseBody, normalizedLogin)
-            } catch (_: Exception) {
-                null
+                val account = parseDriverLookupResponse(responseBody, normalizedLogin)
+                if (account != null) return account
+            } catch (error: Exception) {
+                lastError = error
             }
-            if (account != null) return account
         }
+        if (lastError != null) throw lastError
         return null
     }
 
