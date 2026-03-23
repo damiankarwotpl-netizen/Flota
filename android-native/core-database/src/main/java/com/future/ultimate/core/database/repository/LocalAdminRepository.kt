@@ -841,7 +841,9 @@ class LocalAdminRepository(
     override fun observeDriverRemoteSettings(): Flow<DriverRemoteSettingsData> = dao.observeSettings().map { settings ->
         val map = settings.associateBy({ it.key }, { it.valText })
         DriverRemoteSettingsData(
-            apiUrl = map[DriverRemoteSyncGateway.EndpointSettingKey].orEmpty(),
+            apiUrl = map[DriverRemoteSyncGateway.EndpointSettingKey]
+                .orEmpty()
+                .ifBlank { DriverRemoteSyncGateway.DefaultDriverRemoteApiUrl },
         )
     }
 
@@ -893,6 +895,30 @@ class LocalAdminRepository(
             imported += 1
         }
         return imported
+    }
+
+    override suspend fun clearAllTestData(settings: DriverRemoteSettingsData): String {
+        val remoteResult = runCatching {
+            DriverRemoteSyncGateway.clearRemoteTestData(dao, settings.apiUrl)
+        }
+        dao.clearClothesOrderItems()
+        dao.clearClothesOrders()
+        dao.clearClothesHistory()
+        dao.clearClothesSizes()
+        dao.clearWorkers()
+        dao.clearDriverAccounts()
+        dao.clearCars()
+        dao.clearPlants()
+        dao.clearContacts()
+        dao.clearReports()
+        dao.clearSettings()
+        dao.resetAutoincrement()
+        DriverRemoteSyncGateway.saveEndpoint(dao, DriverRemoteSyncGateway.DefaultDriverRemoteApiUrl)
+        return remoteResult.getOrElse { error ->
+            "Lokalna baza została wyczyszczona, ale endpoint zwrócił błąd: ${error.message ?: "nieznany błąd"}"
+        }.ifBlank {
+            "Wyczyszczono lokalną bazę i zdalny endpoint testowy"
+        }
     }
 
     override fun observeEmailTemplate(): Flow<EmailTemplateData> = dao.observeSettings().map { settings ->

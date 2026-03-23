@@ -101,6 +101,11 @@ function handleRequest_(e) {
           logs: getMileageLogs_().logs,
         });
 
+      case 'clear_all':
+      case 'clear_test_data':
+      case 'reset_all':
+        return jsonResponse_(clearAllTestData_());
+
       default:
         return jsonResponse_({
           status: 'error',
@@ -246,6 +251,23 @@ function getSheetRecords_(sheetName) {
   });
 
   return { headers: headers, rows: rows, sheet: sheet };
+}
+
+function clearAllTestData_() {
+  clearSheetRows_(SHEETS.drivers, DRIVER_HEADERS);
+  clearSheetRows_(SHEETS.cars, CAR_HEADERS);
+  clearSheetRows_(SHEETS.mileageLogs, MILEAGE_LOG_HEADERS);
+  clearSheetRows_(SHEETS.config, CONFIG_HEADERS);
+  return { status: 'ok', message: 'All test data cleared' };
+}
+
+function clearSheetRows_(sheetName, headers) {
+  const sheet = ensureSheet_(sheetName, headers);
+  const lastRow = sheet.getLastRow();
+  const lastColumn = Math.max(sheet.getLastColumn(), headers.length);
+  if (lastRow > 1) {
+    sheet.getRange(2, 1, lastRow - 1, lastColumn).clearContent();
+  }
 }
 
 function getHeadersForSheet_(sheetName) {

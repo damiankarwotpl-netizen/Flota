@@ -16,7 +16,7 @@ import org.json.JSONObject
 object DriverRemoteSyncGateway {
     const val EndpointSettingKey = "driver_remote_api_url"
     const val DefaultDriverRemoteApiUrl =
-        "https://script.google.com/macros/s/AKfycbxFQLZU-sg8Gg58J2dE-Bbt2jTyXrdcd1DOUM78vcqFLa789gpeOC9S4MyjGHpQ12_l/exec"
+        "https://script.google.com/macros/s/AKfycby17lUy-SqVKqs0nO_w8Q02U3gNVIaBLZUzRAMJmy4YFN_V3tJhG_gv197GLL9-kmCT/exec"
 
     private val okStatuses = setOf("", "ok", "queued", "saved", "created", "success")
     private val timestampFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
@@ -235,6 +235,30 @@ object DriverRemoteSyncGateway {
             }
         }
         throw IllegalArgumentException("Nie udało się pobrać logów kierowców z endpointu")
+    }
+
+    suspend fun clearRemoteTestData(dao: AppDao, endpointOverride: String = ""): String {
+        val endpoint = endpointOverride.trim().ifBlank { loadEndpoint(dao) }
+        require(endpoint.isNotBlank()) { "Brak endpointu zdalnej synchronizacji kierowców" }
+        val payloads = listOf(
+            JSONObject().apply { put("action", "clear_all") },
+            JSONObject().apply { put("action", "clear_test_data") },
+            JSONObject().apply { put("action", "reset_all") },
+        )
+
+        payloads.forEach { payload ->
+            try {
+                val (statusCode, responseBody) = postPayloadToUrl(endpoint = endpoint, payload = payload)
+                require(statusCode in 200..299) { "HTTP $statusCode" }
+                validateResponse(responseBody, fallbackMessage = "Endpoint nie wyczyścił danych testowych")
+                val json = runCatching { JSONObject(responseBody) }.getOrNull()
+                return json?.optString("message")?.takeIf { it.isNotBlank() }
+                    ?: "Wyczyszczono dane testowe w endpointcie kierowców"
+            } catch (_: Exception) {
+                // try next payload variant
+            }
+        }
+        throw IllegalArgumentException("Nie udało się wyczyścić danych w zdalnym endpointcie kierowców")
     }
 
     suspend fun findDriverAccount(dao: AppDao, login: String): DriverAccountEntity? {
