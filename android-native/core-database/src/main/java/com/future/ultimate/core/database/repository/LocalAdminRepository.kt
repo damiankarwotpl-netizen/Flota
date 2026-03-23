@@ -841,7 +841,9 @@ class LocalAdminRepository(
     override fun observeDriverRemoteSettings(): Flow<DriverRemoteSettingsData> = dao.observeSettings().map { settings ->
         val map = settings.associateBy({ it.key }, { it.valText })
         DriverRemoteSettingsData(
-            apiUrl = map[DriverRemoteSyncGateway.EndpointSettingKey].orEmpty(),
+            apiUrl = map[DriverRemoteSyncGateway.EndpointSettingKey]
+                .orEmpty()
+                .ifBlank { DriverRemoteSyncGateway.DefaultDriverRemoteApiUrl },
         )
     }
 
@@ -893,6 +895,30 @@ class LocalAdminRepository(
             imported += 1
         }
         return imported
+    }
+
+    override suspend fun clearAllTestData(settings: DriverRemoteSettingsData): String {
+        val remoteResult = runCatching {
+            DriverRemoteSyncGateway.clearRemoteTestData(dao, settings.apiUrl)
+        }
+        dao.clearClothesOrderItems()
+        dao.clearClothesOrders()
+        dao.clearClothesHistory()
+        dao.clearClothesSizes()
+        dao.clearWorkers()
+        dao.clearDriverAccounts()
+        dao.clearCars()
+        dao.clearPlants()
+        dao.clearContacts()
+        dao.clearReports()
+        dao.clearSettings()
+        dao.resetAutoincrement()
+        DriverRemoteSyncGateway.saveEndpoint(dao, DriverRemoteSyncGateway.DefaultDriverRemoteApiUrl)
+        return remoteResult.getOrElse { error ->
+            "Lokalna baza została wyczyszczona, ale endpoint zwrócił błąd: ${error.message ?: "nieznany błąd"}"
+        }.ifBlank {
+            "Wyczyszczono lokalną bazę i zdalny endpoint testowy"
+        }
     }
 
     override fun observeEmailTemplate(): Flow<EmailTemplateData> = dao.observeSettings().map { settings ->
@@ -1810,14 +1836,30 @@ class LocalAdminRepository(
             return null
         }
 
-        val existing = dao.getDriverAccountByRegistration(normalizedRegistration)
-        val shouldRotateCredentials = forceReset || existing == null || !existing.driverName.equals(normalizedDriver, ignoreCase = true)
+        val generatedLogin = generateLogin(normalizedDriver)
+        val existingByRegistration = dao.getDriverAccountByRegistration(normalizedRegistration)
+        val existingByLogin = dao.getDriverAccountByLogin(generatedLogin)
+            ?: runCatching { DriverRemoteSyncGateway.findDriverAccount(dao, generatedLogin) }.getOrNull()
+        val authoritativeExisting = when {
+            existingByLogin != null && existingByLogin.login.equals(generatedLogin, ignoreCase = true) -> existingByLogin
+            existingByRegistration != null && existingByRegistration.driverName.equals(normalizedDriver, ignoreCase = true) -> existingByRegistration
+            else -> null
+        }
+
+        if (authoritativeExisting != null &&
+            authoritativeExisting.registration.isNotBlank() &&
+            !authoritativeExisting.registration.equals(normalizedRegistration, ignoreCase = true)
+        ) {
+            dao.deleteDriverAccountByRegistration(authoritativeExisting.registration)
+        }
+
+        val shouldRotateCredentials = forceReset || authoritativeExisting == null
         val account = DriverAccountEntity(
             registration = normalizedRegistration,
-            login = generateLogin(normalizedDriver),
-            password = if (shouldRotateCredentials) generatePassword() else existing.password,
+            login = authoritativeExisting?.login ?: generatedLogin,
+            password = if (shouldRotateCredentials) generatePassword() else authoritativeExisting.password,
             driverName = normalizedDriver,
-            changePassword = if (shouldRotateCredentials) 1 else existing.changePassword,
+            changePassword = if (shouldRotateCredentials) 1 else authoritativeExisting.changePassword,
         )
         dao.upsertDriverAccount(account)
         if (shouldRotateCredentials || forceRemote) {

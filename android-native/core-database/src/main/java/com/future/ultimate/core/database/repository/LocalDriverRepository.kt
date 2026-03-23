@@ -50,18 +50,30 @@ class LocalDriverRepository(
     override suspend fun login(login: String, password: String): DriverSession {
         val normalizedLogin = login.trim()
         val normalizedPassword = password.trim()
-        val account = dao.getDriverAccount(normalizedLogin, normalizedPassword)
-            ?: try {
-                DriverRemoteSyncGateway.loginDriver(
-                    dao = dao,
-                    login = normalizedLogin,
-                    password = normalizedPassword,
-                ).also { remoteAccount ->
+
+        val remoteAccount = runCatching {
+            DriverRemoteSyncGateway.loginDriver(
+                dao = dao,
+                login = normalizedLogin,
+                password = normalizedPassword,
+            )
+        }.getOrNull()
+
+        val account = when {
+            remoteAccount != null -> {
+                val previousAccount = dao.getDriverAccountByLogin(normalizedLogin)
+                if (previousAccount != null && !previousAccount.registration.equals(remoteAccount.registration, ignoreCase = true)) {
+                    dao.deleteDriverAccountByRegistration(previousAccount.registration)
+                }
+                if (remoteAccount.registration.isNotBlank()) {
                     dao.upsertDriverAccount(remoteAccount)
                 }
-            } catch (_: Exception) {
-                throw IllegalArgumentException("Błędny login lub hasło")
+                remoteAccount
             }
+
+            else -> dao.getDriverAccount(normalizedLogin, normalizedPassword)
+                ?: throw IllegalArgumentException("Błędny login lub hasło")
+        }
 
         return DriverSession(
             login = account.login,
@@ -108,11 +120,22 @@ class LocalDriverRepository(
 
     override suspend fun saveMileage(login: String, registration: String, mileage: Int) {
         val current = session.value ?: throw IllegalStateException("Brak aktywnej sesji kierowcy")
-        val targetRegistration = registration.trim().ifBlank { current.registration }.uppercase()
+        val assignedRegistration = requireActiveAssignment(current)
+        val targetRegistration = registration.trim().ifBlank { assignedRegistration }.uppercase()
+        require(targetRegistration == assignedRegistration) {
+            "Nie możesz wysłać przebiegu dla innego samochodu niż aktualnie przypisany"
+        }
+        val normalizedMileage = mileage.coerceAtLeast(0)
+        val localMileage = dao.getCarByRegistration(targetRegistration)?.mileage ?: 0
+        val syncedMileage = dao.getSetting("driver_last_mileage_$targetRegistration")?.valText?.toIntOrNull() ?: 0
+        val highestKnownMileage = maxOf(localMileage, syncedMileage)
+        require(normalizedMileage >= highestKnownMileage) {
+            "Przebieg mniejszy niż ostatni, sprawdź wprowadzone dane"
+        }
         DriverMileageSyncCoordinator.queueMileage(
             dao = dao,
             registration = targetRegistration,
-            mileage = mileage.coerceAtLeast(0),
+            mileage = normalizedMileage,
             login = current.login,
             driverName = current.driverName,
         )
@@ -162,5 +185,35 @@ class LocalDriverRepository(
                 valText = registration.trim().uppercase(),
             ),
         )
+    }
+
+    private suspend fun requireActiveAssignment(current: DriverSession): String {
+        val sessionRegistration = current.registration.trim().uppercase()
+        if (sessionRegistration.isBlank()) {
+            invalidateSession()
+            throw IllegalStateException("Nie masz już przypisanego samochodu. Zaloguj się ponownie po nowym przypisaniu.")
+        }
+
+        val remoteLookup = runCatching { DriverRemoteSyncGateway.findDriverAccount(dao, current.login) }
+        remoteLookup.getOrNull()?.let { remoteAccount ->
+            val remoteRegistration = remoteAccount.registration.trim().uppercase()
+            if (remoteRegistration.isBlank() || remoteRegistration != sessionRegistration) {
+                invalidateSession()
+                throw IllegalStateException("Przypisanie samochodu zostało usunięte. Zaloguj się ponownie po nowym przypisaniu.")
+            }
+            return remoteRegistration
+        }
+
+        if (remoteLookup.isSuccess) {
+            invalidateSession()
+            throw IllegalStateException("Nie masz już przypisanego samochodu. Zaloguj się ponownie po nowym przypisaniu.")
+        }
+
+        return sessionRegistration
+    }
+
+    private suspend fun invalidateSession() {
+        session.value = null
+        persistSessionRegistration("")
     }
 }
