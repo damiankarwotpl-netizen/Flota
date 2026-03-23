@@ -194,21 +194,55 @@ fun CarsScreen() {
                 filteredKnownDrivers.forEach { driverName ->
                     item {
                         val currentAssignments = uiState.items.filter { it.driver.equals(driverName, ignoreCase = true) }
-                        SectionCard(
-                            title = driverName,
-                            subtitle = if (currentAssignments.isEmpty()) {
-                                "Brak aktywnie przypisanego auta"
-                            } else {
-                                "Aktualnie przypisane: ${currentAssignments.joinToString(", ") { it.registration }}"
-                            },
-                        ) {
+                        SectionCard(title = driverName) {
                             Text(
                                 if (currentAssignments.isEmpty()) {
-                                    "Kierowca znajduje się w historii przypisań samochodów."
+                                    "Brak aktywnie przypisanego auta."
                                 } else {
-                                    "Liczba aktywnych aut: ${currentAssignments.size}"
+                                    "Aktywne auta: ${currentAssignments.joinToString(", ") { it.registration }}"
                                 },
                             )
+                            Text("Liczba aktywnych aut: ${currentAssignments.size}")
+                            if (currentAssignments.isEmpty()) {
+                                Text("Login: brak")
+                                Text("Hasło startowe: brak")
+                            } else {
+                                currentAssignments.forEach { assignedCar ->
+                                    Text("Auto: ${assignedCar.registration}")
+                                    Text("Login: ${assignedCar.driverLogin.ifBlank { "brak" }}")
+                                    Text(
+                                        when {
+                                            assignedCar.driverPassword.isBlank() -> "Hasło startowe: brak"
+                                            assignedCar.changePasswordRequired -> "Hasło startowe: ${assignedCar.driverPassword}"
+                                            else -> "Hasło startowe zostało już zmienione"
+                                        },
+                                    )
+                                    Button(
+                                        onClick = { viewModel.resetDriverCredentials(assignedCar.id) },
+                                        modifier = Modifier.fillMaxWidth(),
+                                    ) {
+                                        Text(
+                                            if (uiState.actionInFlightId == assignedCar.id) {
+                                                "Resetowanie hasła..."
+                                            } else {
+                                                "Resetuj hasło dla ${assignedCar.registration}"
+                                            },
+                                        )
+                                    }
+                                }
+                            }
+                            Button(
+                                onClick = { viewModel.deleteKnownDriver(driverName, currentAssignments.firstOrNull()?.id) },
+                                modifier = Modifier.fillMaxWidth(),
+                            ) {
+                                Text(
+                                    if (currentAssignments.any { uiState.actionInFlightId == it.id }) {
+                                        "Usuwanie kierowcy..."
+                                    } else {
+                                        "Usuń kierowcę"
+                                    },
+                                )
+                            }
                         }
                     }
                 }
