@@ -14,6 +14,7 @@ data class ContactListItem(
     val name: String,
     val surname: String,
     val email: String,
+    val pesel: String,
     val phone: String,
     val workplace: String,
     val apartment: String,

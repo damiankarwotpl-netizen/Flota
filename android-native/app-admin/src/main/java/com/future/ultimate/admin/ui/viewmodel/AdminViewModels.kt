@@ -69,7 +69,14 @@ class ContactsViewModel(private val repository: AdminRepository) : ViewModel() {
     private val _uiState = MutableStateFlow(ContactsUiState())
     val uiState: StateFlow<ContactsUiState> = _uiState.asStateFlow()
 
-    init { repository.observeContacts().onEach { _uiState.value = _uiState.value.copy(items = it) }.launchIn(viewModelScope) }
+    init {
+        repository.observeContacts().onEach { _uiState.value = _uiState.value.copy(items = it) }.launchIn(viewModelScope)
+        repository.observePlants().onEach { plants ->
+            _uiState.value = _uiState.value.copy(
+                plantSuggestions = plants.map { it.name.trim() }.filter { it.isNotBlank() }.distinct().sorted(),
+            )
+        }.launchIn(viewModelScope)
+    }
     fun updateQuery(value: String) { _uiState.value = _uiState.value.copy(query = value) }
     fun updateEditor(draft: ContactDraft) { _uiState.value = _uiState.value.copy(editor = draft) }
     fun save() = viewModelScope.launch {
