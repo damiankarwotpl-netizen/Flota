@@ -1905,19 +1905,12 @@ class LocalAdminRepository(
 
         val generatedLogin = generateLogin(normalizedDriver)
         val existingByRegistration = dao.getDriverAccountByRegistration(normalizedRegistration)
-        val existingByLogin = dao.getDriverAccountByLogin(generatedLogin)
+        val existingByLogin = dao.getDriverAccountsByLogin(generatedLogin).firstOrNull()
             ?: runCatching { DriverRemoteSyncGateway.findDriverAccount(dao, generatedLogin) }.getOrNull()
         val authoritativeExisting = when {
             existingByLogin != null && existingByLogin.login.equals(generatedLogin, ignoreCase = true) -> existingByLogin
             existingByRegistration != null && existingByRegistration.driverName.equals(normalizedDriver, ignoreCase = true) -> existingByRegistration
             else -> null
-        }
-
-        if (authoritativeExisting != null &&
-            authoritativeExisting.registration.isNotBlank() &&
-            !authoritativeExisting.registration.equals(normalizedRegistration, ignoreCase = true)
-        ) {
-            dao.deleteDriverAccountByRegistration(authoritativeExisting.registration)
         }
 
         val shouldRotateCredentials = forceReset || authoritativeExisting == null
