@@ -28,9 +28,12 @@ const MILEAGE_LOG_HEADERS = [
   'driver',
   'registration',
   'mileage',
+  'request_id',
 ];
 
 const CONFIG_HEADERS = ['key', 'value'];
+const CACHE_TTL_SECONDS = 12;
+const SCHEMA_VERSION = '2';
 
 function doGet(e) {
   return handleRequest_(e);
@@ -43,29 +46,48 @@ function doPost(e) {
 function handleRequest_(e) {
   try {
     const payload = normalizePayload_(e);
-    const action = String(payload.action || '').trim();
+    const action = normalizeAction_(payload.action);
 
-    ensureSchema_();
+    ensureSchemaFast_();
 
     switch (action) {
       case 'health':
       case 'ping':
-        return jsonResponse_({ status: 'ok', message: 'driver endpoint ready' });
+      case 'status':
+        return jsonResponse_({ status: 'ok', message: 'driver endpoint ready', schema_version: SCHEMA_VERSION });
 
       case 'create_driver':
-        return jsonResponse_(createOrUpdateDriver_(payload, { forcePasswordReset: true, allowCreate: true }));
+      case 'upsert_driver':
+      case 'register_driver':
+        return jsonResponse_(withWriteLock_(function() {
+          return createOrUpdateDriver_(payload, { forcePasswordReset: true, allowCreate: true });
+        }));
 
       case 'reset_driver':
-        return jsonResponse_(createOrUpdateDriver_(payload, { forcePasswordReset: true, allowCreate: true }));
+        return jsonResponse_(withWriteLock_(function() {
+          return createOrUpdateDriver_(payload, { forcePasswordReset: true, allowCreate: true });
+        }));
 
       case 'change_password':
-        return jsonResponse_(changePassword_(payload));
+      case 'set_password':
+        return jsonResponse_(withWriteLock_(function() {
+          return changePassword_(payload);
+        }));
 
       case 'sync_driver_assignment':
-        return jsonResponse_(syncDriverAssignment_(payload));
+      case 'assign_driver':
+      case 'link_driver':
+      case 'set_driver_assignment':
+        return jsonResponse_(withWriteLock_(function() {
+          return syncDriverAssignment_(payload);
+        }));
 
+      case 'unassign_driver':
       case 'delete_driver':
-        return jsonResponse_(deleteDriver_(payload));
+      case 'remove_driver':
+        return jsonResponse_(withWriteLock_(function() {
+          return deleteDriver_(payload);
+        }));
 
       case 'login_driver':
       case 'driver_login':
@@ -76,19 +98,23 @@ function handleRequest_(e) {
       case 'save_mileage':
       case 'update_mileage':
       case 'mileage_update':
-        return jsonResponse_(saveMileage_(payload));
+      case 'mileage':
+        return jsonResponse_(withWriteLock_(function() {
+          return saveMileage_(payload);
+        }));
 
       case 'get_logs':
       case 'logs':
       case 'driver_logs':
-        return jsonResponse_(getMileageLogs_());
+      case 'mileage_logs':
+        return jsonResponse_(getMileageLogs_(payload));
 
       case 'get_driver':
       case 'get_driver_by_login':
         return jsonResponse_(getDriverByLogin_(payload));
 
       case 'get_drivers':
-        return jsonResponse_({ status: 'ok', drivers: getDriversSnapshot_() });
+        return jsonResponse_({ status: 'ok', drivers: getDriversSnapshot_(payload) });
 
       case 'get_cars':
         return jsonResponse_({ status: 'ok', cars: getCarsSnapshot_() });
@@ -96,35 +122,52 @@ function handleRequest_(e) {
       case 'get_state':
         return jsonResponse_({
           status: 'ok',
-          drivers: getDriversSnapshot_(),
+          drivers: getDriversSnapshot_(payload),
           cars: getCarsSnapshot_(),
-          logs: getMileageLogs_().logs,
+          logs: getMileageLogs_(payload).logs,
         });
 
       case 'clear_all':
       case 'clear_test_data':
       case 'reset_all':
-        return jsonResponse_(clearAllTestData_());
+        return jsonResponse_(withWriteLock_(function() {
+          return clearAllTestData_();
+        }));
 
       default:
-        return jsonResponse_({
-          status: 'error',
-          message: action ? 'Unsupported action: ' + action : 'Missing action',
-        });
+        return jsonResponse_({ status: 'error', message: action ? 'Unsupported action: ' + action : 'Missing action' });
     }
   } catch (error) {
-    return jsonResponse_({
-      status: 'error',
-      message: error && error.message ? error.message : String(error),
-    });
+    return jsonResponse_({ status: 'error', message: (error && error.message) ? error.message : String(error) });
   }
 }
 
-function ensureSchema_() {
+function normalizeAction_(action) {
+  return String(action || '').trim().toLowerCase();
+}
+
+function withWriteLock_(callback) {
+  const lock = LockService.getScriptLock();
+  lock.waitLock(10000);
+  try {
+    return callback();
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function ensureSchemaFast_() {
+  const props = PropertiesService.getScriptProperties();
+  const markerKey = 'schema_ready_v' + SCHEMA_VERSION;
+  const marker = props.getProperty(markerKey);
+  if (marker) return;
+
   ensureSheet_(SHEETS.drivers, DRIVER_HEADERS);
   ensureSheet_(SHEETS.cars, CAR_HEADERS);
   ensureSheet_(SHEETS.mileageLogs, MILEAGE_LOG_HEADERS);
   ensureSheet_(SHEETS.config, CONFIG_HEADERS);
+
+  props.setProperty(markerKey, '1');
 }
 
 function ensureSheet_(name, headers) {
@@ -157,11 +200,8 @@ function normalizePayload_(e) {
 
 function parseRequestBody_(e) {
   if (!e || !e.postData || !e.postData.contents) return {};
-
   const raw = e.postData.contents;
-  if (!raw) return {};
-
-  const trimmed = String(raw).trim();
+  const trimmed = String(raw || '').trim();
   if (!trimmed) return {};
 
   try {
@@ -189,9 +229,7 @@ function parseParameters_(e) {
 }
 
 function jsonResponse_(payload) {
-  return ContentService
-    .createTextOutput(JSON.stringify(payload))
-    .setMimeType(ContentService.MimeType.JSON);
+  return ContentService.createTextOutput(JSON.stringify(payload)).setMimeType(ContentService.MimeType.JSON);
 }
 
 function nowText_() {
@@ -243,7 +281,31 @@ function generatePassword_(length) {
   return result;
 }
 
-function getSheetRecords_(sheetName) {
+function cacheKeyForSheet_(sheetName) {
+  return 'sheet_v' + SCHEMA_VERSION + '_' + sheetName;
+}
+
+function loadSheetRecordsCached_(sheetName) {
+  const cache = CacheService.getScriptCache();
+  const key = cacheKeyForSheet_(sheetName);
+  const cached = cache.get(key);
+  if (cached) {
+    const parsed = JSON.parse(cached);
+    parsed.sheet = ensureSheet_(sheetName, getHeadersForSheet_(sheetName));
+    return parsed;
+  }
+
+  const fresh = loadSheetRecordsDirect_(sheetName);
+  const snapshotForCache = { headers: fresh.headers, rows: fresh.rows };
+  cache.put(key, JSON.stringify(snapshotForCache), CACHE_TTL_SECONDS);
+  return fresh;
+}
+
+function invalidateSheetCache_(sheetName) {
+  CacheService.getScriptCache().remove(cacheKeyForSheet_(sheetName));
+}
+
+function loadSheetRecordsDirect_(sheetName) {
   const sheet = ensureSheet_(sheetName, getHeadersForSheet_(sheetName));
   const values = sheet.getDataRange().getValues();
   if (values.length <= 1) {
@@ -280,33 +342,27 @@ function clearSheetRows_(sheetName, headers) {
   if (lastRow > 1) {
     sheet.getRange(2, 1, lastRow - 1, lastColumn).clearContent();
   }
+  invalidateSheetCache_(sheetName);
 }
 
 function getHeadersForSheet_(sheetName) {
   switch (sheetName) {
-    case SHEETS.drivers:
-      return DRIVER_HEADERS;
-    case SHEETS.cars:
-      return CAR_HEADERS;
-    case SHEETS.mileageLogs:
-      return MILEAGE_LOG_HEADERS;
-    case SHEETS.config:
-      return CONFIG_HEADERS;
-    default:
-      throw new Error('Unknown sheet: ' + sheetName);
+    case SHEETS.drivers: return DRIVER_HEADERS;
+    case SHEETS.cars: return CAR_HEADERS;
+    case SHEETS.mileageLogs: return MILEAGE_LOG_HEADERS;
+    case SHEETS.config: return CONFIG_HEADERS;
+    default: throw new Error('Unknown sheet: ' + sheetName);
   }
 }
 
 function upsertDriverRecord_(driver) {
-  const snapshot = getSheetRecords_(SHEETS.drivers);
+  const snapshot = loadSheetRecordsDirect_(SHEETS.drivers);
   const normalizedRegistration = normalizeRegistration_(driver.registration);
   const normalizedLogin = normalizeLogin_(driver.login).toLowerCase();
+
   const rowIndex = snapshot.rows.findIndex(function(row) {
-    const rowRegistration = normalizeRegistration_(row.registration);
-    if (normalizedRegistration) {
-      return rowRegistration === normalizedRegistration;
-    }
-    return normalizeLogin_(row.login).toLowerCase() === normalizedLogin && !rowRegistration;
+    return normalizeLogin_(row.login).toLowerCase() === normalizedLogin &&
+      normalizeRegistration_(row.registration) === normalizedRegistration;
   });
 
   const rowValues = [
@@ -321,15 +377,17 @@ function upsertDriverRecord_(driver) {
 
   if (rowIndex >= 0) {
     snapshot.sheet.getRange(snapshot.rows[rowIndex]._rowNumber, 1, 1, rowValues.length).setValues([rowValues]);
+    invalidateSheetCache_(SHEETS.drivers);
     return snapshot.rows[rowIndex]._rowNumber;
   }
 
   snapshot.sheet.appendRow(rowValues);
+  invalidateSheetCache_(SHEETS.drivers);
   return snapshot.sheet.getLastRow();
 }
 
 function upsertCarRecord_(car) {
-  const snapshot = getSheetRecords_(SHEETS.cars);
+  const snapshot = loadSheetRecordsDirect_(SHEETS.cars);
   const rowIndex = snapshot.rows.findIndex(function(row) {
     return normalizeRegistration_(row.registration) === normalizeRegistration_(car.registration);
   });
@@ -344,70 +402,66 @@ function upsertCarRecord_(car) {
 
   if (rowIndex >= 0) {
     snapshot.sheet.getRange(snapshot.rows[rowIndex]._rowNumber, 1, 1, rowValues.length).setValues([rowValues]);
+    invalidateSheetCache_(SHEETS.cars);
     return snapshot.rows[rowIndex]._rowNumber;
   }
 
   snapshot.sheet.appendRow(rowValues);
+  invalidateSheetCache_(SHEETS.cars);
   return snapshot.sheet.getLastRow();
-}
-
-function findDriverByLogin_(login) {
-  return findDriversByLogin_(login)[0] || null;
 }
 
 function findDriversByLogin_(login) {
   const normalizedLogin = normalizeLogin_(login).toLowerCase();
-  const snapshot = getSheetRecords_(SHEETS.drivers);
-  const matches = [];
-  for (let i = 0; i < snapshot.rows.length; i += 1) {
-    if (normalizeLogin_(snapshot.rows[i].login).toLowerCase() === normalizedLogin) {
-      matches.push(snapshot.rows[i]);
-    }
-  }
-  return matches;
+  if (!normalizedLogin) return [];
+  const snapshot = loadSheetRecordsCached_(SHEETS.drivers);
+  return snapshot.rows.filter(function(row) {
+    return normalizeLogin_(row.login).toLowerCase() === normalizedLogin;
+  });
 }
 
 function findDriverByRegistration_(registration) {
   const normalizedRegistration = normalizeRegistration_(registration);
-  const snapshot = getSheetRecords_(SHEETS.drivers);
-  for (let i = 0; i < snapshot.rows.length; i += 1) {
-    if (normalizeRegistration_(snapshot.rows[i].registration) === normalizedRegistration) {
-      return snapshot.rows[i];
-    }
-  }
-  return null;
+  const snapshot = loadSheetRecordsCached_(SHEETS.drivers);
+  return snapshot.rows.find(function(row) {
+    return normalizeRegistration_(row.registration) === normalizedRegistration;
+  }) || null;
+}
+
+function findDriverByLoginAndRegistration_(login, registration) {
+  const normalizedLogin = normalizeLogin_(login).toLowerCase();
+  const normalizedRegistration = normalizeRegistration_(registration);
+  const snapshot = loadSheetRecordsCached_(SHEETS.drivers);
+  return snapshot.rows.find(function(row) {
+    return normalizeLogin_(row.login).toLowerCase() === normalizedLogin &&
+      normalizeRegistration_(row.registration) === normalizedRegistration;
+  }) || null;
 }
 
 function findCarByRegistration_(registration) {
   const normalizedRegistration = normalizeRegistration_(registration);
-  const snapshot = getSheetRecords_(SHEETS.cars);
-  for (let i = 0; i < snapshot.rows.length; i += 1) {
-    if (normalizeRegistration_(snapshot.rows[i].registration) === normalizedRegistration) {
-      return snapshot.rows[i];
-    }
-  }
-  return null;
+  const snapshot = loadSheetRecordsCached_(SHEETS.cars);
+  return snapshot.rows.find(function(row) {
+    return normalizeRegistration_(row.registration) === normalizedRegistration;
+  }) || null;
 }
 
 function createOrUpdateDriver_(payload, options) {
   const login = normalizeLogin_(payload.login);
   const registration = normalizeRegistration_(payload.registration);
-  const name = normalizeName_(payload.name);
+  const name = normalizeName_(payload.name || payload.driverName || payload.driver);
   if (!login) throw new Error('Missing login');
   if (!registration) throw new Error('Missing registration');
 
-  const currentByRegistration = findDriverByRegistration_(registration);
-  const sameLoginDrivers = findDriversByLogin_(login);
-  const current = currentByRegistration || sameLoginDrivers[0] || null;
+  const current = findDriverByLoginAndRegistration_(login, registration) || findDriverByRegistration_(registration);
   if (!current && options && options.allowCreate === false) {
     throw new Error('Driver not found');
   }
 
   const password = String(payload.password || '').trim() || (current ? String(current.password || '').trim() : generatePassword_(6));
-  const mustChangePassword = (options && options.forcePasswordReset) ? 1 : toBooleanFlag_(payload.must_change_password || (current ? current.must_change_password : 0));
-  const lastMileage = currentByRegistration && String(currentByRegistration.last_mileage || '').trim()
-    ? Number(currentByRegistration.last_mileage)
-    : (current && String(current.last_mileage || '').trim() ? Number(current.last_mileage) : 0);
+  const mustChangePassword = (options && options.forcePasswordReset)
+    ? 1
+    : toBooleanFlag_(payload.must_change_password || (current ? current.must_change_password : 0));
 
   const driver = {
     login: login,
@@ -415,7 +469,7 @@ function createOrUpdateDriver_(payload, options) {
     name: name || normalizeName_(current && current.name),
     registration: registration,
     must_change_password: mustChangePassword,
-    last_mileage: isFinite(lastMileage) ? Math.max(0, lastMileage) : 0,
+    last_mileage: Number((current && current.last_mileage) || 0) || 0,
     updated_at: nowText_(),
   };
 
@@ -434,30 +488,18 @@ function createOrUpdateDriver_(payload, options) {
 }
 
 function syncDriverAssignment_(payload) {
-  const login = normalizeLogin_(payload.login);
-  const registration = normalizeRegistration_(payload.registration);
-  const name = normalizeName_(payload.name);
+  const login = normalizeLogin_(payload.login || payload.driver_login);
+  const registration = normalizeRegistration_(payload.registration || payload.plate || payload.rej);
+  const name = normalizeName_(payload.name || payload.driverName || payload.driver);
   if (!login) throw new Error('Missing login');
   if (!registration) throw new Error('Missing registration');
 
   const sameLoginDrivers = findDriversByLogin_(login);
+  const exact = findDriverByLoginAndRegistration_(login, registration);
   const existingOnRegistration = findDriverByRegistration_(registration);
-  if (existingOnRegistration && normalizeLogin_(existingOnRegistration.login).toLowerCase() !== login.toLowerCase()) {
-    upsertDriverRecord_({
-      login: normalizeLogin_(existingOnRegistration.login),
-      password: String(existingOnRegistration.password || ''),
-      name: normalizeName_(existingOnRegistration.name),
-      registration: '',
-      must_change_password: toBooleanFlag_(existingOnRegistration.must_change_password),
-      last_mileage: Number(existingOnRegistration.last_mileage || 0) || 0,
-      updated_at: nowText_(),
-    });
-  }
+  const credentialsSource = exact || sameLoginDrivers[0] || existingOnRegistration;
+  if (!credentialsSource) throw new Error('Driver not found for assignment');
 
-  const credentialsSource = sameLoginDrivers[0] || existingOnRegistration;
-  if (!credentialsSource) {
-    throw new Error('Driver not found for assignment');
-  }
   upsertDriverRecord_({
     login: login,
     password: String(credentialsSource.password || ''),
@@ -468,29 +510,14 @@ function syncDriverAssignment_(payload) {
     updated_at: nowText_(),
   });
 
-  const carsSnapshot = getSheetRecords_(SHEETS.cars);
-  carsSnapshot.rows.forEach(function(row) {
-    const rowRegistration = normalizeRegistration_(row.registration);
-    if (rowRegistration === registration) {
-      upsertCarRecord_({
-        registration: rowRegistration,
-        driver_login: login,
-        driver_name: name || normalizeName_(credentialsSource.name),
-        last_mileage: Number(row.last_mileage || 0) || 0,
-        updated_at: nowText_(),
-      });
-    }
+  const car = findCarByRegistration_(registration);
+  upsertCarRecord_({
+    registration: registration,
+    driver_login: login,
+    driver_name: name || normalizeName_(credentialsSource.name),
+    last_mileage: Number((car && car.last_mileage) || (credentialsSource && credentialsSource.last_mileage) || 0) || 0,
+    updated_at: nowText_(),
   });
-
-  if (!findCarByRegistration_(registration)) {
-    upsertCarRecord_({
-      registration: registration,
-      driver_login: login,
-      driver_name: name || normalizeName_(credentialsSource.name),
-      last_mileage: Number(credentialsSource.last_mileage || 0) || 0,
-      updated_at: nowText_(),
-    });
-  }
 
   return {
     status: 'ok',
@@ -502,41 +529,49 @@ function syncDriverAssignment_(payload) {
 }
 
 function deleteDriver_(payload) {
-  const registration = normalizeRegistration_(payload.registration);
+  const registration = normalizeRegistration_(payload.registration || payload.plate || payload.rej);
+  const login = normalizeLogin_(payload.login || payload.driver_login);
   if (!registration) throw new Error('Missing registration');
 
-  const driversSnapshot = getSheetRecords_(SHEETS.drivers);
-  driversSnapshot.rows.forEach(function(row) {
-    if (normalizeRegistration_(row.registration) === registration) {
-      upsertDriverRecord_({
-        login: String(row.login || ''),
-        password: String(row.password || ''),
-        name: normalizeName_(row.name),
-        registration: '',
-        must_change_password: toBooleanFlag_(row.must_change_password),
-        last_mileage: Number(row.last_mileage || 0) || 0,
-        updated_at: nowText_(),
-      });
-    }
+  const snapshot = loadSheetRecordsDirect_(SHEETS.drivers);
+  const rowsToDetach = snapshot.rows.filter(function(row) {
+    const sameRegistration = normalizeRegistration_(row.registration) === registration;
+    if (!sameRegistration) return false;
+    if (!login) return true;
+    return normalizeLogin_(row.login).toLowerCase() === login.toLowerCase();
   });
 
-  const carsSnapshot = getSheetRecords_(SHEETS.cars);
-  carsSnapshot.rows.forEach(function(row) {
-    if (normalizeRegistration_(row.registration) === registration) {
-      upsertCarRecord_({
-        registration: registration,
-        driver_login: '',
-        driver_name: '',
-        last_mileage: Number(row.last_mileage || 0) || 0,
-        updated_at: nowText_(),
-      });
-    }
+  rowsToDetach.forEach(function(row) {
+    upsertDriverRecord_({
+      login: normalizeLogin_(row.login),
+      password: String(row.password || ''),
+      name: normalizeName_(row.name),
+      registration: '',
+      must_change_password: toBooleanFlag_(row.must_change_password),
+      last_mileage: Number(row.last_mileage || 0) || 0,
+      updated_at: nowText_(),
+    });
+  });
+
+  const remaining = loadSheetRecordsCached_(SHEETS.drivers).rows.filter(function(row) {
+    return normalizeRegistration_(row.registration) === registration;
+  });
+  const primary = remaining[0] || null;
+  const car = findCarByRegistration_(registration);
+
+  upsertCarRecord_({
+    registration: registration,
+    driver_login: primary ? normalizeLogin_(primary.login) : '',
+    driver_name: primary ? normalizeName_(primary.name) : '',
+    last_mileage: Number((car && car.last_mileage) || 0) || 0,
+    updated_at: nowText_(),
   });
 
   return {
     status: 'ok',
     registration: registration,
-    message: 'Driver deleted/unassigned',
+    login: login,
+    message: 'Driver unassigned',
   };
 }
 
@@ -548,9 +583,10 @@ function changePassword_(payload) {
 
   const drivers = findDriversByLogin_(login);
   if (!drivers.length) throw new Error('Driver not found');
+
   drivers.forEach(function(driver) {
     upsertDriverRecord_({
-      login: login,
+      login: normalizeLogin_(driver.login),
       password: password,
       name: normalizeName_(driver.name),
       registration: normalizeRegistration_(driver.registration),
@@ -560,11 +596,7 @@ function changePassword_(payload) {
     });
   });
 
-  return {
-    status: 'ok',
-    login: login,
-    message: 'Password changed',
-  };
+  return { status: 'ok', login: login, message: 'Password changed' };
 }
 
 function loginDriver_(payload) {
@@ -578,28 +610,39 @@ function loginDriver_(payload) {
     return String(row.password || '').trim() === password;
   });
   if (!drivers.length) throw new Error('Invalid login or password');
-  const driver = drivers.find(function(row) {
+
+  const chosen = drivers.find(function(row) {
     return requestedRegistration && normalizeRegistration_(row.registration) === requestedRegistration;
   }) || drivers.find(function(row) {
     return normalizeRegistration_(row.registration);
   }) || drivers[0];
 
+  const registrations = drivers.map(function(row) {
+    return normalizeRegistration_(row.registration);
+  }).filter(function(reg) {
+    return !!reg;
+  }).filter(function(value, index, arr) {
+    return arr.indexOf(value) === index;
+  }).sort();
+
   return {
     status: 'ok',
-    login: normalizeLogin_(driver.login),
-    name: normalizeName_(driver.name),
-    registration: normalizeRegistration_(driver.registration),
-    change_password: toBooleanFlag_(driver.must_change_password),
+    login: normalizeLogin_(chosen.login),
+    name: normalizeName_(chosen.name),
+    registration: normalizeRegistration_(chosen.registration),
+    registrations: registrations,
+    change_password: toBooleanFlag_(chosen.must_change_password),
   };
 }
 
 function saveMileage_(payload) {
   const rawLogin = normalizeLogin_(payload.login || payload.driver_login || payload.driver);
-  const drivers = rawLogin ? findDriversByLogin_(rawLogin) : [];
-  const driver = drivers[0] || null;
-
   const requestedRegistration = normalizeRegistration_(payload.registration || payload.plate || payload.rej);
-  const registration = requestedRegistration || normalizeRegistration_(driver && driver.registration);
+  const explicitDriverName = normalizeName_(payload.name || payload.driverName);
+  const requestId = String(payload.request_id || payload.requestId || '').trim();
+
+  const drivers = rawLogin ? findDriversByLogin_(rawLogin) : [];
+  const registration = requestedRegistration || normalizeRegistration_(drivers[0] && drivers[0].registration);
   if (!registration) throw new Error('Missing registration');
 
   if (drivers.length) {
@@ -613,9 +656,13 @@ function saveMileage_(payload) {
 
   const mileage = normalizeMileage_(payload.mileage || payload.value || payload.odometer);
   const car = findCarByRegistration_(registration);
+  const matchingDriver = drivers.find(function(row) {
+    return normalizeRegistration_(row.registration) === registration;
+  }) || null;
+
   const highestKnownMileage = Math.max(
-    Number((driver && driver.last_mileage) || 0) || 0,
-    Number((car && car.last_mileage) || 0) || 0,
+    Number((matchingDriver && matchingDriver.last_mileage) || 0) || 0,
+    Number((car && car.last_mileage) || 0) || 0
   );
   if (mileage < highestKnownMileage) {
     throw new Error('Przebieg mniejszy niż ostatni, sprawdź wprowadzone dane');
@@ -623,40 +670,39 @@ function saveMileage_(payload) {
 
   const timestamp = String(payload.timestamp || '').trim() || nowText_();
   const dayKey = datePart_(timestamp) || datePart_(nowText_());
-  const driverIdentity = rawLogin || normalizeName_(payload.driver || payload.name || payload.driverName);
+  const driverIdentity = rawLogin || explicitDriverName || normalizeName_(matchingDriver && matchingDriver.name);
   if (!driverIdentity) throw new Error('Missing driver identity');
+
   const dayConflict = findMileageLogForDay_(registration, dayKey);
   if (dayConflict) {
-    const sameDriver = String(dayConflict.driver || '').trim().toLowerCase() === String(driverIdentity || '').trim().toLowerCase();
+    const sameDriver = String(dayConflict.driver || '').trim().toLowerCase() === driverIdentity.toLowerCase();
     throw new Error(sameDriver
       ? 'Przebieg dla tego auta został już dziś zapisany'
       : 'Inny kierowca już dzisiaj wpisał przebieg dla tego auta');
   }
 
-  const alreadyStored = hasMileageLog_(timestamp, driverIdentity, registration, mileage);
+  const alreadyStored = hasMileageLog_(timestamp, driverIdentity, registration, mileage, requestId);
   const logSheet = ensureSheet_(SHEETS.mileageLogs, MILEAGE_LOG_HEADERS);
   if (!alreadyStored) {
-    logSheet.appendRow([timestamp, driverIdentity, registration, mileage]);
+    logSheet.appendRow([timestamp, driverIdentity, registration, mileage, requestId]);
+    invalidateSheetCache_(SHEETS.mileageLogs);
   }
 
   upsertCarRecord_({
     registration: registration,
     driver_login: rawLogin || normalizeLogin_(car && car.driver_login),
-    driver_name: normalizeName_(payload.name || payload.driverName || (driver && driver.name) || (car && car.driver_name)),
+    driver_name: explicitDriverName || normalizeName_(matchingDriver && matchingDriver.name) || normalizeName_(car && car.driver_name),
     last_mileage: mileage,
     updated_at: nowText_(),
   });
 
-  const driverRowForRegistration = drivers.find(function(row) {
-    return normalizeRegistration_(row.registration) === registration;
-  });
-  if (driverRowForRegistration) {
+  if (matchingDriver) {
     upsertDriverRecord_({
-      login: normalizeLogin_(driverRowForRegistration.login),
-      password: String(driverRowForRegistration.password || ''),
-      name: normalizeName_(driverRowForRegistration.name),
+      login: normalizeLogin_(matchingDriver.login),
+      password: String(matchingDriver.password || ''),
+      name: normalizeName_(matchingDriver.name),
       registration: registration,
-      must_change_password: toBooleanFlag_(driverRowForRegistration.must_change_password),
+      must_change_password: toBooleanFlag_(matchingDriver.must_change_password),
       last_mileage: mileage,
       updated_at: nowText_(),
     });
@@ -669,6 +715,7 @@ function saveMileage_(payload) {
     timestamp: timestamp,
     driver: driverIdentity,
     duplicate: alreadyStored,
+    request_id: requestId,
     message: alreadyStored ? 'Mileage already stored' : 'Mileage saved',
   };
 }
@@ -676,20 +723,23 @@ function saveMileage_(payload) {
 function findMileageLogForDay_(registration, dayKey) {
   const targetRegistration = normalizeRegistration_(registration);
   if (!targetRegistration || !dayKey) return null;
-  const snapshot = getSheetRecords_(SHEETS.mileageLogs);
+
+  const snapshot = loadSheetRecordsCached_(SHEETS.mileageLogs);
   for (let i = 0; i < snapshot.rows.length; i += 1) {
     const row = snapshot.rows[i];
-    const rowDay = datePart_(row.timestamp);
-    if (rowDay === dayKey && normalizeRegistration_(row.registration) === targetRegistration) {
+    if (datePart_(row.timestamp) === dayKey && normalizeRegistration_(row.registration) === targetRegistration) {
       return row;
     }
   }
   return null;
 }
 
-function hasMileageLog_(timestamp, driver, registration, mileage) {
-  const snapshot = getSheetRecords_(SHEETS.mileageLogs);
+function hasMileageLog_(timestamp, driver, registration, mileage, requestId) {
+  const snapshot = loadSheetRecordsCached_(SHEETS.mileageLogs);
   return snapshot.rows.some(function(row) {
+    if (requestId && String(row.request_id || '').trim() && String(row.request_id || '').trim() === requestId) {
+      return true;
+    }
     return String(row.timestamp || '').trim() === String(timestamp || '').trim() &&
       String(row.driver || '').trim() === String(driver || '').trim() &&
       normalizeRegistration_(row.registration) === normalizeRegistration_(registration) &&
@@ -697,22 +747,24 @@ function hasMileageLog_(timestamp, driver, registration, mileage) {
   });
 }
 
-function getMileageLogs_() {
-  const snapshot = getSheetRecords_(SHEETS.mileageLogs);
+function getMileageLogs_(payload) {
+  const snapshot = loadSheetRecordsCached_(SHEETS.mileageLogs);
+  const limit = Math.max(1, Math.min(5000, Number(payload && payload.limit ? payload.limit : 500) || 500));
   const rows = [MILEAGE_LOG_HEADERS];
-  snapshot.rows.forEach(function(row) {
+
+  const start = Math.max(0, snapshot.rows.length - limit);
+  for (let i = start; i < snapshot.rows.length; i += 1) {
+    const row = snapshot.rows[i];
     rows.push([
       String(row.timestamp || ''),
       String(row.driver || ''),
       normalizeRegistration_(row.registration),
       Number(row.mileage || 0) || 0,
+      String(row.request_id || ''),
     ]);
-  });
+  }
 
-  return {
-    status: 'ok',
-    logs: rows,
-  };
+  return { status: 'ok', logs: rows };
 }
 
 function getDriverByLogin_(payload) {
@@ -721,46 +773,51 @@ function getDriverByLogin_(payload) {
   if (!login) throw new Error('Missing login');
 
   const drivers = findDriversByLogin_(login);
-  const driver = drivers.find(function(row) {
+  const selected = drivers.find(function(row) {
     return requestedRegistration && normalizeRegistration_(row.registration) === requestedRegistration;
-  }) || drivers[0];
-  if (!driver) {
-    return {
-      status: 'error',
-      message: 'Driver not found',
-    };
+  }) || drivers[0] || null;
+
+  if (!selected) {
+    return { status: 'error', message: 'Driver not found' };
   }
 
   return {
     status: 'ok',
-    login: normalizeLogin_(driver.login),
-    password: String(driver.password || ''),
-    name: normalizeName_(driver.name),
-    registration: normalizeRegistration_(driver.registration),
-    change_password: toBooleanFlag_(driver.must_change_password),
-    last_mileage: Number(driver.last_mileage || 0) || 0,
-    updated_at: String(driver.updated_at || ''),
+    login: normalizeLogin_(selected.login),
+    password: String(selected.password || ''),
+    name: normalizeName_(selected.name),
+    registration: normalizeRegistration_(selected.registration),
+    change_password: toBooleanFlag_(selected.must_change_password),
+    last_mileage: Number(selected.last_mileage || 0) || 0,
+    updated_at: String(selected.updated_at || ''),
   };
 }
 
-function getDriversSnapshot_() {
-  const snapshot = getSheetRecords_(SHEETS.drivers);
-  return snapshot.rows.map(function(row) {
-    return {
-      login: normalizeLogin_(row.login),
-      password: String(row.password || ''),
-      name: normalizeName_(row.name),
-      registration: normalizeRegistration_(row.registration),
-      must_change_password: toBooleanFlag_(row.must_change_password),
-      last_mileage: Number(row.last_mileage || 0) || 0,
-      updated_at: String(row.updated_at || ''),
-    };
-  });
+function getDriversSnapshot_(payload) {
+  const loginFilter = normalizeLogin_(payload && payload.login);
+  const registrationFilter = normalizeRegistration_(payload && (payload.registration || payload.plate || payload.rej));
+
+  return loadSheetRecordsCached_(SHEETS.drivers).rows
+    .filter(function(row) {
+      if (loginFilter && normalizeLogin_(row.login).toLowerCase() !== loginFilter.toLowerCase()) return false;
+      if (registrationFilter && normalizeRegistration_(row.registration) !== registrationFilter) return false;
+      return true;
+    })
+    .map(function(row) {
+      return {
+        login: normalizeLogin_(row.login),
+        password: String(row.password || ''),
+        name: normalizeName_(row.name),
+        registration: normalizeRegistration_(row.registration),
+        must_change_password: toBooleanFlag_(row.must_change_password),
+        last_mileage: Number(row.last_mileage || 0) || 0,
+        updated_at: String(row.updated_at || ''),
+      };
+    });
 }
 
 function getCarsSnapshot_() {
-  const snapshot = getSheetRecords_(SHEETS.cars);
-  return snapshot.rows.map(function(row) {
+  return loadSheetRecordsCached_(SHEETS.cars).rows.map(function(row) {
     return {
       registration: normalizeRegistration_(row.registration),
       driver_login: normalizeLogin_(row.driver_login),
