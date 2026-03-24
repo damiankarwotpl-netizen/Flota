@@ -37,6 +37,7 @@ Daemon will be stopped at the end of the build
 > Task :core-database:processDebugManifest
 > Task :core-common:checkKotlinGradlePluginConfigurationErrors SKIPPED
 > Task :core-common:processDebugManifest
+> Task :core-database:processDebugManifest
 > Task :core-database:parseDebugLocalResources
 > Task :core-common:generateDebugRFile
 > Task :app-admin:processDebugMainManifest
@@ -61,6 +62,7 @@ Daemon will be stopped at the end of the build
 > Task :app-admin:mergeDebugAssets
 > Task :app-admin:compressDebugAssets
 > Task :app-admin:desugarDebugFileDependencies
+> Task :app-admin:processDebugResources
 > Task :app-admin:mergeDebugJniLibFolders
 > Task :core-common:mergeDebugJniLibFolders
 > Task :core-common:mergeDebugNativeLibs NO-SOURCE
@@ -70,6 +72,7 @@ Daemon will be stopped at the end of the build
 > Task :app-admin:processDebugResources
 > Task :core-database:mergeDebugNativeLibs NO-SOURCE
 > Task :core-database:copyDebugJniLibsProjectOnly
+> Task :app-admin:checkDebugDuplicateClasses
 > Task :app-admin:validateSigningDebug
 > Task :app-admin:writeDebugAppMetadata
 > Task :app-admin:mergeDebugNativeLibs
