@@ -83,8 +83,14 @@ fun CarsScreen() {
             uiState.query.isBlank() || uiState.query.lowercase() in blob
         }
     }
-    val filteredContactDrivers = remember(uiState.contactDriverSuggestions, driverPickerQuery) {
-        uiState.contactDriverSuggestions.filter { suggestion ->
+    val assignableDrivers = remember(uiState.contactDriverSuggestions, uiState.knownCarDrivers) {
+        (uiState.contactDriverSuggestions + uiState.knownCarDrivers)
+            .groupBy { it.trim().lowercase() }
+            .mapNotNull { (_, values) -> values.firstOrNull()?.trim()?.takeIf { it.isNotBlank() } }
+            .sorted()
+    }
+    val filteredContactDrivers = remember(assignableDrivers, driverPickerQuery) {
+        assignableDrivers.filter { suggestion ->
             driverPickerQuery.isBlank() || suggestion.lowercase().contains(driverPickerQuery.lowercase())
         }
     }
@@ -326,18 +332,23 @@ fun CarsScreen() {
                 driverPickerQuery = ""
             },
             onDriverSelected = { driverName ->
-                val otherAssignments = uiState.items.filter { it.id != car.id && it.driver.equals(driverName, ignoreCase = true) }
-                val currentDriver = car.driver.trim().takeIf { it.isNotBlank() && !it.equals(driverName, ignoreCase = true) }
+                val normalizedDriver = driverName.trim()
+                val otherAssignments = uiState.items.filter {
+                    it.id != car.id && it.driver.trim().equals(normalizedDriver, ignoreCase = true)
+                }
+                val currentDriver = car.driver.trim().takeIf {
+                    it.isNotBlank() && !it.equals(normalizedDriver, ignoreCase = true)
+                }
                 if (otherAssignments.isNotEmpty() || currentDriver != null) {
                     pendingAssignmentConflict = DriverAssignmentConflict(
                         carId = car.id,
                         registration = car.registration,
-                        selectedDriver = driverName,
+                        selectedDriver = normalizedDriver,
                         currentDriver = currentDriver,
                         otherRegistrations = otherAssignments.map { it.registration },
                     )
                 } else {
-                    viewModel.assignDriverAllowConflict(car.id, driverName)
+                    viewModel.assignDriverAllowConflict(car.id, normalizedDriver)
                 }
                 assignDriverCar = null
                 driverPickerQuery = ""
@@ -611,6 +622,16 @@ private fun AddCarDialog(
                         },
                     readOnly = true,
                 )
+                TextButton(
+                    onClick = {
+                        showDatePicker(context, draft.lastInspectionDate) {
+                            onDraftChange(draft.copy(lastInspectionDate = it))
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text("Wybierz datę przeglądu")
+                }
                 TextButton(onClick = { onDraftChange(draft.copy(lastInspectionDate = "")) }) {
                     Text("Wyczyść datę przeglądu")
                 }

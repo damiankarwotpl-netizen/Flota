@@ -67,8 +67,14 @@ interface AppDao {
     @Query("SELECT * FROM driver_accounts WHERE lower(login) = lower(:login) LIMIT 1")
     suspend fun getDriverAccountByLogin(login: String): DriverAccountEntity?
 
+    @Query("SELECT * FROM driver_accounts WHERE lower(login) = lower(:login)")
+    suspend fun getDriverAccountsByLogin(login: String): List<DriverAccountEntity>
+
     @Query("SELECT * FROM driver_accounts WHERE lower(login) = lower(:login) AND password = :password LIMIT 1")
     suspend fun getDriverAccount(login: String, password: String): DriverAccountEntity?
+
+    @Query("SELECT * FROM driver_accounts WHERE lower(login) = lower(:login) AND password = :password")
+    suspend fun getDriverAccounts(login: String, password: String): List<DriverAccountEntity>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsertDriverAccount(entity: DriverAccountEntity)

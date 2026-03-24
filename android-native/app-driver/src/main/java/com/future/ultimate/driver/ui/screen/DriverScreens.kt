@@ -325,6 +325,16 @@ fun DriverMileageScreen(navController: NavController) {
                     label = "Rejestracja",
                     enabled = false,
                 )
+                if (uiState.availableRegistrations.size > 1) {
+                    StatusMessage("Wybierz aktywną rejestrację:")
+                    uiState.availableRegistrations.forEach { registration ->
+                        DriverActionButton(
+                            text = if (registration == uiState.registration) "✓ $registration" else registration,
+                            onClick = { viewModel.selectRegistration(registration) },
+                            secondary = registration != uiState.registration,
+                        )
+                    }
+                }
                 DriverInputField(
                     value = uiState.mileage,
                     onValueChange = viewModel::updateMileage,
