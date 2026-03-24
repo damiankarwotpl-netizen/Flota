@@ -91,7 +91,7 @@ class LocalDriverRepository(
                 ?: throw IllegalArgumentException("Błędny login lub hasło")
         }
         val matchingAccounts = dao.getDriverAccountsByLogin(primaryAccount.login)
-            .filter { it.password == primaryAccount.password }
+            .filter { it.registration.trim().isNotBlank() }
             .ifEmpty { listOf(primaryAccount) }
         val availableRegistrations = matchingAccounts
             .map { it.registration.trim().uppercase() }
@@ -107,7 +107,7 @@ class LocalDriverRepository(
 
         return DriverSession(
             login = activeAccount.login,
-            password = activeAccount.password,
+            password = activeAccount.password.ifBlank { normalizedPassword },
             driverName = activeAccount.driverName,
             registration = activeRegistration,
             availableRegistrations = availableRegistrations.ifEmpty { listOf(activeRegistration).filter { it.isNotBlank() } },
@@ -255,7 +255,6 @@ class LocalDriverRepository(
             return@runBlocking null
         }
         val registrations = dao.getDriverAccountsByLogin(account.login)
-            .filter { it.password == account.password }
             .map { it.registration.trim().uppercase() }
             .filter { it.isNotBlank() }
             .distinct()
