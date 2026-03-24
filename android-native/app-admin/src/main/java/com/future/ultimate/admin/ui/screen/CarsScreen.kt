@@ -83,8 +83,14 @@ fun CarsScreen() {
             uiState.query.isBlank() || uiState.query.lowercase() in blob
         }
     }
-    val filteredContactDrivers = remember(uiState.contactDriverSuggestions, driverPickerQuery) {
-        uiState.contactDriverSuggestions.filter { suggestion ->
+    val assignableDrivers = remember(uiState.contactDriverSuggestions, uiState.knownCarDrivers) {
+        (uiState.contactDriverSuggestions + uiState.knownCarDrivers)
+            .groupBy { it.trim().lowercase() }
+            .mapNotNull { (_, values) -> values.firstOrNull()?.trim()?.takeIf { it.isNotBlank() } }
+            .sorted()
+    }
+    val filteredContactDrivers = remember(assignableDrivers, driverPickerQuery) {
+        assignableDrivers.filter { suggestion ->
             driverPickerQuery.isBlank() || suggestion.lowercase().contains(driverPickerQuery.lowercase())
         }
     }
@@ -213,62 +219,60 @@ fun CarsScreen() {
                                 Text("Login: brak")
                                 Text("Hasło startowe: brak")
                             } else {
-                                currentAssignments.forEach { assignedCar ->
-                                    Text("Auto: ${assignedCar.registration}")
-                                    Text("Login: ${assignedCar.driverLogin.ifBlank { "brak" }}")
+                                val primaryAssignment = currentAssignments.first()
+                                Text("Login: ${primaryAssignment.driverLogin.ifBlank { "brak" }}")
+                                Text(
+                                    when {
+                                        primaryAssignment.driverPassword.isBlank() -> "Hasło startowe: brak"
+                                        primaryAssignment.changePasswordRequired -> "Hasło startowe: ${primaryAssignment.driverPassword}"
+                                        else -> "Hasło startowe zostało już zmienione"
+                                    },
+                                )
+                                Text("Typ prawa jazdy: ${primaryAssignment.licenseType.ifBlank { "PL" }}")
+                                Text("Data ważności prawa jazdy: ${formatDateLabel(primaryAssignment.licenseValidUntil, "Brak daty")}")
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                ) {
+                                    Button(
+                                        onClick = { viewModel.updateDriverLicense(primaryAssignment.id, "PL", primaryAssignment.licenseValidUntil) },
+                                        modifier = Modifier.weight(1f),
+                                    ) {
+                                        Text("PL")
+                                    }
+                                    Button(
+                                        onClick = { viewModel.updateDriverLicense(primaryAssignment.id, "MIĘDZYNARODOWE", primaryAssignment.licenseValidUntil) },
+                                        modifier = Modifier.weight(1f),
+                                    ) {
+                                        Text("MIĘDZYNARODOWE")
+                                    }
+                                }
+                                Button(
+                                    onClick = {
+                                        showDatePicker(context, primaryAssignment.licenseValidUntil) {
+                                            viewModel.updateDriverLicense(
+                                                primaryAssignment.id,
+                                                primaryAssignment.licenseType.ifBlank { "PL" },
+                                                it,
+                                            )
+                                        }
+                                    },
+                                    modifier = Modifier.fillMaxWidth(),
+                                ) {
+                                    Text("Ustaw datę ważności prawa jazdy")
+                                }
+                                Button(
+                                    onClick = { viewModel.resetDriverCredentials(primaryAssignment.id) },
+                                    modifier = Modifier.fillMaxWidth(),
+                                ) {
                                     Text(
-                                        when {
-                                            assignedCar.driverPassword.isBlank() -> "Hasło startowe: brak"
-                                            assignedCar.changePasswordRequired -> "Hasło startowe: ${assignedCar.driverPassword}"
-                                            else -> "Hasło startowe zostało już zmienione"
+                                        if (uiState.actionInFlightId == primaryAssignment.id) {
+                                            "Resetowanie hasła..."
+                                        } else {
+                                            "Resetuj hasło kierowcy"
                                         },
                                     )
-                                    Text("Typ prawa jazdy: ${assignedCar.licenseType.ifBlank { "PL" }}")
-                                    Text("Data ważności prawa jazdy: ${formatDateLabel(assignedCar.licenseValidUntil, "Brak daty")}")
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.spacedBy(10.dp),
-                                        verticalAlignment = Alignment.CenterVertically,
-                                    ) {
-                                        Button(
-                                            onClick = { viewModel.updateDriverLicense(assignedCar.id, "PL", assignedCar.licenseValidUntil) },
-                                            modifier = Modifier.weight(1f),
-                                        ) {
-                                            Text("PL")
-                                        }
-                                        Button(
-                                            onClick = { viewModel.updateDriverLicense(assignedCar.id, "MIĘDZYNARODOWE", assignedCar.licenseValidUntil) },
-                                            modifier = Modifier.weight(1f),
-                                        ) {
-                                            Text("MIĘDZYNARODOWE")
-                                        }
-                                    }
-                                    Button(
-                                        onClick = {
-                                            showDatePicker(context, assignedCar.licenseValidUntil) {
-                                                viewModel.updateDriverLicense(
-                                                    assignedCar.id,
-                                                    assignedCar.licenseType.ifBlank { "PL" },
-                                                    it,
-                                                )
-                                            }
-                                        },
-                                        modifier = Modifier.fillMaxWidth(),
-                                    ) {
-                                        Text("Ustaw datę ważności prawa jazdy")
-                                    }
-                                    Button(
-                                        onClick = { viewModel.resetDriverCredentials(assignedCar.id) },
-                                        modifier = Modifier.fillMaxWidth(),
-                                    ) {
-                                        Text(
-                                            if (uiState.actionInFlightId == assignedCar.id) {
-                                                "Resetowanie hasła..."
-                                            } else {
-                                                "Resetuj hasło dla ${assignedCar.registration}"
-                                            },
-                                        )
-                                    }
                                 }
                             }
                             Button(
@@ -326,18 +330,23 @@ fun CarsScreen() {
                 driverPickerQuery = ""
             },
             onDriverSelected = { driverName ->
-                val otherAssignments = uiState.items.filter { it.id != car.id && it.driver.equals(driverName, ignoreCase = true) }
-                val currentDriver = car.driver.trim().takeIf { it.isNotBlank() && !it.equals(driverName, ignoreCase = true) }
+                val normalizedDriver = driverName.trim()
+                val otherAssignments = uiState.items.filter {
+                    it.id != car.id && it.driver.trim().equals(normalizedDriver, ignoreCase = true)
+                }
+                val currentDriver = car.driver.trim().takeIf {
+                    it.isNotBlank() && !it.equals(normalizedDriver, ignoreCase = true)
+                }
                 if (otherAssignments.isNotEmpty() || currentDriver != null) {
                     pendingAssignmentConflict = DriverAssignmentConflict(
                         carId = car.id,
                         registration = car.registration,
-                        selectedDriver = driverName,
+                        selectedDriver = normalizedDriver,
                         currentDriver = currentDriver,
                         otherRegistrations = otherAssignments.map { it.registration },
                     )
                 } else {
-                    viewModel.assignDriverAllowConflict(car.id, driverName)
+                    viewModel.assignDriverAllowConflict(car.id, normalizedDriver)
                 }
                 assignDriverCar = null
                 driverPickerQuery = ""
@@ -611,6 +620,16 @@ private fun AddCarDialog(
                         },
                     readOnly = true,
                 )
+                TextButton(
+                    onClick = {
+                        showDatePicker(context, draft.lastInspectionDate) {
+                            onDraftChange(draft.copy(lastInspectionDate = it))
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text("Wybierz datę przeglądu")
+                }
                 TextButton(onClick = { onDraftChange(draft.copy(lastInspectionDate = "")) }) {
                     Text("Wyczyść datę przeglądu")
                 }
