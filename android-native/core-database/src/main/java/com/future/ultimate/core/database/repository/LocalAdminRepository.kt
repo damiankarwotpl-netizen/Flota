@@ -166,10 +166,13 @@ class LocalAdminRepository(
                 Triple(items, accounts, settings.associateBy({ it.key }, { it.valText }))
             }
             .map { (items, accounts, settings) ->
-                val accountsByRegistration = accounts.associateBy { it.registration.uppercase() }
+                val accountsByRegistration = accounts.groupBy { it.registration.uppercase() }
                 items.map {
                     val registrationKey = it.registration.uppercase()
-                    val driverAccount = accountsByRegistration[registrationKey]
+                    val accountsForCar = accountsByRegistration[registrationKey].orEmpty()
+                    val driverAccount = accountsForCar.firstOrNull { account ->
+                        account.driverName.equals(it.driver, ignoreCase = true)
+                    } ?: accountsForCar.firstOrNull()
                     val queuedMileage = settings["driver_mileage_sync_pending_$registrationKey"]
                         ?.substringBefore("|")
                         ?.toIntOrNull()
@@ -254,7 +257,7 @@ class LocalAdminRepository(
         if (normalizedDriver.isBlank()) return
         val normalizedLicenseType = licenseType.trim().ifBlank { "PL" }
         val normalizedValidUntil = validUntil.trim()
-        val primaryAccount = dao.getDriverAccountByRegistration(car.registration)
+        val primaryAccount = dao.getDriverAccountByRegistrationAndDriverName(car.registration, normalizedDriver)
             ?: syncDriverAccount(normalizedDriver, car.registration)
             ?: return
         val registrationsToUpdate = dao.getDriverAccountsByLogin(primaryAccount.login)
@@ -939,7 +942,8 @@ class LocalAdminRepository(
         var imported = 0
         logs.forEach { log ->
             val existingCar = dao.getCarByRegistration(log.registration)
-            val existingAccount = dao.getDriverAccountByRegistration(log.registration)
+            val existingAccount = dao.getDriverAccountByRegistrationAndLogin(log.registration, log.login)
+                ?: dao.getDriverAccountByRegistrationAndDriverName(log.registration, log.driverName)
             dao.upsertCar(
                 CarEntity(
                     id = existingCar?.id ?: 0,
@@ -1921,7 +1925,10 @@ class LocalAdminRepository(
         }
 
         val generatedLogin = generateLogin(normalizedDriver)
-        val existingByRegistration = dao.getDriverAccountByRegistration(normalizedRegistration)
+        val existingByRegistration = dao.getDriverAccountByRegistrationAndDriverName(
+            registration = normalizedRegistration,
+            driverName = normalizedDriver,
+        )
         val existingByLogin = dao.getDriverAccountsByLogin(generatedLogin).firstOrNull()
             ?: runCatching { DriverRemoteSyncGateway.findDriverAccount(dao, generatedLogin) }.getOrNull()
         val authoritativeExisting = when {

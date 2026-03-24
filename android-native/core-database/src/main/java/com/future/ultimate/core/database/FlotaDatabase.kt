@@ -29,7 +29,7 @@ import com.future.ultimate.core.database.entity.WorkerEntity
         ClothesOrderItemEntity::class,
         ClothesHistoryEntity::class,
     ],
-    version = 3,
+    version = 4,
     exportSchema = true,
 )
 abstract class FlotaDatabase : RoomDatabase() {
