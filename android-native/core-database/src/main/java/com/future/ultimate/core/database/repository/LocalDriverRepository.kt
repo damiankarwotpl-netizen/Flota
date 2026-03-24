@@ -10,6 +10,7 @@ import com.future.ultimate.core.common.repository.DriverSession
 import com.future.ultimate.core.database.dao.AppDao
 import com.future.ultimate.core.database.entity.DriverAccountEntity
 import com.future.ultimate.core.database.entity.SettingEntity
+import java.time.LocalDate
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -23,6 +24,8 @@ class LocalDriverRepository(
 ) : DriverRepository {
     private companion object {
         const val SessionRegistrationKey = "driver_session_registration"
+        const val DailyMileagePrefix = "driver_daily_mileage_"
+        const val DailyReportPrefix = "driver_daily_report_"
     }
 
     private val session = MutableStateFlow<DriverSession?>(restorePersistedSession())
@@ -158,6 +161,10 @@ class LocalDriverRepository(
         require(targetRegistration == assignedRegistration) {
             "Nie możesz wysłać przebiegu dla innego samochodu niż aktualnie przypisany"
         }
+        validateDailyMileageWrite(
+            registration = targetRegistration,
+            driverLogin = current.login,
+        )
         val normalizedMileage = mileage.coerceAtLeast(0)
         val localMileage = dao.getCarByRegistration(targetRegistration)?.mileage ?: 0
         val syncedMileage = dao.getSetting("driver_last_mileage_$targetRegistration")?.valText?.toIntOrNull() ?: 0
@@ -171,6 +178,16 @@ class LocalDriverRepository(
             mileage = normalizedMileage,
             login = current.login,
             driverName = current.driverName,
+        )
+        dao.upsertSetting(
+            SettingEntity(
+                key = dailyMileageKey(targetRegistration),
+                valText = dailyEntryPayload(
+                    date = LocalDate.now().toString(),
+                    login = current.login,
+                    actor = current.driverName,
+                ),
+            ),
         )
         DriverMileageSyncCoordinator.flushPending(dao, targetRegistration)
     }
@@ -188,8 +205,26 @@ class LocalDriverRepository(
     override suspend fun saveVehicleReportDraft(draft: VehicleReportDraft) {
         val current = session.value ?: throw IllegalStateException("Brak aktywnej sesji kierowcy")
         val registration = draft.rej.ifBlank { current.registration }.uppercase()
+        val allowedRegistrations = current.availableRegistrations.map { it.normalizedRegistration() }
+        require(allowedRegistrations.isEmpty() || allowedRegistrations.contains(registration.normalizedRegistration())) {
+            "Nie możesz wybrać rejestracji spoza przypisanych pojazdów"
+        }
+        validateDailyReportWrite(
+            registration = registration,
+            driverLogin = current.login,
+        )
         dao.upsertSetting(SettingEntity(key = "driver_vehicle_report_registration", valText = registration))
         dao.upsertSetting(SettingEntity(key = "driver_vehicle_report_payload", valText = draft.copy(rej = registration).toString()))
+        dao.upsertSetting(
+            SettingEntity(
+                key = dailyReportKey(registration),
+                valText = dailyEntryPayload(
+                    date = LocalDate.now().toString(),
+                    login = current.login,
+                    actor = current.driverName,
+                ),
+            ),
+        )
     }
 
     override suspend fun exportVehicleReportPdf(draft: VehicleReportDraft): String =
@@ -266,4 +301,46 @@ class LocalDriverRepository(
     }
 
     private fun String.normalizedRegistration(): String = trim().uppercase()
+
+    private suspend fun validateDailyMileageWrite(registration: String, driverLogin: String) {
+        val today = LocalDate.now().toString()
+        val existing = parseDailyEntry(dao.getSetting(dailyMileageKey(registration))?.valText.orEmpty()) ?: return
+        if (existing.date == today && !existing.login.equals(driverLogin, ignoreCase = true)) {
+            throw IllegalStateException("Inny kierowca już dzisiaj wpisał przebieg dla tego auta")
+        }
+    }
+
+    private suspend fun validateDailyReportWrite(registration: String, driverLogin: String) {
+        val today = LocalDate.now().toString()
+        val existing = parseDailyEntry(dao.getSetting(dailyReportKey(registration))?.valText.orEmpty()) ?: return
+        if (existing.date == today) {
+            if (existing.login.equals(driverLogin, ignoreCase = true)) {
+                throw IllegalStateException("Raport dla tego auta został już dziś zapisany")
+            }
+            throw IllegalStateException("Inny kierowca już dzisiaj zapisał raport dla tego auta")
+        }
+    }
+
+    private fun dailyMileageKey(registration: String): String = "$DailyMileagePrefix${registration.normalizedRegistration()}"
+    private fun dailyReportKey(registration: String): String = "$DailyReportPrefix${registration.normalizedRegistration()}"
+
+    private fun dailyEntryPayload(date: String, login: String, actor: String): String =
+        listOf(date.trim(), login.trim(), actor.trim()).joinToString("|")
+
+    private fun parseDailyEntry(payload: String): DailyEntry? {
+        val raw = payload.trim()
+        if (raw.isBlank()) return null
+        val parts = raw.split("|", limit = 3)
+        return DailyEntry(
+            date = parts.getOrElse(0) { "" },
+            login = parts.getOrElse(1) { "" },
+            actor = parts.getOrElse(2) { "" },
+        )
+    }
+
+    private data class DailyEntry(
+        val date: String,
+        val login: String,
+        val actor: String,
+    )
 }

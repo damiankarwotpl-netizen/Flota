@@ -388,6 +388,16 @@ fun DriverVehicleReportScreen(navController: NavController) {
                     message = if (uiState.driverName.isNotBlank()) "Kierowca: ${uiState.driverName}" else "Brak aktywnego kierowcy.",
                     emphasis = true,
                 )
+                if (uiState.availableRegistrations.size > 1) {
+                    StatusMessage("Wybierz auto do raportu:")
+                    uiState.availableRegistrations.forEach { registration ->
+                        DriverActionButton(
+                            text = if (registration == draft.rej) "✓ $registration" else registration,
+                            onClick = { viewModel.selectRegistration(registration) },
+                            secondary = registration != draft.rej,
+                        )
+                    }
+                }
             }
         }
         item {

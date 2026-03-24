@@ -233,6 +233,7 @@ class DriverVehicleReportViewModel(
             if (session != null) {
                 _uiState.value = _uiState.value.copy(
                     driverName = session.driverName,
+                    availableRegistrations = session.availableRegistrations,
                     draft = _uiState.value.draft.copy(rej = session.registration),
                 )
             }
@@ -241,6 +242,22 @@ class DriverVehicleReportViewModel(
 
     fun updateDraft(draft: VehicleReportDraft) {
         _uiState.value = _uiState.value.copy(draft = draft, message = null)
+    }
+
+    fun selectRegistration(value: String) {
+        viewModelScope.launch {
+            runCatching { repository.selectRegistration(value) }
+                .onSuccess {
+                    val normalized = value.trim().uppercase()
+                    _uiState.value = _uiState.value.copy(
+                        draft = _uiState.value.draft.copy(rej = normalized),
+                        message = null,
+                    )
+                }
+                .onFailure { error ->
+                    _uiState.value = _uiState.value.copy(message = error.message ?: "Nie udało się wybrać rejestracji")
+                }
+        }
     }
 
     fun save() {

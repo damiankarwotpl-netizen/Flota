@@ -287,8 +287,14 @@ function getHeadersForSheet_(sheetName) {
 
 function upsertDriverRecord_(driver) {
   const snapshot = getSheetRecords_(SHEETS.drivers);
+  const normalizedRegistration = normalizeRegistration_(driver.registration);
+  const normalizedLogin = normalizeLogin_(driver.login).toLowerCase();
   const rowIndex = snapshot.rows.findIndex(function(row) {
-    return normalizeLogin_(row.login).toLowerCase() === normalizeLogin_(driver.login).toLowerCase();
+    const rowRegistration = normalizeRegistration_(row.registration);
+    if (normalizedRegistration) {
+      return rowRegistration === normalizedRegistration;
+    }
+    return normalizeLogin_(row.login).toLowerCase() === normalizedLogin && !rowRegistration;
   });
 
   const rowValues = [
@@ -334,14 +340,19 @@ function upsertCarRecord_(car) {
 }
 
 function findDriverByLogin_(login) {
+  return findDriversByLogin_(login)[0] || null;
+}
+
+function findDriversByLogin_(login) {
   const normalizedLogin = normalizeLogin_(login).toLowerCase();
   const snapshot = getSheetRecords_(SHEETS.drivers);
+  const matches = [];
   for (let i = 0; i < snapshot.rows.length; i += 1) {
     if (normalizeLogin_(snapshot.rows[i].login).toLowerCase() === normalizedLogin) {
-      return snapshot.rows[i];
+      matches.push(snapshot.rows[i]);
     }
   }
-  return null;
+  return matches;
 }
 
 function findDriverByRegistration_(registration) {
@@ -373,14 +384,18 @@ function createOrUpdateDriver_(payload, options) {
   if (!login) throw new Error('Missing login');
   if (!registration) throw new Error('Missing registration');
 
-  const current = findDriverByLogin_(login);
+  const currentByRegistration = findDriverByRegistration_(registration);
+  const sameLoginDrivers = findDriversByLogin_(login);
+  const current = currentByRegistration || sameLoginDrivers[0] || null;
   if (!current && options && options.allowCreate === false) {
     throw new Error('Driver not found');
   }
 
   const password = String(payload.password || '').trim() || (current ? String(current.password || '').trim() : generatePassword_(6));
   const mustChangePassword = (options && options.forcePasswordReset) ? 1 : toBooleanFlag_(payload.must_change_password || (current ? current.must_change_password : 0));
-  const lastMileage = current && String(current.last_mileage || '').trim() ? Number(current.last_mileage) : 0;
+  const lastMileage = currentByRegistration && String(currentByRegistration.last_mileage || '').trim()
+    ? Number(currentByRegistration.last_mileage)
+    : (current && String(current.last_mileage || '').trim() ? Number(current.last_mileage) : 0);
 
   const driver = {
     login: login,
@@ -413,53 +428,42 @@ function syncDriverAssignment_(payload) {
   if (!login) throw new Error('Missing login');
   if (!registration) throw new Error('Missing registration');
 
-  const driver = findDriverByLogin_(login);
-  if (!driver) {
-    throw new Error('Driver not found for assignment');
+  const sameLoginDrivers = findDriversByLogin_(login);
+  const existingOnRegistration = findDriverByRegistration_(registration);
+  if (existingOnRegistration && normalizeLogin_(existingOnRegistration.login).toLowerCase() !== login.toLowerCase()) {
+    upsertDriverRecord_({
+      login: normalizeLogin_(existingOnRegistration.login),
+      password: String(existingOnRegistration.password || ''),
+      name: normalizeName_(existingOnRegistration.name),
+      registration: '',
+      must_change_password: toBooleanFlag_(existingOnRegistration.must_change_password),
+      last_mileage: Number(existingOnRegistration.last_mileage || 0) || 0,
+      updated_at: nowText_(),
+    });
   }
 
-  const driversSnapshot = getSheetRecords_(SHEETS.drivers);
-  driversSnapshot.rows.forEach(function(row) {
-    const rowLogin = normalizeLogin_(row.login).toLowerCase();
-    const rowRegistration = normalizeRegistration_(row.registration);
-
-    if (rowLogin === login.toLowerCase()) {
-      const currentName = name || normalizeName_(row.name);
-      upsertDriverRecord_({
-        login: login,
-        password: String(row.password || ''),
-        name: currentName,
-        registration: registration,
-        must_change_password: toBooleanFlag_(row.must_change_password),
-        last_mileage: Number(row.last_mileage || 0) || 0,
-        updated_at: nowText_(),
-      });
-      return;
-    }
-
-    if (rowRegistration === registration) {
-      upsertDriverRecord_({
-        login: String(row.login || ''),
-        password: String(row.password || ''),
-        name: normalizeName_(row.name),
-        registration: '',
-        must_change_password: toBooleanFlag_(row.must_change_password),
-        last_mileage: Number(row.last_mileage || 0) || 0,
-        updated_at: nowText_(),
-      });
-    }
+  const credentialsSource = sameLoginDrivers[0] || existingOnRegistration;
+  if (!credentialsSource) {
+    throw new Error('Driver not found for assignment');
+  }
+  upsertDriverRecord_({
+    login: login,
+    password: String(credentialsSource.password || ''),
+    name: name || normalizeName_(credentialsSource.name),
+    registration: registration,
+    must_change_password: toBooleanFlag_(credentialsSource.must_change_password),
+    last_mileage: Number(credentialsSource.last_mileage || 0) || 0,
+    updated_at: nowText_(),
   });
 
   const carsSnapshot = getSheetRecords_(SHEETS.cars);
   carsSnapshot.rows.forEach(function(row) {
     const rowRegistration = normalizeRegistration_(row.registration);
-    const rowDriverLogin = normalizeLogin_(row.driver_login).toLowerCase();
-
-    if (rowRegistration === registration || rowDriverLogin === login.toLowerCase()) {
+    if (rowRegistration === registration) {
       upsertCarRecord_({
         registration: rowRegistration,
-        driver_login: rowRegistration === registration ? login : '',
-        driver_name: rowRegistration === registration ? (name || normalizeName_(driver.name)) : '',
+        driver_login: login,
+        driver_name: name || normalizeName_(credentialsSource.name),
         last_mileage: Number(row.last_mileage || 0) || 0,
         updated_at: nowText_(),
       });
@@ -470,8 +474,8 @@ function syncDriverAssignment_(payload) {
     upsertCarRecord_({
       registration: registration,
       driver_login: login,
-      driver_name: name || normalizeName_(driver.name),
-      last_mileage: Number(driver.last_mileage || 0) || 0,
+      driver_name: name || normalizeName_(credentialsSource.name),
+      last_mileage: Number(credentialsSource.last_mileage || 0) || 0,
       updated_at: nowText_(),
     });
   }
@@ -480,7 +484,7 @@ function syncDriverAssignment_(payload) {
     status: 'ok',
     login: login,
     registration: registration,
-    name: name || normalizeName_(driver.name),
+    name: name || normalizeName_(credentialsSource.name),
     message: 'Driver assignment synchronized',
   };
 }
@@ -530,17 +534,18 @@ function changePassword_(payload) {
   if (!login) throw new Error('Missing login');
   if (!password) throw new Error('Missing password');
 
-  const driver = findDriverByLogin_(login);
-  if (!driver) throw new Error('Driver not found');
-
-  upsertDriverRecord_({
-    login: login,
-    password: password,
-    name: normalizeName_(driver.name),
-    registration: normalizeRegistration_(driver.registration),
-    must_change_password: 0,
-    last_mileage: Number(driver.last_mileage || 0) || 0,
-    updated_at: nowText_(),
+  const drivers = findDriversByLogin_(login);
+  if (!drivers.length) throw new Error('Driver not found');
+  drivers.forEach(function(driver) {
+    upsertDriverRecord_({
+      login: login,
+      password: password,
+      name: normalizeName_(driver.name),
+      registration: normalizeRegistration_(driver.registration),
+      must_change_password: 0,
+      last_mileage: Number(driver.last_mileage || 0) || 0,
+      updated_at: nowText_(),
+    });
   });
 
   return {
@@ -553,12 +558,19 @@ function changePassword_(payload) {
 function loginDriver_(payload) {
   const login = normalizeLogin_(payload.login);
   const password = String(payload.password || '').trim();
+  const requestedRegistration = normalizeRegistration_(payload.registration || payload.plate || payload.rej);
   if (!login) throw new Error('Missing login');
   if (!password) throw new Error('Missing password');
 
-  const driver = findDriverByLogin_(login);
-  if (!driver) throw new Error('Invalid login or password');
-  if (String(driver.password || '').trim() !== password) throw new Error('Invalid login or password');
+  const drivers = findDriversByLogin_(login).filter(function(row) {
+    return String(row.password || '').trim() === password;
+  });
+  if (!drivers.length) throw new Error('Invalid login or password');
+  const driver = drivers.find(function(row) {
+    return requestedRegistration && normalizeRegistration_(row.registration) === requestedRegistration;
+  }) || drivers.find(function(row) {
+    return normalizeRegistration_(row.registration);
+  }) || drivers[0];
 
   return {
     status: 'ok',
@@ -571,15 +583,18 @@ function loginDriver_(payload) {
 
 function saveMileage_(payload) {
   const rawLogin = normalizeLogin_(payload.login || payload.driver_login || payload.driver);
-  const driver = rawLogin ? findDriverByLogin_(rawLogin) : null;
+  const drivers = rawLogin ? findDriversByLogin_(rawLogin) : [];
+  const driver = drivers[0] || null;
 
   const requestedRegistration = normalizeRegistration_(payload.registration || payload.plate || payload.rej);
   const registration = requestedRegistration || normalizeRegistration_(driver && driver.registration);
   if (!registration) throw new Error('Missing registration');
 
-  if (driver) {
-    const assignedRegistration = normalizeRegistration_(driver.registration);
-    if (assignedRegistration && assignedRegistration !== registration) {
+  if (drivers.length) {
+    const hasRegistration = drivers.some(function(row) {
+      return normalizeRegistration_(row.registration) === registration;
+    });
+    if (!hasRegistration) {
       throw new Error('Driver is not assigned to this vehicle');
     }
   }
@@ -612,13 +627,16 @@ function saveMileage_(payload) {
     updated_at: nowText_(),
   });
 
-  if (driver) {
+  const driverRowForRegistration = drivers.find(function(row) {
+    return normalizeRegistration_(row.registration) === registration;
+  });
+  if (driverRowForRegistration) {
     upsertDriverRecord_({
-      login: normalizeLogin_(driver.login),
-      password: String(driver.password || ''),
-      name: normalizeName_(driver.name),
-      registration: normalizeRegistration_(driver.registration),
-      must_change_password: toBooleanFlag_(driver.must_change_password),
+      login: normalizeLogin_(driverRowForRegistration.login),
+      password: String(driverRowForRegistration.password || ''),
+      name: normalizeName_(driverRowForRegistration.name),
+      registration: registration,
+      must_change_password: toBooleanFlag_(driverRowForRegistration.must_change_password),
       last_mileage: mileage,
       updated_at: nowText_(),
     });
@@ -665,9 +683,13 @@ function getMileageLogs_() {
 
 function getDriverByLogin_(payload) {
   const login = normalizeLogin_(payload.login);
+  const requestedRegistration = normalizeRegistration_(payload.registration || payload.plate || payload.rej);
   if (!login) throw new Error('Missing login');
 
-  const driver = findDriverByLogin_(login);
+  const drivers = findDriversByLogin_(login);
+  const driver = drivers.find(function(row) {
+    return requestedRegistration && normalizeRegistration_(row.registration) === requestedRegistration;
+  }) || drivers[0];
   if (!driver) {
     return {
       status: 'error',

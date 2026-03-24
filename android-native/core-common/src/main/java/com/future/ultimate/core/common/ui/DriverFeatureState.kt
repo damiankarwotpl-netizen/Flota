@@ -32,6 +32,7 @@ data class DriverMileageUiState(
 data class DriverVehicleReportUiState(
     val draft: VehicleReportDraft = VehicleReportDraft(),
     val driverName: String = "",
+    val availableRegistrations: List<String> = emptyList(),
     val isSaving: Boolean = false,
     val message: String? = null,
 )
