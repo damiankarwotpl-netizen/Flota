@@ -10,6 +10,7 @@ import com.future.ultimate.core.common.repository.DriverSession
 import com.future.ultimate.core.database.dao.AppDao
 import com.future.ultimate.core.database.entity.DriverAccountEntity
 import com.future.ultimate.core.database.entity.SettingEntity
+import java.time.LocalDate
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -23,6 +24,8 @@ class LocalDriverRepository(
 ) : DriverRepository {
     private companion object {
         const val SessionRegistrationKey = "driver_session_registration"
+        const val DailyMileagePrefix = "driver_daily_mileage_"
+        const val DailyReportPrefix = "driver_daily_report_"
     }
 
     private val session = MutableStateFlow<DriverSession?>(restorePersistedSession())
@@ -59,14 +62,27 @@ class LocalDriverRepository(
             )
         }.getOrNull()
 
-        val account = when {
+        val primaryAccount = when {
             remoteAccount != null -> {
-                val previousAccount = dao.getDriverAccountByLogin(normalizedLogin)
-                if (previousAccount != null && !previousAccount.registration.equals(remoteAccount.registration, ignoreCase = true)) {
-                    dao.deleteDriverAccountByRegistration(previousAccount.registration)
-                }
                 if (remoteAccount.registration.isNotBlank()) {
                     dao.upsertDriverAccount(remoteAccount)
+                }
+                val remoteAccounts = runCatching {
+                    DriverRemoteSyncGateway.findDriverAccountsByLogin(
+                        dao = dao,
+                        login = normalizedLogin,
+                        password = normalizedPassword,
+                    )
+                }.getOrDefault(emptyList())
+                remoteAccounts.forEach { account ->
+                    if (account.registration.isNotBlank()) {
+                        dao.upsertDriverAccount(
+                            account.copy(
+                                password = account.password.ifBlank { normalizedPassword },
+                                driverName = account.driverName.ifBlank { remoteAccount.driverName },
+                            ),
+                        )
+                    }
                 }
                 remoteAccount
             }
@@ -74,13 +90,28 @@ class LocalDriverRepository(
             else -> dao.getDriverAccount(normalizedLogin, normalizedPassword)
                 ?: throw IllegalArgumentException("Błędny login lub hasło")
         }
+        val matchingAccounts = dao.getDriverAccountsByLogin(primaryAccount.login)
+            .filter { it.password == primaryAccount.password }
+            .ifEmpty { listOf(primaryAccount) }
+        val availableRegistrations = matchingAccounts
+            .map { it.registration.trim().uppercase() }
+            .filter { it.isNotBlank() }
+            .distinct()
+            .sorted()
+        val persistedRegistration = dao.getSetting(SessionRegistrationKey)?.valText.orEmpty().trim().uppercase()
+        val activeRegistration = availableRegistrations.firstOrNull { it == persistedRegistration }
+            ?: availableRegistrations.firstOrNull()
+            ?: primaryAccount.registration.trim().uppercase()
+        val activeAccount = matchingAccounts.firstOrNull { it.registration.equals(activeRegistration, ignoreCase = true) }
+            ?: primaryAccount
 
         return DriverSession(
-            login = account.login,
-            password = account.password,
-            driverName = account.driverName,
-            registration = account.registration,
-            changePasswordRequired = account.changePassword == 1,
+            login = activeAccount.login,
+            password = activeAccount.password,
+            driverName = activeAccount.driverName,
+            registration = activeRegistration,
+            availableRegistrations = availableRegistrations.ifEmpty { listOf(activeRegistration).filter { it.isNotBlank() } },
+            changePasswordRequired = matchingAccounts.any { it.changePassword == 1 },
         ).also {
             session.value = it
             persistSessionRegistration(it.registration)
@@ -100,22 +131,44 @@ class LocalDriverRepository(
         val newPassword = password.trim()
         if (newPassword.isBlank()) throw IllegalArgumentException("Hasło nie może być puste")
 
-        val account = DriverAccountEntity(
-            registration = current.registration.trim().uppercase(),
-            login = current.login,
-            password = newPassword,
-            driverName = current.driverName,
-            changePassword = 0,
-        )
-        DriverRemoteSyncGateway.syncDriverUpsert(
-            dao = dao,
-            account = account,
-            action = "reset_driver",
-            successStatus = "Hasło kierowcy zsynchronizowane zdalnie",
-        )
-        dao.upsertDriverAccount(account)
+        val registrations = dao.getDriverAccountsByLogin(current.login)
+            .map { it.registration.trim().uppercase() }
+            .filter { it.isNotBlank() }
+            .distinct()
+            .ifEmpty { listOf(current.registration.trim().uppercase()) }
+        registrations.forEach { registration ->
+            val existingAccount = dao.getDriverAccountByRegistration(registration)
+            val account = DriverAccountEntity(
+                registration = registration,
+                login = current.login,
+                password = newPassword,
+                driverName = existingAccount?.driverName ?: current.driverName,
+                changePassword = 0,
+                licenseType = existingAccount?.licenseType ?: "PL",
+                licenseValidUntil = existingAccount?.licenseValidUntil.orEmpty(),
+            )
+            DriverRemoteSyncGateway.syncDriverUpsert(
+                dao = dao,
+                account = account,
+                action = "reset_driver",
+                successStatus = "Hasło kierowcy zsynchronizowane zdalnie",
+            )
+            dao.upsertDriverAccount(account)
+        }
         session.value = current.copy(password = newPassword, changePasswordRequired = false)
-        persistSessionRegistration(account.registration)
+        persistSessionRegistration(current.registration)
+    }
+
+    override suspend fun selectRegistration(registration: String) {
+        val current = session.value ?: throw IllegalStateException("Brak aktywnej sesji kierowcy")
+        val normalizedRegistration = registration.normalizedRegistration()
+        require(normalizedRegistration.isNotBlank()) { "Wybierz rejestrację" }
+        val allowedRegistrations = current.availableRegistrations.map { it.normalizedRegistration() }
+        require(allowedRegistrations.contains(normalizedRegistration)) {
+            "Nie możesz wybrać rejestracji spoza przypisanych pojazdów"
+        }
+        session.value = current.copy(registration = normalizedRegistration)
+        persistSessionRegistration(normalizedRegistration)
     }
 
     override suspend fun saveMileage(login: String, registration: String, mileage: Int) {
@@ -125,6 +178,10 @@ class LocalDriverRepository(
         require(targetRegistration == assignedRegistration) {
             "Nie możesz wysłać przebiegu dla innego samochodu niż aktualnie przypisany"
         }
+        validateDailyMileageWrite(
+            registration = targetRegistration,
+            driverLogin = current.login,
+        )
         val normalizedMileage = mileage.coerceAtLeast(0)
         val localMileage = dao.getCarByRegistration(targetRegistration)?.mileage ?: 0
         val syncedMileage = dao.getSetting("driver_last_mileage_$targetRegistration")?.valText?.toIntOrNull() ?: 0
@@ -138,6 +195,16 @@ class LocalDriverRepository(
             mileage = normalizedMileage,
             login = current.login,
             driverName = current.driverName,
+        )
+        dao.upsertSetting(
+            SettingEntity(
+                key = dailyMileageKey(targetRegistration),
+                valText = dailyEntryPayload(
+                    date = LocalDate.now().toString(),
+                    login = current.login,
+                    actor = current.driverName,
+                ),
+            ),
         )
         DriverMileageSyncCoordinator.flushPending(dao, targetRegistration)
     }
@@ -155,8 +222,26 @@ class LocalDriverRepository(
     override suspend fun saveVehicleReportDraft(draft: VehicleReportDraft) {
         val current = session.value ?: throw IllegalStateException("Brak aktywnej sesji kierowcy")
         val registration = draft.rej.ifBlank { current.registration }.uppercase()
+        val allowedRegistrations = current.availableRegistrations.map { it.normalizedRegistration() }
+        require(allowedRegistrations.isEmpty() || allowedRegistrations.contains(registration.normalizedRegistration())) {
+            "Nie możesz wybrać rejestracji spoza przypisanych pojazdów"
+        }
+        validateDailyReportWrite(
+            registration = registration,
+            driverLogin = current.login,
+        )
         dao.upsertSetting(SettingEntity(key = "driver_vehicle_report_registration", valText = registration))
         dao.upsertSetting(SettingEntity(key = "driver_vehicle_report_payload", valText = draft.copy(rej = registration).toString()))
+        dao.upsertSetting(
+            SettingEntity(
+                key = dailyReportKey(registration),
+                valText = dailyEntryPayload(
+                    date = LocalDate.now().toString(),
+                    login = current.login,
+                    actor = current.driverName,
+                ),
+            ),
+        )
     }
 
     override suspend fun exportVehicleReportPdf(draft: VehicleReportDraft): String =
@@ -169,11 +254,18 @@ class LocalDriverRepository(
             dao.upsertSetting(SettingEntity(key = SessionRegistrationKey, valText = ""))
             return@runBlocking null
         }
+        val registrations = dao.getDriverAccountsByLogin(account.login)
+            .filter { it.password == account.password }
+            .map { it.registration.trim().uppercase() }
+            .filter { it.isNotBlank() }
+            .distinct()
+            .sorted()
         DriverSession(
             login = account.login,
             password = account.password,
             driverName = account.driverName,
             registration = account.registration,
+            availableRegistrations = registrations.ifEmpty { listOf(account.registration.trim().uppercase()) },
             changePasswordRequired = account.changePassword == 1,
         )
     }
@@ -182,24 +274,32 @@ class LocalDriverRepository(
         dao.upsertSetting(
             SettingEntity(
                 key = SessionRegistrationKey,
-                valText = registration.trim().uppercase(),
+                valText = registration.normalizedRegistration(),
             ),
         )
     }
 
     private suspend fun requireActiveAssignment(current: DriverSession): String {
         val sessionRegistration = current.registration.trim().uppercase()
+        val allowedRegistrations = current.availableRegistrations.map { it.trim().uppercase() }.filter { it.isNotBlank() }
         if (sessionRegistration.isBlank()) {
             invalidateSession()
             throw IllegalStateException("Nie masz już przypisanego samochodu. Zaloguj się ponownie po nowym przypisaniu.")
+        }
+        if (allowedRegistrations.isNotEmpty() && !allowedRegistrations.contains(sessionRegistration)) {
+            invalidateSession()
+            throw IllegalStateException("Wybrana rejestracja nie jest już przypisana. Zaloguj się ponownie.")
         }
 
         val remoteLookup = runCatching { DriverRemoteSyncGateway.findDriverAccount(dao, current.login) }
         remoteLookup.getOrNull()?.let { remoteAccount ->
             val remoteRegistration = remoteAccount.registration.trim().uppercase()
-            if (remoteRegistration.isBlank() || remoteRegistration != sessionRegistration) {
+            if (remoteRegistration.isBlank()) {
                 invalidateSession()
                 throw IllegalStateException("Przypisanie samochodu zostało usunięte. Zaloguj się ponownie po nowym przypisaniu.")
+            }
+            if (remoteRegistration != sessionRegistration && allowedRegistrations.isNotEmpty()) {
+                return sessionRegistration
             }
             return remoteRegistration
         }
@@ -216,4 +316,51 @@ class LocalDriverRepository(
         session.value = null
         persistSessionRegistration("")
     }
+
+    private fun String.normalizedRegistration(): String = trim().uppercase()
+
+    private suspend fun validateDailyMileageWrite(registration: String, driverLogin: String) {
+        val today = LocalDate.now().toString()
+        val existing = parseDailyEntry(dao.getSetting(dailyMileageKey(registration))?.valText.orEmpty()) ?: return
+        if (existing.date == today) {
+            if (existing.login.equals(driverLogin, ignoreCase = true)) {
+                throw IllegalStateException("Przebieg dla tego auta został już dziś zapisany")
+            }
+            throw IllegalStateException("Inny kierowca już dzisiaj wpisał przebieg dla tego auta")
+        }
+    }
+
+    private suspend fun validateDailyReportWrite(registration: String, driverLogin: String) {
+        val today = LocalDate.now().toString()
+        val existing = parseDailyEntry(dao.getSetting(dailyReportKey(registration))?.valText.orEmpty()) ?: return
+        if (existing.date == today) {
+            if (existing.login.equals(driverLogin, ignoreCase = true)) {
+                throw IllegalStateException("Raport dla tego auta został już dziś zapisany")
+            }
+            throw IllegalStateException("Inny kierowca już dzisiaj zapisał raport dla tego auta")
+        }
+    }
+
+    private fun dailyMileageKey(registration: String): String = "$DailyMileagePrefix${registration.normalizedRegistration()}"
+    private fun dailyReportKey(registration: String): String = "$DailyReportPrefix${registration.normalizedRegistration()}"
+
+    private fun dailyEntryPayload(date: String, login: String, actor: String): String =
+        listOf(date.trim(), login.trim(), actor.trim()).joinToString("|")
+
+    private fun parseDailyEntry(payload: String): DailyEntry? {
+        val raw = payload.trim()
+        if (raw.isBlank()) return null
+        val parts = raw.split("|", limit = 3)
+        return DailyEntry(
+            date = parts.getOrElse(0) { "" },
+            login = parts.getOrElse(1) { "" },
+            actor = parts.getOrElse(2) { "" },
+        )
+    }
+
+    private data class DailyEntry(
+        val date: String,
+        val login: String,
+        val actor: String,
+    )
 }
