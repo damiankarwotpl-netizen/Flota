@@ -58,6 +58,7 @@ fun CarsScreen() {
     var assignDriverCar by remember { mutableStateOf<CarListItem?>(null) }
     var driverPickerQuery by remember { mutableStateOf("") }
     var pendingAssignmentConflict by remember { mutableStateOf<DriverAssignmentConflict?>(null) }
+    var pendingMultiDriverConfirmation by remember { mutableStateOf<MultiDriverAssignmentConfirmation?>(null) }
 
     val urgentCars = uiState.items.count { it.remainingToService <= 0 }
     val dueSoonCars = uiState.items.count { it.remainingToService in 1..3000 }
@@ -75,10 +76,17 @@ fun CarsScreen() {
             matchesQuery && matchesService
         }
     }
+    val assignmentsByDriver = remember(uiState.items) {
+        uiState.items
+            .flatMap { car ->
+                car.driver.assignedDrivers().map { driverName -> driverName.lowercase() to car }
+            }
+            .groupBy(keySelector = { it.first }, valueTransform = { it.second })
+    }
     val filteredKnownDrivers = remember(uiState.knownCarDrivers, uiState.query, uiState.items) {
         uiState.knownCarDrivers.filter { driverName ->
-            val currentAssignments = uiState.items.filter { it.driver.equals(driverName, ignoreCase = true) }
-                .joinToString(", ") { it.registration }
+            val currentAssignments = assignmentsByDriver[driverName.lowercase()].orEmpty()
+            .joinToString(", ") { it.registration }
             val blob = "$driverName $currentAssignments".lowercase()
             uiState.query.isBlank() || uiState.query.lowercase() in blob
         }
@@ -205,7 +213,7 @@ fun CarsScreen() {
             } else {
                 filteredKnownDrivers.forEach { driverName ->
                     item {
-                        val currentAssignments = uiState.items.filter { it.driver.equals(driverName, ignoreCase = true) }
+                        val currentAssignments = assignmentsByDriver[driverName.lowercase()].orEmpty()
                         SectionCard(title = driverName) {
                             Text(
                                 if (currentAssignments.isEmpty()) {
@@ -324,32 +332,66 @@ fun CarsScreen() {
             car = car,
             query = driverPickerQuery,
             availableDrivers = filteredContactDrivers,
+            allDrivers = assignableDrivers,
             onQueryChange = { driverPickerQuery = it },
             onDismiss = {
                 assignDriverCar = null
                 driverPickerQuery = ""
             },
-            onDriverSelected = { driverName ->
-                val normalizedDriver = driverName.trim()
-                val otherAssignments = uiState.items.filter {
-                    it.id != car.id && it.driver.trim().equals(normalizedDriver, ignoreCase = true)
+            onAssignDrivers = { selectedDrivers ->
+                val normalizedDrivers = selectedDrivers
+                    .map { it.trim() }
+                    .filter { it.isNotBlank() }
+                    .distinctBy { it.lowercase() }
+                if (normalizedDrivers.isEmpty()) {
+                    assignDriverCar = null
+                    driverPickerQuery = ""
+                    return@DriverAssignmentDialog
                 }
-                val currentDriver = car.driver.trim().takeIf {
-                    it.isNotBlank() && !it.equals(normalizedDriver, ignoreCase = true)
-                }
-                if (otherAssignments.isNotEmpty() || currentDriver != null) {
-                    pendingAssignmentConflict = DriverAssignmentConflict(
+                if (normalizedDrivers.size >= 2) {
+                    pendingMultiDriverConfirmation = MultiDriverAssignmentConfirmation(
                         carId = car.id,
                         registration = car.registration,
-                        selectedDriver = normalizedDriver,
-                        currentDriver = currentDriver,
-                        otherRegistrations = otherAssignments.map { it.registration },
+                        selectedDrivers = normalizedDrivers,
                     )
                 } else {
-                    viewModel.assignDriverAllowConflict(car.id, normalizedDriver)
+                    val normalizedDriver = normalizedDrivers.first()
+                    val otherAssignments = uiState.items.filter {
+                        it.id != car.id && it.driver.assignedDrivers().any { assigned ->
+                            assigned.equals(normalizedDriver, ignoreCase = true)
+                        }
+                    }
+                    val currentDriver = car.driver.assignedDrivers().firstOrNull {
+                        !it.equals(normalizedDriver, ignoreCase = true)
+                    }
+                    if (otherAssignments.isNotEmpty() || currentDriver != null) {
+                        pendingAssignmentConflict = DriverAssignmentConflict(
+                            carId = car.id,
+                            registration = car.registration,
+                            selectedDriver = normalizedDriver,
+                            currentDriver = currentDriver,
+                            otherRegistrations = otherAssignments.map { it.registration },
+                        )
+                    } else {
+                        viewModel.assignDriverAllowConflict(car.id, normalizedDriver)
+                    }
                 }
                 assignDriverCar = null
                 driverPickerQuery = ""
+            },
+        )
+    }
+
+    pendingMultiDriverConfirmation?.let { confirmation ->
+        MultiDriverAssignmentConfirmationDialog(
+            confirmation = confirmation,
+            onDismiss = { pendingMultiDriverConfirmation = null },
+            onConfirm = {
+                viewModel.assignDriverAllowConflict(
+                    confirmation.carId,
+                    confirmation.selectedDrivers.joinToString(", "),
+                )
+                pendingMultiDriverConfirmation = null
             },
         )
     }
@@ -500,10 +542,16 @@ private fun DriverAssignmentDialog(
     car: CarListItem,
     query: String,
     availableDrivers: List<String>,
+    allDrivers: List<String>,
     onQueryChange: (String) -> Unit,
     onDismiss: () -> Unit,
-    onDriverSelected: (String) -> Unit,
+    onAssignDrivers: (List<String>) -> Unit,
 ) {
+    val initiallySelected = remember(car.id) {
+        car.driver.assignedDrivers().map { it.lowercase() }.toSet()
+    }
+    var selectedDrivers by remember(car.id) { mutableStateOf(initiallySelected) }
+
     AlertDialog(
         onDismissRequest = onDismiss,
         title = {
@@ -524,12 +572,23 @@ private fun DriverAssignmentDialog(
                     Text("Brak kierowców pasujących do wyszukiwania.")
                 } else {
                     availableDrivers.take(20).forEach { driverName ->
+                        val normalized = driverName.trim().lowercase()
+                        val isSelected = normalized in selectedDrivers
                         SectionCard(
                             title = driverName,
-                            subtitle = "Dostępny z kontaktów",
+                            subtitle = if (isSelected) "Wybrany" else "Dostępny z kontaktów",
                         ) {
-                            Button(onClick = { onDriverSelected(driverName) }, modifier = Modifier.fillMaxWidth()) {
-                                Text("Przypisz do ${car.registration}")
+                            Button(
+                                onClick = {
+                                    selectedDrivers = if (isSelected) {
+                                        selectedDrivers - normalized
+                                    } else {
+                                        selectedDrivers + normalized
+                                    }
+                                },
+                                modifier = Modifier.fillMaxWidth(),
+                            ) {
+                                Text(if (isSelected) "Odznacz" else "Wybierz")
                             }
                         }
                     }
@@ -537,8 +596,19 @@ private fun DriverAssignmentDialog(
             }
         },
         confirmButton = {
+            TextButton(
+                onClick = {
+                    val selectedNames = allDrivers.filter { it.trim().lowercase() in selectedDrivers }
+                    onAssignDrivers(selectedNames)
+                },
+                enabled = selectedDrivers.isNotEmpty(),
+            ) {
+                Text("Przypisz (${selectedDrivers.size})")
+            }
+        },
+        dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Zamknij")
+                Text("Anuluj")
             }
         },
     )
@@ -671,6 +741,12 @@ private data class DriverAssignmentConflict(
     val otherRegistrations: List<String>,
 )
 
+private data class MultiDriverAssignmentConfirmation(
+    val carId: Long,
+    val registration: String,
+    val selectedDrivers: List<String>,
+)
+
 @Composable
 private fun DriverAssignmentConflictDialog(
     conflict: DriverAssignmentConflict,
@@ -703,6 +779,31 @@ private fun DriverAssignmentConflictDialog(
     )
 }
 
+@Composable
+private fun MultiDriverAssignmentConfirmationDialog(
+    confirmation: MultiDriverAssignmentConfirmation,
+    onDismiss: () -> Unit,
+    onConfirm: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Potwierdź wielu kierowców", fontWeight = FontWeight.Bold) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text("Auto: ${confirmation.registration}")
+                Text("Wybrani kierowcy: ${confirmation.selectedDrivers.joinToString(", ")}")
+                Text("Czy na pewno chcesz przypisać 2 lub więcej kierowców do jednego auta?")
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onConfirm) { Text("Tak, przypisz") }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Nie") }
+        },
+    )
+}
+
 private fun showDatePicker(
     context: android.content.Context,
     initialDate: String,
@@ -725,3 +826,7 @@ private fun formatDateLabel(date: String, fallback: String = "Brak daty"): Strin
         ?: if (date.isBlank()) fallback else date
 
 private fun String.toLocalDateOrNull(): LocalDate? = runCatching { LocalDate.parse(this) }.getOrNull()
+
+private fun String.assignedDrivers(): List<String> = split(",")
+    .map { it.trim() }
+    .filter { it.isNotBlank() }
