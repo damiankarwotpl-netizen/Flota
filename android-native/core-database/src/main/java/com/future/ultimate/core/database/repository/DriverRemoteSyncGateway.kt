@@ -341,6 +341,56 @@ object DriverRemoteSyncGateway {
         )
     }
 
+    suspend fun findDriverAccountsByLogin(
+        dao: AppDao,
+        login: String,
+        password: String,
+    ): List<DriverAccountEntity> {
+        val normalizedLogin = login.trim()
+        val normalizedPassword = password.trim()
+        require(normalizedLogin.isNotBlank()) { "Brak loginu kierowcy" }
+        val endpoint = loadEndpoint(dao)
+        val payload = JSONObject().apply {
+            put("action", "get_drivers")
+            put("login", normalizedLogin)
+        }
+        val (statusCode, responseBody) = postPayloadToUrl(endpoint = endpoint, payload = payload)
+        require(statusCode in 200..299) { "HTTP $statusCode" }
+        val json = JSONObject(responseBody)
+        val status = json.optString("status").trim().lowercase()
+        require(status.isBlank() || status in okStatuses) {
+            json.optString("message").ifBlank { "Nie udało się pobrać listy kierowców" }
+        }
+        val drivers = json.optJSONArray("drivers") ?: return emptyList()
+        val results = mutableListOf<DriverAccountEntity>()
+        for (index in 0 until drivers.length()) {
+            val row = drivers.optJSONObject(index) ?: continue
+            val rowLogin = row.optString("login").trim()
+            if (!rowLogin.equals(normalizedLogin, ignoreCase = true)) continue
+            val rowRegistration = row.optString("registration").trim().uppercase()
+            if (rowRegistration.isBlank()) continue
+            val rowPassword = row.optString("password").trim().ifBlank { normalizedPassword }
+            val rowDriverName = row.optString("name")
+                .ifBlank { row.optString("driverName") }
+                .ifBlank { row.optString("driver") }
+                .trim()
+            val rowChangePassword = when (val raw = row.opt("must_change_password")) {
+                is Boolean -> if (raw) 1 else 0
+                is Number -> if (raw.toInt() != 0) 1 else 0
+                is String -> if (raw == "1" || raw.equals("true", ignoreCase = true)) 1 else 0
+                else -> 0
+            }
+            results += DriverAccountEntity(
+                registration = rowRegistration,
+                login = rowLogin,
+                password = rowPassword,
+                driverName = rowDriverName,
+                changePassword = rowChangePassword,
+            )
+        }
+        return results
+    }
+
     private fun parseDriverLookupResponse(
         body: String,
         fallbackLogin: String,

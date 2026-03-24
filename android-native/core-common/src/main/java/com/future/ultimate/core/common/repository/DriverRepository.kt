@@ -8,6 +8,7 @@ data class DriverSession(
     val password: String = "",
     val driverName: String = "",
     val registration: String = "",
+    val availableRegistrations: List<String> = emptyList(),
     val changePasswordRequired: Boolean = false,
 )
 
@@ -32,6 +33,7 @@ interface DriverRepository {
     suspend fun login(login: String, password: String): DriverSession
     suspend fun logout()
     suspend fun changePassword(login: String, password: String)
+    suspend fun selectRegistration(registration: String)
     suspend fun saveMileage(login: String, registration: String, mileage: Int)
     suspend fun flushPendingMileageSync(): DriverMileageSyncState
     suspend fun saveRemoteEndpointSettings(settings: DriverRemoteEndpointSettings)
