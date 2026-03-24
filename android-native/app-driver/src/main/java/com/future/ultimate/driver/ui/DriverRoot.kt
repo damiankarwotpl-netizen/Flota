@@ -15,7 +15,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.provides
 import androidx.compose.ui.Modifier
@@ -49,7 +48,7 @@ private val driverRoutes = listOf(
 @Composable
 fun DriverRoot() {
     FlotaTheme(mode = FlotaThemeMode.Dark) {
-        var language by rememberSaveable { mutableStateOf(DriverLanguage.Polish) }
+        var language by remember { mutableStateOf(DriverLanguage.Polish) }
         var languageMenuExpanded by remember { mutableStateOf(false) }
         val app = LocalContext.current.applicationContext as DriverApp
         val session by app.container.repository.observeSession().collectAsStateWithLifecycle(initialValue = null)
@@ -86,7 +85,7 @@ fun DriverRoot() {
                                 expanded = languageMenuExpanded,
                                 onDismissRequest = { languageMenuExpanded = false },
                             ) {
-                                DriverLanguage.entries.forEach { option ->
+                                DriverLanguage.values().forEach { option ->
                                     DropdownMenuItem(
                                         text = { Text("${option.flag} ${option.label}") },
                                         onClick = {
