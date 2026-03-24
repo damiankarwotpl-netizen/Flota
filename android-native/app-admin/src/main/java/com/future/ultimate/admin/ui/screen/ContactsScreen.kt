@@ -282,6 +282,12 @@ private fun AddContactDialog(
                         .clickable { isPlantPickerOpen = true },
                     readOnly = true,
                 )
+                TextButton(
+                    onClick = { isPlantPickerOpen = true },
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text("Wybierz zakład z listy")
+                }
                 OutlinedTextField(
                     value = draft.apartment,
                     onValueChange = { onDraftChange(draft.copy(apartment = it)) },
