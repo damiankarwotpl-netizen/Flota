@@ -40,6 +40,9 @@ interface AppDao {
     @Query("SELECT * FROM cars WHERE id = :id LIMIT 1")
     suspend fun getCar(id: Long): CarEntity?
 
+    @Query("SELECT * FROM cars WHERE lower(trim(driver)) = lower(trim(:driver))")
+    suspend fun getCarsByDriver(driver: String): List<CarEntity>
+
     @Query("SELECT * FROM cars WHERE upper(registration) = upper(:registration) LIMIT 1")
     suspend fun getCarByRegistration(registration: String): CarEntity?
 
@@ -67,8 +70,14 @@ interface AppDao {
     @Query("SELECT * FROM driver_accounts WHERE lower(login) = lower(:login) LIMIT 1")
     suspend fun getDriverAccountByLogin(login: String): DriverAccountEntity?
 
+    @Query("SELECT * FROM driver_accounts WHERE lower(login) = lower(:login)")
+    suspend fun getDriverAccountsByLogin(login: String): List<DriverAccountEntity>
+
     @Query("SELECT * FROM driver_accounts WHERE lower(login) = lower(:login) AND password = :password LIMIT 1")
     suspend fun getDriverAccount(login: String, password: String): DriverAccountEntity?
+
+    @Query("SELECT * FROM driver_accounts WHERE lower(login) = lower(:login) AND password = :password")
+    suspend fun getDriverAccounts(login: String, password: String): List<DriverAccountEntity>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsertDriverAccount(entity: DriverAccountEntity)

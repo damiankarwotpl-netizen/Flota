@@ -137,6 +137,7 @@ class DriverMileageViewModel(
             if (session != null) {
                 _uiState.value = _uiState.value.copy(
                     registration = session.registration,
+                    availableRegistrations = session.availableRegistrations,
                     driverName = session.driverName,
                 )
             }
@@ -154,6 +155,17 @@ class DriverMileageViewModel(
     }
 
     fun setRegistration(value: String) { _uiState.value = _uiState.value.copy(registration = value) }
+    fun selectRegistration(value: String) {
+        viewModelScope.launch {
+            runCatching { repository.selectRegistration(value) }
+                .onSuccess {
+                    _uiState.value = _uiState.value.copy(registration = value.trim().uppercase(), status = null)
+                }
+                .onFailure { error ->
+                    _uiState.value = _uiState.value.copy(status = error.message ?: "Nie udało się wybrać rejestracji")
+                }
+        }
+    }
     fun updateMileage(value: String) { _uiState.value = _uiState.value.copy(mileage = value) }
 
     fun save() {
