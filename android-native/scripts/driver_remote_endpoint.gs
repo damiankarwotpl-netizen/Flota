@@ -625,8 +625,12 @@ function saveMileage_(payload) {
   const dayKey = datePart_(timestamp) || datePart_(nowText_());
   const driverIdentity = rawLogin || normalizeName_(payload.driver || payload.name || payload.driverName);
   if (!driverIdentity) throw new Error('Missing driver identity');
-  if (hasMileageLogForDayByOtherDriver_(registration, dayKey, driverIdentity)) {
-    throw new Error('Inny kierowca już dzisiaj wpisał przebieg dla tego auta');
+  const dayConflict = findMileageLogForDay_(registration, dayKey);
+  if (dayConflict) {
+    const sameDriver = String(dayConflict.driver || '').trim().toLowerCase() === String(driverIdentity || '').trim().toLowerCase();
+    throw new Error(sameDriver
+      ? 'Przebieg dla tego auta został już dziś zapisany'
+      : 'Inny kierowca już dzisiaj wpisał przebieg dla tego auta');
   }
 
   const alreadyStored = hasMileageLog_(timestamp, driverIdentity, registration, mileage);
@@ -669,19 +673,18 @@ function saveMileage_(payload) {
   };
 }
 
-function hasMileageLogForDayByOtherDriver_(registration, dayKey, driverIdentity) {
+function findMileageLogForDay_(registration, dayKey) {
   const targetRegistration = normalizeRegistration_(registration);
-  const targetDriver = String(driverIdentity || '').trim().toLowerCase();
-  if (!targetRegistration || !dayKey || !targetDriver) return false;
+  if (!targetRegistration || !dayKey) return null;
   const snapshot = getSheetRecords_(SHEETS.mileageLogs);
-  return snapshot.rows.some(function(row) {
+  for (let i = 0; i < snapshot.rows.length; i += 1) {
+    const row = snapshot.rows[i];
     const rowDay = datePart_(row.timestamp);
-    const rowDriver = String(row.driver || '').trim().toLowerCase();
-    return rowDay === dayKey &&
-      normalizeRegistration_(row.registration) === targetRegistration &&
-      rowDriver &&
-      rowDriver !== targetDriver;
-  });
+    if (rowDay === dayKey && normalizeRegistration_(row.registration) === targetRegistration) {
+      return row;
+    }
+  }
+  return null;
 }
 
 function hasMileageLog_(timestamp, driver, registration, mileage) {

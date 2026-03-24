@@ -322,7 +322,10 @@ class LocalDriverRepository(
     private suspend fun validateDailyMileageWrite(registration: String, driverLogin: String) {
         val today = LocalDate.now().toString()
         val existing = parseDailyEntry(dao.getSetting(dailyMileageKey(registration))?.valText.orEmpty()) ?: return
-        if (existing.date == today && !existing.login.equals(driverLogin, ignoreCase = true)) {
+        if (existing.date == today) {
+            if (existing.login.equals(driverLogin, ignoreCase = true)) {
+                throw IllegalStateException("Przebieg dla tego auta został już dziś zapisany")
+            }
             throw IllegalStateException("Inny kierowca już dzisiaj wpisał przebieg dla tego auta")
         }
     }
