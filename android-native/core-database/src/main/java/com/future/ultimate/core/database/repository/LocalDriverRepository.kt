@@ -67,6 +67,23 @@ class LocalDriverRepository(
                 if (remoteAccount.registration.isNotBlank()) {
                     dao.upsertDriverAccount(remoteAccount)
                 }
+                val remoteAccounts = runCatching {
+                    DriverRemoteSyncGateway.findDriverAccountsByLogin(
+                        dao = dao,
+                        login = normalizedLogin,
+                        password = normalizedPassword,
+                    )
+                }.getOrDefault(emptyList())
+                remoteAccounts.forEach { account ->
+                    if (account.registration.isNotBlank()) {
+                        dao.upsertDriverAccount(
+                            account.copy(
+                                password = account.password.ifBlank { normalizedPassword },
+                                driverName = account.driverName.ifBlank { remoteAccount.driverName },
+                            ),
+                        )
+                    }
+                }
                 remoteAccount
             }
 
