@@ -170,8 +170,9 @@ class LocalAdminRepository(
                 items.map {
                     val registrationKey = it.registration.uppercase()
                     val accountsForCar = accountsByRegistration[registrationKey].orEmpty()
+                    val assignedDrivers = parseDriverNames(it.driver)
                     val driverAccount = accountsForCar.firstOrNull { account ->
-                        account.driverName.equals(it.driver, ignoreCase = true)
+                        assignedDrivers.any { assignedDriver -> account.driverName.equals(assignedDriver, ignoreCase = true) }
                     } ?: accountsForCar.firstOrNull()
                     val queuedMileage = settings["driver_mileage_sync_pending_$registrationKey"]
                         ?.substringBefore("|")
@@ -203,7 +204,7 @@ class LocalAdminRepository(
 
     override fun observeKnownCarDrivers(): Flow<List<String>> =
         dao.observeCars().combine(dao.observeSettings()) { cars, settings ->
-            val activeDrivers = cars.map { it.driver.trim() }.filter { it.isNotBlank() }
+            val activeDrivers = cars.flatMap { parseDriverNames(it.driver) }
             val historicalDrivers = settings
                 .asSequence()
                 .filter { it.key.startsWith(CarDriverHistoryPrefix) }
@@ -224,36 +225,36 @@ class LocalAdminRepository(
         } else {
             dao.getCarByRegistration(registration)
         }
-        val normalizedDriver = draft.driver.trim()
+        val normalizedDrivers = parseDriverNames(draft.driver)
         dao.upsertCar(
             CarEntity(
                 id = existingCar?.id ?: draftId ?: 0,
                 name = draft.name.trim(),
                 registration = registration,
-                driver = normalizedDriver,
+                driver = normalizedDrivers.joinToString(", "),
                 serviceInterval = serviceInterval,
                 mileage = existingCar?.mileage ?: 0,
                 lastService = existingCar?.lastService ?: 0,
                 lastInspectionDate = draft.lastInspectionDate.trim(),
             ),
         )
-        rememberKnownCarDriver(normalizedDriver)
-        syncDriverAccount(normalizedDriver, registration)
+        rememberKnownCarDrivers(normalizedDrivers)
+        syncDriverAccountsForRegistration(normalizedDrivers, registration)
     }
 
     override suspend fun updateCarMileage(id: Long, mileage: Int) = dao.updateMileage(id, mileage.coerceAtLeast(0))
 
     override suspend fun updateCarDriver(id: Long, driver: String) {
-        val normalizedDriver = driver.trim()
-        dao.updateDriver(id, normalizedDriver)
-        rememberKnownCarDriver(normalizedDriver)
+        val normalizedDrivers = parseDriverNames(driver)
+        dao.updateDriver(id, normalizedDrivers.joinToString(", "))
+        rememberKnownCarDrivers(normalizedDrivers)
         val car = dao.getCar(id) ?: return
-        syncDriverAccount(normalizedDriver, car.registration)
+        syncDriverAccountsForRegistration(normalizedDrivers, car.registration)
     }
 
     override suspend fun updateCarDriverLicense(id: Long, licenseType: String, validUntil: String) {
         val car = dao.getCar(id) ?: return
-        val normalizedDriver = car.driver.trim()
+        val normalizedDriver = parseDriverNames(car.driver).firstOrNull().orEmpty()
         if (normalizedDriver.isBlank()) return
         val normalizedLicenseType = licenseType.trim().ifBlank { "PL" }
         val normalizedValidUntil = validUntil.trim()
@@ -276,14 +277,16 @@ class LocalAdminRepository(
 
     override suspend fun resetCarDriverCredentials(id: Long): DriverAccountCredentials {
         val car = dao.getCar(id) ?: return DriverAccountCredentials()
-        val normalizedDriver = car.driver.trim()
+        val normalizedDriver = parseDriverNames(car.driver).firstOrNull().orEmpty()
         if (normalizedDriver.isBlank()) {
             dao.deleteDriverAccountByRegistration(car.registration)
             syncRemoteDriverDeletion(car.registration)
             return DriverAccountCredentials()
         }
         val account = syncDriverAccount(normalizedDriver, car.registration, forceReset = true) ?: return DriverAccountCredentials()
-        dao.getCarsByDriver(normalizedDriver)
+        dao.observeCars().first().filter { candidate ->
+            parseDriverNames(candidate.driver).any { it.equals(normalizedDriver, ignoreCase = true) }
+        }
             .asSequence()
             .map { it.registration.trim().uppercase() }
             .filter { it.isNotBlank() && !it.equals(account.registration, ignoreCase = true) }
@@ -305,11 +308,14 @@ class LocalAdminRepository(
     override suspend fun deleteKnownCarDriver(driver: String) {
         val normalizedDriver = driver.trim()
         if (normalizedDriver.isBlank()) return
-        val matchingCars = dao.observeCars().first().filter { it.driver.equals(normalizedDriver, ignoreCase = true) }
+        val matchingCars = dao.observeCars().first().filter { car ->
+            parseDriverNames(car.driver).any { it.equals(normalizedDriver, ignoreCase = true) }
+        }
         matchingCars.forEach { car ->
-            dao.updateDriver(car.id, "")
-            dao.deleteDriverAccountByRegistration(car.registration)
-            syncRemoteDriverDeletion(car.registration)
+            val remainingDrivers = parseDriverNames(car.driver)
+                .filterNot { it.equals(normalizedDriver, ignoreCase = true) }
+            dao.updateDriver(car.id, remainingDrivers.joinToString(", "))
+            syncDriverAccountsForRegistration(remainingDrivers, car.registration)
         }
         val key = CarDriverHistoryPrefix + normalizedDriver.lowercase().replace(" ", "_")
         dao.deleteSetting(key)
@@ -330,11 +336,42 @@ class LocalAdminRepository(
         }
     }
 
-    private suspend fun rememberKnownCarDriver(driver: String) {
-        val normalizedDriver = driver.trim()
-        if (normalizedDriver.isBlank()) return
-        val key = CarDriverHistoryPrefix + normalizedDriver.lowercase().replace(" ", "_")
-        dao.upsertSetting(SettingEntity(key = key, valText = normalizedDriver))
+    private suspend fun rememberKnownCarDrivers(drivers: List<String>) {
+        drivers.forEach { driver ->
+            val normalizedDriver = driver.trim()
+            if (normalizedDriver.isBlank()) return@forEach
+            val key = CarDriverHistoryPrefix + normalizedDriver.lowercase().replace(" ", "_")
+            dao.upsertSetting(SettingEntity(key = key, valText = normalizedDriver))
+        }
+    }
+
+    private suspend fun syncDriverAccountsForRegistration(
+        drivers: List<String>,
+        registration: String,
+    ) {
+        val normalizedRegistration = registration.trim().uppercase()
+        if (normalizedRegistration.isBlank()) return
+        val normalizedDrivers = drivers
+            .map { it.trim() }
+            .filter { it.isNotBlank() }
+            .distinctBy { it.lowercase() }
+        if (normalizedDrivers.isEmpty()) {
+            dao.deleteDriverAccountByRegistration(normalizedRegistration)
+            syncRemoteDriverDeletion(normalizedRegistration)
+            return
+        }
+
+        val existingAccounts = dao.getDriverAccountsByRegistration(normalizedRegistration)
+        val removedDrivers = existingAccounts.filter { account ->
+            normalizedDrivers.none { it.equals(account.driverName, ignoreCase = true) }
+        }
+        removedDrivers.forEach { removedAccount ->
+            dao.deleteDriverAccountByRegistrationAndDriverName(normalizedRegistration, removedAccount.driverName)
+        }
+
+        normalizedDrivers.forEach { driver ->
+            syncDriverAccount(driver, normalizedRegistration)
+        }
     }
 
     override fun observeWorkers(): Flow<List<WorkerListItem>> = dao.observeWorkers().map { items ->
@@ -1964,6 +2001,12 @@ class LocalAdminRepository(
             .trim('.')
         return sanitized.ifBlank { "driver" }
     }
+
+    private fun parseDriverNames(value: String): List<String> = value
+        .split(",")
+        .map { it.trim() }
+        .filter { it.isNotBlank() }
+        .distinctBy { it.lowercase() }
 
     private fun Appendable.appendCsvLine(vararg columns: String) {
         appendLine(columns.joinToString(",") { value ->
