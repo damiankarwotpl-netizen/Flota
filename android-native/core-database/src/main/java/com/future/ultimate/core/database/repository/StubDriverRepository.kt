@@ -22,6 +22,7 @@ class StubDriverRepository : DriverRepository {
         password = password,
         driverName = login,
         registration = "REGISTRATION",
+        availableRegistrations = listOf("REGISTRATION"),
         changePasswordRequired = true,
     ).also { session.value = it }
 
@@ -32,6 +33,13 @@ class StubDriverRepository : DriverRepository {
     override suspend fun changePassword(login: String, password: String) {
         val current = session.value ?: return
         session.value = current.copy(password = password, changePasswordRequired = false)
+    }
+
+    override suspend fun selectRegistration(registration: String) {
+        val current = session.value ?: return
+        if (current.availableRegistrations.any { it.equals(registration.trim(), ignoreCase = true) }) {
+            session.value = current.copy(registration = registration.trim().uppercase())
+        }
     }
 
     override suspend fun saveMileage(login: String, registration: String, mileage: Int) = Unit
