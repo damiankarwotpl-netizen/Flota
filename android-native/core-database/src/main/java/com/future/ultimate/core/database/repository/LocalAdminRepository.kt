@@ -239,17 +239,27 @@ class LocalAdminRepository(
             ),
         )
         rememberKnownCarDrivers(normalizedDrivers)
-        syncDriverAccountsForRegistration(normalizedDrivers, registration)
+        val previousDrivers = parseDriverNames(existingCar?.driver.orEmpty())
+        syncDriverAccountsForRegistration(
+            drivers = normalizedDrivers,
+            registration = registration,
+            previousDrivers = previousDrivers,
+        )
     }
 
     override suspend fun updateCarMileage(id: Long, mileage: Int) = dao.updateMileage(id, mileage.coerceAtLeast(0))
 
     override suspend fun updateCarDriver(id: Long, driver: String) {
+        val car = dao.getCar(id) ?: return
         val normalizedDrivers = parseDriverNames(driver)
         dao.updateDriver(id, normalizedDrivers.joinToString(", "))
         rememberKnownCarDrivers(normalizedDrivers)
-        val car = dao.getCar(id) ?: return
-        syncDriverAccountsForRegistration(normalizedDrivers, car.registration)
+        val previousDrivers = parseDriverNames(car.driver)
+        syncDriverAccountsForRegistration(
+            drivers = normalizedDrivers,
+            registration = car.registration,
+            previousDrivers = previousDrivers,
+        )
     }
 
     override suspend fun updateCarDriverLicense(id: Long, licenseType: String, validUntil: String) {
@@ -312,10 +322,15 @@ class LocalAdminRepository(
             parseDriverNames(car.driver).any { it.equals(normalizedDriver, ignoreCase = true) }
         }
         matchingCars.forEach { car ->
+            val currentDrivers = parseDriverNames(car.driver)
             val remainingDrivers = parseDriverNames(car.driver)
                 .filterNot { it.equals(normalizedDriver, ignoreCase = true) }
             dao.updateDriver(car.id, remainingDrivers.joinToString(", "))
-            syncDriverAccountsForRegistration(remainingDrivers, car.registration)
+            syncDriverAccountsForRegistration(
+                drivers = remainingDrivers,
+                registration = car.registration,
+                previousDrivers = currentDrivers,
+            )
         }
         val key = CarDriverHistoryPrefix + normalizedDriver.lowercase().replace(" ", "_")
         dao.deleteSetting(key)
@@ -348,6 +363,7 @@ class LocalAdminRepository(
     private suspend fun syncDriverAccountsForRegistration(
         drivers: List<String>,
         registration: String,
+        previousDrivers: List<String> = emptyList(),
     ) {
         val normalizedRegistration = registration.trim().uppercase()
         if (normalizedRegistration.isBlank()) return
@@ -362,6 +378,10 @@ class LocalAdminRepository(
         }
 
         val existingAccounts = dao.getDriverAccountsByRegistration(normalizedRegistration)
+        val previousDriverSet = previousDrivers
+            .map { it.trim() }
+            .filter { it.isNotBlank() }
+            .distinctBy { it.lowercase() }
         val removedDrivers = existingAccounts.filter { account ->
             normalizedDrivers.none { it.equals(account.driverName, ignoreCase = true) }
         }
@@ -369,8 +389,23 @@ class LocalAdminRepository(
             dao.deleteDriverAccountByRegistrationAndDriverName(normalizedRegistration, removedAccount.driverName)
         }
 
-        normalizedDrivers.forEach { driver ->
+        val addedDrivers = normalizedDrivers.filter { newDriver ->
+            previousDriverSet.none { it.equals(newDriver, ignoreCase = true) }
+        }
+        val unchangedDrivers = normalizedDrivers.filter { newDriver ->
+            previousDriverSet.any { it.equals(newDriver, ignoreCase = true) }
+        }
+
+        addedDrivers.forEach { driver ->
             syncDriverAccount(driver, normalizedRegistration)
+        }
+        unchangedDrivers.forEach { driver ->
+            val accountExists = existingAccounts.any { account ->
+                account.driverName.equals(driver, ignoreCase = true)
+            }
+            if (!accountExists) {
+                syncDriverAccount(driver, normalizedRegistration)
+            }
         }
     }
 

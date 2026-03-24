@@ -76,11 +76,16 @@ fun CarsScreen() {
             matchesQuery && matchesService
         }
     }
+    val assignmentsByDriver = remember(uiState.items) {
+        uiState.items
+            .flatMap { car ->
+                car.driver.assignedDrivers().map { driverName -> driverName.lowercase() to car }
+            }
+            .groupBy(keySelector = { it.first }, valueTransform = { it.second })
+    }
     val filteredKnownDrivers = remember(uiState.knownCarDrivers, uiState.query, uiState.items) {
         uiState.knownCarDrivers.filter { driverName ->
-            val currentAssignments = uiState.items.filter { car ->
-                car.driver.assignedDrivers().any { assigned -> assigned.equals(driverName, ignoreCase = true) }
-            }
+            val currentAssignments = assignmentsByDriver[driverName.lowercase()].orEmpty()
             .joinToString(", ") { it.registration }
             val blob = "$driverName $currentAssignments".lowercase()
             uiState.query.isBlank() || uiState.query.lowercase() in blob
@@ -208,9 +213,7 @@ fun CarsScreen() {
             } else {
                 filteredKnownDrivers.forEach { driverName ->
                     item {
-                        val currentAssignments = uiState.items.filter { car ->
-                            car.driver.assignedDrivers().any { assigned -> assigned.equals(driverName, ignoreCase = true) }
-                        }
+                        val currentAssignments = assignmentsByDriver[driverName.lowercase()].orEmpty()
                         SectionCard(title = driverName) {
                             Text(
                                 if (currentAssignments.isEmpty()) {
