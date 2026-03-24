@@ -66,8 +66,8 @@ internal object DriverMileageSyncCoordinator {
                     registration = reg,
                     mileage = pending.mileage,
                     queuedAt = pending.queuedAt.ifBlank { attemptAt },
-                    login = driverAccount?.login.orEmpty().ifBlank { queuedLogin },
-                    driverName = driverAccount?.driverName.orEmpty().ifBlank { queuedDriverName },
+                    login = queuedLogin.ifBlank { driverAccount?.login.orEmpty() },
+                    driverName = queuedDriverName.ifBlank { driverAccount?.driverName.orEmpty() },
                 )
                 dao.upsertSetting(SettingEntity(key = "driver_last_mileage_$reg", valText = pending.mileage.toString()))
                 dao.upsertSetting(SettingEntity(key = syncedKey(reg), valText = attemptAt))

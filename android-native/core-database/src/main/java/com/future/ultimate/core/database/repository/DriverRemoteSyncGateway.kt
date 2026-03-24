@@ -178,16 +178,18 @@ object DriverRemoteSyncGateway {
                 ) {
                     return
                 }
-                verifyMileageLogWritten(
-                    dao = dao,
-                    endpoint = endpoint,
-                    logsBefore = logsBefore,
-                    registration = normalizedRegistration,
-                    mileage = normalizedMileage,
-                    timestamp = normalizedTimestamp,
-                    login = normalizedLogin,
-                    driverName = normalizedDriverName,
-                )
+                runCatching {
+                    verifyMileageLogWritten(
+                        dao = dao,
+                        endpoint = endpoint,
+                        logsBefore = logsBefore,
+                        registration = normalizedRegistration,
+                        mileage = normalizedMileage,
+                        timestamp = normalizedTimestamp,
+                        login = normalizedLogin,
+                        driverName = normalizedDriverName,
+                    )
+                }
                 return
             } catch (_: Exception) {
                 // try next payload variant

@@ -67,6 +67,21 @@ interface AppDao {
     @Query("SELECT * FROM driver_accounts WHERE upper(registration) = upper(:registration) LIMIT 1")
     suspend fun getDriverAccountByRegistration(registration: String): DriverAccountEntity?
 
+    @Query("SELECT * FROM driver_accounts WHERE upper(registration) = upper(:registration)")
+    suspend fun getDriverAccountsByRegistration(registration: String): List<DriverAccountEntity>
+
+    @Query(
+        "SELECT * FROM driver_accounts " +
+            "WHERE upper(registration) = upper(:registration) AND lower(login) = lower(:login) LIMIT 1",
+    )
+    suspend fun getDriverAccountByRegistrationAndLogin(registration: String, login: String): DriverAccountEntity?
+
+    @Query(
+        "SELECT * FROM driver_accounts " +
+            "WHERE upper(registration) = upper(:registration) AND lower(trim(driverName)) = lower(trim(:driverName)) LIMIT 1",
+    )
+    suspend fun getDriverAccountByRegistrationAndDriverName(registration: String, driverName: String): DriverAccountEntity?
+
     @Query("SELECT * FROM driver_accounts WHERE lower(login) = lower(:login) LIMIT 1")
     suspend fun getDriverAccountByLogin(login: String): DriverAccountEntity?
 

@@ -1,6 +1,7 @@
 package com.future.ultimate.core.database.entity
 
 import androidx.room.Entity
+import androidx.room.Index
 import androidx.room.PrimaryKey
 
 @Entity(tableName = "contacts", primaryKeys = ["name", "surname"])
@@ -58,9 +59,15 @@ data class CarEntity(
     val lastInspectionDate: String = "",
 )
 
-@Entity(tableName = "driver_accounts")
+@Entity(
+    tableName = "driver_accounts",
+    indices = [
+        Index(value = ["registration", "login"], unique = true),
+    ],
+)
 data class DriverAccountEntity(
-    @PrimaryKey val registration: String,
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val registration: String,
     val login: String,
     val password: String,
     val driverName: String,
