@@ -40,6 +40,7 @@ import com.future.ultimate.core.common.model.DriverRoute
 import com.future.ultimate.core.common.model.VehicleReportDraft
 import com.future.ultimate.core.common.ui.theme.FlotaThemeDefaults
 import com.future.ultimate.driver.DriverApp
+import com.future.ultimate.driver.ui.tr
 import com.future.ultimate.driver.ui.viewmodel.DriverChangePasswordViewModel
 import com.future.ultimate.driver.ui.viewmodel.DriverLoginViewModel
 import com.future.ultimate.driver.ui.viewmodel.DriverMileageViewModel
@@ -163,15 +164,21 @@ fun DriverLoginScreen(navController: NavController) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
     DriverScreen(
-        title = "Login kierowcy",
-        subtitle = "Zaloguj się, aby dodać przebieg lub wysłać raport stanu pojazdu.",
+        title = tr("Login kierowcy", "Inicio de sesión del conductor"),
+        subtitle = tr(
+            "Zaloguj się, aby dodać przebieg lub wysłać raport stanu pojazdu.",
+            "Inicia sesión para agregar kilometraje o enviar un informe del vehículo.",
+        ),
     ) {
         item {
             DriverSectionCard(
-                title = "Endpoint synchronizacji",
-                subtitle = "APK kierowcy działa domyślnie na stałym endpointcie. Edycja jest ukryta za hasłem serwisowym.",
+                title = tr("Endpoint synchronizacji", "Endpoint de sincronización"),
+                subtitle = tr(
+                    "APK kierowcy działa domyślnie na stałym endpointcie. Edycja jest ukryta za hasłem serwisowym.",
+                    "La app del conductor usa por defecto un endpoint fijo. La edición está protegida por contraseña de servicio.",
+                ),
             ) {
-                StatusMessage("Aktywny endpoint APK:", emphasis = true)
+                StatusMessage(tr("Aktywny endpoint APK:", "Endpoint activo de la app:"), emphasis = true)
                 Text(
                     text = uiState.remoteApiUrl,
                     style = MaterialTheme.typography.bodyMedium,
@@ -183,23 +190,23 @@ fun DriverLoginScreen(navController: NavController) {
                     DriverInputField(
                         value = uiState.remoteApiUrl,
                         onValueChange = viewModel::updateRemoteApiUrl,
-                        label = "Endpoint zdalnego syncu kierowców",
+                        label = tr("Endpoint zdalnego syncu kierowców", "Endpoint remoto de sincronización"),
                         singleLine = false,
                     )
                     DriverActionButton(
-                        text = if (uiState.isSavingRemoteSettings) "Zapisywanie endpointu..." else "Zapisz endpoint",
+                        text = if (uiState.isSavingRemoteSettings) tr("Zapisywanie endpointu...", "Guardando endpoint...") else tr("Zapisz endpoint", "Guardar endpoint"),
                         onClick = viewModel::saveRemoteSettings,
                         enabled = !uiState.isSavingRemoteSettings && uiState.remoteApiUrl.isNotBlank(),
                         secondary = true,
                     )
                     DriverActionButton(
-                        text = if (uiState.isValidatingRemoteSettings) "Sprawdzanie endpointu..." else "Sprawdź endpoint",
+                        text = if (uiState.isValidatingRemoteSettings) tr("Sprawdzanie endpointu...", "Validando endpoint...") else tr("Sprawdź endpoint", "Validar endpoint"),
                         onClick = viewModel::validateRemoteSettings,
                         enabled = !uiState.isValidatingRemoteSettings && uiState.remoteApiUrl.isNotBlank(),
                         secondary = true,
                     )
                     DriverActionButton(
-                        text = "Ukryj edycję endpointu",
+                        text = tr("Ukryj edycję endpointu", "Ocultar edición de endpoint"),
                         onClick = viewModel::lockEndpointEditor,
                         secondary = true,
                     )
@@ -207,11 +214,11 @@ fun DriverLoginScreen(navController: NavController) {
                     DriverInputField(
                         value = uiState.endpointAccessPassword,
                         onValueChange = viewModel::updateEndpointAccessPassword,
-                        label = "Hasło serwisowe do edycji endpointu",
+                        label = tr("Hasło serwisowe do edycji endpointu", "Contraseña de servicio para editar endpoint"),
                         visualTransformation = PasswordVisualTransformation(),
                     )
                     DriverActionButton(
-                        text = "Odblokuj edycję endpointu",
+                        text = tr("Odblokuj edycję endpointu", "Desbloquear edición de endpoint"),
                         onClick = viewModel::unlockEndpointEditor,
                         enabled = uiState.endpointAccessPassword.isNotBlank(),
                         secondary = true,
@@ -224,16 +231,16 @@ fun DriverLoginScreen(navController: NavController) {
                 DriverInputField(
                     value = uiState.login,
                     onValueChange = viewModel::updateLogin,
-                    label = "Login",
+                    label = tr("Login", "Usuario"),
                 )
                 DriverInputField(
                     value = uiState.password,
                     onValueChange = viewModel::updatePassword,
-                    label = "Hasło",
+                    label = tr("Hasło", "Contraseña"),
                     visualTransformation = PasswordVisualTransformation(),
                 )
                 DriverActionButton(
-                    text = if (uiState.isLoading) "Logowanie..." else "Zaloguj się",
+                    text = if (uiState.isLoading) tr("Logowanie...", "Iniciando sesión...") else tr("Zaloguj się", "Iniciar sesión"),
                     onClick = {
                         viewModel.login { requiresPasswordChange ->
                             navController.navigate(
@@ -256,8 +263,11 @@ fun DriverChangePasswordScreen(navController: NavController) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
     DriverScreen(
-        title = "Zmiana hasła",
-        subtitle = "Pierwsze logowanie wymaga ustawienia nowego hasła przed przejściem dalej.",
+        title = tr("Zmiana hasła", "Cambiar contraseña"),
+        subtitle = tr(
+            "Pierwsze logowanie wymaga ustawienia nowego hasła przed przejściem dalej.",
+            "En el primer inicio de sesión debes establecer una nueva contraseña antes de continuar.",
+        ),
     ) {
         item {
             DriverSectionCard {
@@ -291,8 +301,11 @@ fun DriverMileageScreen(navController: NavController) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
     DriverScreen(
-        title = "Przebieg",
-        subtitle = "Dodaj aktualny stan licznika i sprawdź status synchronizacji danych.",
+        title = tr("Przebieg", "Kilometraje"),
+        subtitle = tr(
+            "Dodaj aktualny stan licznika i sprawdź status synchronizacji danych.",
+            "Agrega el kilometraje actual y revisa el estado de sincronización.",
+        ),
     ) {
         item {
             DriverSectionCard {
@@ -306,14 +319,14 @@ fun DriverMileageScreen(navController: NavController) {
                         emphasis = true,
                     )
                 } else {
-                    StatusMessage("Aktualnie przypisane auto: ${uiState.registration}")
+                    StatusMessage("${tr("Aktualnie przypisane auto", "Vehículo asignado")}: ${uiState.registration}")
                 }
-                StatusMessage("Status synchronizacji: ${uiState.syncStatus}")
+                StatusMessage("${tr("Status synchronizacji", "Estado de sincronización")}: ${uiState.syncStatus}")
                 StatusMessage("Kolejka: ${uiState.pendingSyncCount} • Oczekujący przebieg: ${uiState.queuedMileage.ifBlank { "-" }}")
                 StatusMessage("Ostatnia próba: ${uiState.lastAttemptAt.ifBlank { "-" }}")
                 StatusMessage("Ostatnia synchronizacja: ${uiState.lastSyncedAt.ifBlank { "-" }}")
                 if (uiState.syncError.isNotBlank()) {
-                    StatusMessage("Błąd synchronizacji: ${uiState.syncError}", emphasis = true)
+                    StatusMessage("${tr("Błąd synchronizacji", "Error de sincronización")}: ${uiState.syncError}", emphasis = true)
                 }
             }
         }
@@ -326,7 +339,7 @@ fun DriverMileageScreen(navController: NavController) {
                     enabled = false,
                 )
                 if (uiState.availableRegistrations.size > 1) {
-                    StatusMessage("Wybierz aktywną rejestrację:")
+                    StatusMessage(tr("Wybierz aktywną rejestrację:", "Selecciona la matrícula activa:"))
                     uiState.availableRegistrations.forEach { registration ->
                         DriverActionButton(
                             text = if (registration == uiState.registration) "✓ $registration" else registration,
@@ -352,11 +365,11 @@ fun DriverMileageScreen(navController: NavController) {
         item {
             DriverSectionCard {
                 DriverActionButton(
-                    text = "Przejdź do raportu stanu samochodu",
+                    text = tr("Przejdź do raportu stanu samochodu", "Ir al informe del vehículo"),
                     onClick = { navController.navigate(DriverRoute.VehicleReport.route) },
                 )
                 DriverActionButton(
-                    text = "Wyloguj",
+                    text = tr("Wyloguj", "Cerrar sesión"),
                     onClick = {
                         viewModel.logout {
                             navController.navigate(DriverRoute.Login.route) {
@@ -379,8 +392,11 @@ fun DriverVehicleReportScreen(navController: NavController) {
     val draft = uiState.draft
 
     DriverScreen(
-        title = "Raport stanu samochodu",
-        subtitle = "Uzupełnij pola formularza, zaznacz wyposażenie i wygeneruj PDF.",
+        title = tr("Raport stanu samochodu", "Informe del vehículo"),
+        subtitle = tr(
+            "Uzupełnij pola formularza, zaznacz wyposażenie i wygeneruj PDF.",
+            "Completa el formulario, marca el equipamiento y genera el PDF.",
+        ),
     ) {
         item {
             DriverSectionCard {
@@ -389,7 +405,7 @@ fun DriverVehicleReportScreen(navController: NavController) {
                     emphasis = true,
                 )
                 if (uiState.availableRegistrations.size > 1) {
-                    StatusMessage("Wybierz auto do raportu:")
+                    StatusMessage(tr("Wybierz auto do raportu:", "Selecciona vehículo para el informe:"))
                     uiState.availableRegistrations.forEach { registration ->
                         DriverActionButton(
                             text = if (registration == draft.rej) "✓ $registration" else registration,
@@ -413,7 +429,7 @@ fun DriverVehicleReportScreen(navController: NavController) {
         item {
             DriverSectionCard {
                 DriverActionButton(
-                    text = "Wróć do przebiegu",
+                    text = tr("Wróć do przebiegu", "Volver al kilometraje"),
                     onClick = { navController.navigate(DriverRoute.Mileage.route) },
                     secondary = true,
                 )
@@ -423,7 +439,7 @@ fun DriverVehicleReportScreen(navController: NavController) {
                     enabled = !uiState.isSaving,
                 )
                 DriverActionButton(
-                    text = "Wyloguj",
+                    text = tr("Wyloguj", "Cerrar sesión"),
                     onClick = {
                         viewModel.logout {
                             navController.navigate(DriverRoute.Login.route) {

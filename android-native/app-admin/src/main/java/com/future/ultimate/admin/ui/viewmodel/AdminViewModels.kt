@@ -177,8 +177,16 @@ class CarsViewModel(private val repository: AdminRepository) : ViewModel() {
         _uiState.value = _uiState.value.copy(actionInFlightId = id, actionMessage = null)
         if (normalizedDriver.isNotBlank()) {
             _uiState.value.items
-                .filter { it.id != id && it.driver.equals(normalizedDriver, ignoreCase = true) }
-                .forEach { repository.updateCarDriver(it.id, "") }
+                .filter { car ->
+                    car.id != id && car.driver.assignedDrivers().any { assigned ->
+                        assigned.equals(normalizedDriver, ignoreCase = true)
+                    }
+                }
+                .forEach { car ->
+                    val remainingDrivers = car.driver.assignedDrivers()
+                        .filterNot { assigned -> assigned.equals(normalizedDriver, ignoreCase = true) }
+                    repository.updateCarDriver(car.id, remainingDrivers.joinToString(", "))
+                }
         }
         repository.updateCarDriver(id, normalizedDriver)
         _uiState.value = _uiState.value.copy(
@@ -190,6 +198,7 @@ class CarsViewModel(private val repository: AdminRepository) : ViewModel() {
 
     fun save() = viewModelScope.launch {
         val draft = _uiState.value.editor
+        val isEditing = draft.id != null
         if (draft.name.isBlank()) {
             _uiState.value = _uiState.value.copy(actionMessage = "Nazwa samochodu jest wymagana")
             return@launch
@@ -202,7 +211,10 @@ class CarsViewModel(private val repository: AdminRepository) : ViewModel() {
             _uiState.value = _uiState.value.copy(actionMessage = "Interwał serwisowy musi być dodatnią liczbą")
             return@launch
         }
-        val isEditing = draft.id != null
+        if (!isEditing && (draft.initialMileage.toIntOrNull()?.let { it >= 0 } != true)) {
+            _uiState.value = _uiState.value.copy(actionMessage = "Pierwszy przebieg musi być liczbą dodatnią lub zerem")
+            return@launch
+        }
         _uiState.value = _uiState.value.copy(isSaving = true, actionMessage = null)
         repository.saveCar(draft)
         _uiState.value = _uiState.value.copy(
@@ -303,6 +315,10 @@ class VehicleReportViewModel(private val repository: AdminRepository) : ViewMode
         }
     }
 }
+
+private fun String.assignedDrivers(): List<String> = split(",")
+    .map { it.trim() }
+    .filter { it.isNotBlank() }
 
 class PayrollViewModel(private val repository: AdminRepository) : ViewModel() {
     private val _uiState = MutableStateFlow(PayrollUiState(operatorLabel = PatchLoader.fallbackUserLabel()))
