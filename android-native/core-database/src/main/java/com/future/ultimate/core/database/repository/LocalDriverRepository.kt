@@ -141,21 +141,9 @@ class LocalDriverRepository(
 
     override suspend fun selectRegistration(registration: String) {
         val current = session.value ?: throw IllegalStateException("Brak aktywnej sesji kierowcy")
-        val normalizedRegistration = registration.trim().uppercase()
+        val normalizedRegistration = registration.normalizedRegistration()
         require(normalizedRegistration.isNotBlank()) { "Wybierz rejestrację" }
-        val allowedRegistrations = current.availableRegistrations.map { it.trim().uppercase() }
-        require(allowedRegistrations.contains(normalizedRegistration)) {
-            "Nie możesz wybrać rejestracji spoza przypisanych pojazdów"
-        }
-        session.value = current.copy(registration = normalizedRegistration)
-        persistSessionRegistration(normalizedRegistration)
-    }
-
-    override suspend fun selectRegistration(registration: String) {
-        val current = session.value ?: throw IllegalStateException("Brak aktywnej sesji kierowcy")
-        val normalizedRegistration = registration.trim().uppercase()
-        require(normalizedRegistration.isNotBlank()) { "Wybierz rejestrację" }
-        val allowedRegistrations = current.availableRegistrations.map { it.trim().uppercase() }
+        val allowedRegistrations = current.availableRegistrations.map { it.normalizedRegistration() }
         require(allowedRegistrations.contains(normalizedRegistration)) {
             "Nie możesz wybrać rejestracji spoza przypisanych pojazdów"
         }
@@ -234,7 +222,7 @@ class LocalDriverRepository(
         dao.upsertSetting(
             SettingEntity(
                 key = SessionRegistrationKey,
-                valText = registration.trim().uppercase(),
+                valText = registration.normalizedRegistration(),
             ),
         )
     }
@@ -276,4 +264,6 @@ class LocalDriverRepository(
         session.value = null
         persistSessionRegistration("")
     }
+
+    private fun String.normalizedRegistration(): String = trim().uppercase()
 }
