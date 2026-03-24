@@ -198,6 +198,7 @@ class CarsViewModel(private val repository: AdminRepository) : ViewModel() {
 
     fun save() = viewModelScope.launch {
         val draft = _uiState.value.editor
+        val isEditing = draft.id != null
         if (draft.name.isBlank()) {
             _uiState.value = _uiState.value.copy(actionMessage = "Nazwa samochodu jest wymagana")
             return@launch
@@ -210,7 +211,10 @@ class CarsViewModel(private val repository: AdminRepository) : ViewModel() {
             _uiState.value = _uiState.value.copy(actionMessage = "Interwał serwisowy musi być dodatnią liczbą")
             return@launch
         }
-        val isEditing = draft.id != null
+        if (!isEditing && (draft.initialMileage.toIntOrNull()?.let { it >= 0 } != true)) {
+            _uiState.value = _uiState.value.copy(actionMessage = "Pierwszy przebieg musi być liczbą dodatnią lub zerem")
+            return@launch
+        }
         _uiState.value = _uiState.value.copy(isSaving = true, actionMessage = null)
         repository.saveCar(draft)
         _uiState.value = _uiState.value.copy(

@@ -659,6 +659,14 @@ private fun AddCarDialog(
                     label = { Text("Kierowca") },
                     modifier = Modifier.fillMaxWidth(),
                 )
+                if (!isEditing) {
+                    OutlinedTextField(
+                        value = draft.initialMileage,
+                        onValueChange = { onDraftChange(draft.copy(initialMileage = it)) },
+                        label = { Text("Pierwszy przebieg (km)") },
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
                 driverSuggestions
                     .filter { suggestion ->
                         draft.driver.isNotBlank() &&
