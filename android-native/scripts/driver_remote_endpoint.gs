@@ -198,6 +198,18 @@ function nowText_() {
   return Utilities.formatDate(new Date(), Session.getScriptTimeZone() || 'Europe/Warsaw', 'yyyy-MM-dd HH:mm:ss');
 }
 
+function datePart_(timestamp) {
+  const raw = String(timestamp || '').trim();
+  if (!raw) return '';
+  const direct = raw.match(/^(\d{4}-\d{2}-\d{2})/);
+  if (direct && direct[1]) return direct[1];
+  const date = new Date(raw);
+  if (!isNaN(date.getTime())) {
+    return Utilities.formatDate(date, Session.getScriptTimeZone() || 'Europe/Warsaw', 'yyyy-MM-dd');
+  }
+  return '';
+}
+
 function normalizeRegistration_(value) {
   return String(value || '').trim().toUpperCase();
 }
@@ -610,8 +622,12 @@ function saveMileage_(payload) {
   }
 
   const timestamp = String(payload.timestamp || '').trim() || nowText_();
+  const dayKey = datePart_(timestamp) || datePart_(nowText_());
   const driverIdentity = rawLogin || normalizeName_(payload.driver || payload.name || payload.driverName);
   if (!driverIdentity) throw new Error('Missing driver identity');
+  if (hasMileageLogForDayByOtherDriver_(registration, dayKey, driverIdentity)) {
+    throw new Error('Inny kierowca już dzisiaj wpisał przebieg dla tego auta');
+  }
 
   const alreadyStored = hasMileageLog_(timestamp, driverIdentity, registration, mileage);
   const logSheet = ensureSheet_(SHEETS.mileageLogs, MILEAGE_LOG_HEADERS);
@@ -651,6 +667,21 @@ function saveMileage_(payload) {
     duplicate: alreadyStored,
     message: alreadyStored ? 'Mileage already stored' : 'Mileage saved',
   };
+}
+
+function hasMileageLogForDayByOtherDriver_(registration, dayKey, driverIdentity) {
+  const targetRegistration = normalizeRegistration_(registration);
+  const targetDriver = String(driverIdentity || '').trim().toLowerCase();
+  if (!targetRegistration || !dayKey || !targetDriver) return false;
+  const snapshot = getSheetRecords_(SHEETS.mileageLogs);
+  return snapshot.rows.some(function(row) {
+    const rowDay = datePart_(row.timestamp);
+    const rowDriver = String(row.driver || '').trim().toLowerCase();
+    return rowDay === dayKey &&
+      normalizeRegistration_(row.registration) === targetRegistration &&
+      rowDriver &&
+      rowDriver !== targetDriver;
+  });
 }
 
 function hasMileageLog_(timestamp, driver, registration, mileage) {
