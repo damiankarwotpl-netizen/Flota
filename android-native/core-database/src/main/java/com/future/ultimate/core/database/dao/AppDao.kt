@@ -40,6 +40,9 @@ interface AppDao {
     @Query("SELECT * FROM cars WHERE id = :id LIMIT 1")
     suspend fun getCar(id: Long): CarEntity?
 
+    @Query("SELECT * FROM cars WHERE lower(trim(driver)) = lower(trim(:driver))")
+    suspend fun getCarsByDriver(driver: String): List<CarEntity>
+
     @Query("SELECT * FROM cars WHERE upper(registration) = upper(:registration) LIMIT 1")
     suspend fun getCarByRegistration(registration: String): CarEntity?
 

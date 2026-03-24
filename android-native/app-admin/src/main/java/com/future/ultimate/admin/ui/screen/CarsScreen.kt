@@ -219,62 +219,60 @@ fun CarsScreen() {
                                 Text("Login: brak")
                                 Text("Hasło startowe: brak")
                             } else {
-                                currentAssignments.forEach { assignedCar ->
-                                    Text("Auto: ${assignedCar.registration}")
-                                    Text("Login: ${assignedCar.driverLogin.ifBlank { "brak" }}")
+                                val primaryAssignment = currentAssignments.first()
+                                Text("Login: ${primaryAssignment.driverLogin.ifBlank { "brak" }}")
+                                Text(
+                                    when {
+                                        primaryAssignment.driverPassword.isBlank() -> "Hasło startowe: brak"
+                                        primaryAssignment.changePasswordRequired -> "Hasło startowe: ${primaryAssignment.driverPassword}"
+                                        else -> "Hasło startowe zostało już zmienione"
+                                    },
+                                )
+                                Text("Typ prawa jazdy: ${primaryAssignment.licenseType.ifBlank { "PL" }}")
+                                Text("Data ważności prawa jazdy: ${formatDateLabel(primaryAssignment.licenseValidUntil, "Brak daty")}")
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                ) {
+                                    Button(
+                                        onClick = { viewModel.updateDriverLicense(primaryAssignment.id, "PL", primaryAssignment.licenseValidUntil) },
+                                        modifier = Modifier.weight(1f),
+                                    ) {
+                                        Text("PL")
+                                    }
+                                    Button(
+                                        onClick = { viewModel.updateDriverLicense(primaryAssignment.id, "MIĘDZYNARODOWE", primaryAssignment.licenseValidUntil) },
+                                        modifier = Modifier.weight(1f),
+                                    ) {
+                                        Text("MIĘDZYNARODOWE")
+                                    }
+                                }
+                                Button(
+                                    onClick = {
+                                        showDatePicker(context, primaryAssignment.licenseValidUntil) {
+                                            viewModel.updateDriverLicense(
+                                                primaryAssignment.id,
+                                                primaryAssignment.licenseType.ifBlank { "PL" },
+                                                it,
+                                            )
+                                        }
+                                    },
+                                    modifier = Modifier.fillMaxWidth(),
+                                ) {
+                                    Text("Ustaw datę ważności prawa jazdy")
+                                }
+                                Button(
+                                    onClick = { viewModel.resetDriverCredentials(primaryAssignment.id) },
+                                    modifier = Modifier.fillMaxWidth(),
+                                ) {
                                     Text(
-                                        when {
-                                            assignedCar.driverPassword.isBlank() -> "Hasło startowe: brak"
-                                            assignedCar.changePasswordRequired -> "Hasło startowe: ${assignedCar.driverPassword}"
-                                            else -> "Hasło startowe zostało już zmienione"
+                                        if (uiState.actionInFlightId == primaryAssignment.id) {
+                                            "Resetowanie hasła..."
+                                        } else {
+                                            "Resetuj hasło kierowcy"
                                         },
                                     )
-                                    Text("Typ prawa jazdy: ${assignedCar.licenseType.ifBlank { "PL" }}")
-                                    Text("Data ważności prawa jazdy: ${formatDateLabel(assignedCar.licenseValidUntil, "Brak daty")}")
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.spacedBy(10.dp),
-                                        verticalAlignment = Alignment.CenterVertically,
-                                    ) {
-                                        Button(
-                                            onClick = { viewModel.updateDriverLicense(assignedCar.id, "PL", assignedCar.licenseValidUntil) },
-                                            modifier = Modifier.weight(1f),
-                                        ) {
-                                            Text("PL")
-                                        }
-                                        Button(
-                                            onClick = { viewModel.updateDriverLicense(assignedCar.id, "MIĘDZYNARODOWE", assignedCar.licenseValidUntil) },
-                                            modifier = Modifier.weight(1f),
-                                        ) {
-                                            Text("MIĘDZYNARODOWE")
-                                        }
-                                    }
-                                    Button(
-                                        onClick = {
-                                            showDatePicker(context, assignedCar.licenseValidUntil) {
-                                                viewModel.updateDriverLicense(
-                                                    assignedCar.id,
-                                                    assignedCar.licenseType.ifBlank { "PL" },
-                                                    it,
-                                                )
-                                            }
-                                        },
-                                        modifier = Modifier.fillMaxWidth(),
-                                    ) {
-                                        Text("Ustaw datę ważności prawa jazdy")
-                                    }
-                                    Button(
-                                        onClick = { viewModel.resetDriverCredentials(assignedCar.id) },
-                                        modifier = Modifier.fillMaxWidth(),
-                                    ) {
-                                        Text(
-                                            if (uiState.actionInFlightId == assignedCar.id) {
-                                                "Resetowanie hasła..."
-                                            } else {
-                                                "Resetuj hasło dla ${assignedCar.registration}"
-                                            },
-                                        )
-                                    }
                                 }
                             }
                             Button(

@@ -252,14 +252,23 @@ class LocalAdminRepository(
         val car = dao.getCar(id) ?: return
         val normalizedDriver = car.driver.trim()
         if (normalizedDriver.isBlank()) return
-        val account = dao.getDriverAccountByRegistration(car.registration)
+        val normalizedLicenseType = licenseType.trim().ifBlank { "PL" }
+        val normalizedValidUntil = validUntil.trim()
+        val primaryAccount = dao.getDriverAccountByRegistration(car.registration)
             ?: syncDriverAccount(normalizedDriver, car.registration)
             ?: return
-        dao.updateDriverLicense(
-            registration = account.registration,
-            licenseType = licenseType.trim().ifBlank { "PL" },
-            validUntil = validUntil.trim(),
-        )
+        val registrationsToUpdate = dao.getDriverAccountsByLogin(primaryAccount.login)
+            .map { it.registration.trim().uppercase() }
+            .filter { it.isNotBlank() }
+            .distinct()
+            .ifEmpty { listOf(primaryAccount.registration.trim().uppercase()) }
+        registrationsToUpdate.forEach { registration ->
+            dao.updateDriverLicense(
+                registration = registration,
+                licenseType = normalizedLicenseType,
+                validUntil = normalizedValidUntil,
+            )
+        }
     }
 
     override suspend fun resetCarDriverCredentials(id: Long): DriverAccountCredentials {
@@ -270,10 +279,18 @@ class LocalAdminRepository(
             syncRemoteDriverDeletion(car.registration)
             return DriverAccountCredentials()
         }
-        val account = syncDriverAccount(normalizedDriver, car.registration, forceReset = true)
+        val account = syncDriverAccount(normalizedDriver, car.registration, forceReset = true) ?: return DriverAccountCredentials()
+        dao.getCarsByDriver(normalizedDriver)
+            .asSequence()
+            .map { it.registration.trim().uppercase() }
+            .filter { it.isNotBlank() && !it.equals(account.registration, ignoreCase = true) }
+            .distinct()
+            .forEach { registration ->
+                syncDriverAccount(normalizedDriver, registration, forceReset = false, forceRemote = true)
+            }
         return DriverAccountCredentials(
-            login = account?.login.orEmpty(),
-            password = account?.password.orEmpty(),
+            login = account.login,
+            password = account.password,
         )
     }
 
