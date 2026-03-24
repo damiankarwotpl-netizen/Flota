@@ -137,7 +137,8 @@ class LocalDriverRepository(
             .distinct()
             .ifEmpty { listOf(current.registration.trim().uppercase()) }
         registrations.forEach { registration ->
-            val existingAccount = dao.getDriverAccountByRegistration(registration)
+            val existingAccount = dao.getDriverAccountByRegistrationAndLogin(registration, current.login)
+                ?: dao.getDriverAccountByRegistration(registration)
             val account = DriverAccountEntity(
                 registration = registration,
                 login = current.login,
