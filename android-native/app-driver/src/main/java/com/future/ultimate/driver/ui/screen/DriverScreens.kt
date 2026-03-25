@@ -475,6 +475,7 @@ fun DriverVehicleReportScreen(navController: NavController) {
 
 @Composable
 private fun editableFields(draft: VehicleReportDraft, onDraftChange: (VehicleReportDraft) -> Unit) {
+    data class ReportFieldGroup(val titlePl: String, val titleEs: String, val fields: List<ReportField>)
     data class ReportField(
         val id: String,
         val labelPl: String,
@@ -482,50 +483,83 @@ private fun editableFields(draft: VehicleReportDraft, onDraftChange: (VehicleRep
         val value: String,
         val keyboardType: KeyboardType,
     )
-    listOf(
-        ReportField("marka", "Marka", "Marca", draft.marka, KeyboardType.Text),
-        ReportField("rej", "Rejestracja", "Matrícula", draft.rej, KeyboardType.Text),
-        ReportField("przebieg", "Przebieg", "Kilometraje", draft.przebieg, KeyboardType.Number),
-        ReportField("olej", "Poziom oleju", "Nivel de aceite", draft.olej, KeyboardType.Text),
-        ReportField("paliwo", "Wskaźnik paliwa", "Indicador de combustible", draft.paliwo, KeyboardType.Text),
-        ReportField("rodzajPaliwa", "Rodzaj paliwa", "Tipo de combustible", draft.rodzajPaliwa, KeyboardType.Text),
-        ReportField("lp", "Lewy przedni", "Delantero izquierdo", draft.lp, KeyboardType.Text),
-        ReportField("pp", "Prawy przedni", "Delantero derecho", draft.pp, KeyboardType.Text),
-        ReportField("lt", "Lewy tylny", "Trasero izquierdo", draft.lt, KeyboardType.Text),
-        ReportField("pt", "Prawy tylny", "Trasero derecho", draft.pt, KeyboardType.Text),
-        ReportField("uszkodzenia", "Nowe uszkodzenia", "Nuevos daños", draft.uszkodzenia, KeyboardType.Text),
-        ReportField("odKiedy", "Od kiedy?", "¿Desde cuándo?", draft.odKiedy, KeyboardType.Text),
-        ReportField("serwis", "Przegląd / Service", "Revisión / Servicio", draft.serwis, KeyboardType.Text),
-        ReportField("przeglad", "Przegląd techniczny", "Inspección técnica", draft.przeglad, KeyboardType.Text),
-        ReportField("uwagi", "Uwagi", "Observaciones", draft.uwagi, KeyboardType.Text),
-    ).forEach { field ->
-        DriverInputField(
-            value = field.value,
-            onValueChange = { newValue ->
-                onDraftChange(
-                    when (field.id) {
-                        "marka" -> draft.copy(marka = newValue)
-                        "rej" -> draft.copy(rej = newValue)
-                        "przebieg" -> draft.copy(przebieg = newValue)
-                        "olej" -> draft.copy(olej = newValue)
-                        "paliwo" -> draft.copy(paliwo = newValue)
-                        "rodzajPaliwa" -> draft.copy(rodzajPaliwa = newValue)
-                        "lp" -> draft.copy(lp = newValue)
-                        "pp" -> draft.copy(pp = newValue)
-                        "lt" -> draft.copy(lt = newValue)
-                        "pt" -> draft.copy(pt = newValue)
-                        "uszkodzenia" -> draft.copy(uszkodzenia = newValue)
-                        "odKiedy" -> draft.copy(odKiedy = newValue)
-                        "serwis" -> draft.copy(serwis = newValue)
-                        "przeglad" -> draft.copy(przeglad = newValue)
-                        "uwagi" -> draft.copy(uwagi = newValue)
-                        else -> draft
-                    },
-                )
-            },
-            label = tr(field.labelPl, field.labelEs),
-            keyboardType = field.keyboardType,
+    val groups = listOf(
+        ReportFieldGroup(
+            titlePl = "Dane pojazdu",
+            titleEs = "Datos del vehículo",
+            fields = listOf(
+                ReportField("marka", "Marka", "Marca", draft.marka, KeyboardType.Text),
+                ReportField("rej", "Rejestracja", "Matrícula", draft.rej, KeyboardType.Text),
+                ReportField("przebieg", "Przebieg", "Kilometraje", draft.przebieg, KeyboardType.Number),
+            ),
+        ),
+        ReportFieldGroup(
+            titlePl = "Stan pojazdu",
+            titleEs = "Estado del vehículo",
+            fields = listOf(
+                ReportField("olej", "Poziom oleju", "Nivel de aceite", draft.olej, KeyboardType.Text),
+                ReportField("paliwo", "Wskaźnik paliwa", "Indicador de combustible", draft.paliwo, KeyboardType.Text),
+                ReportField("rodzajPaliwa", "Rodzaj paliwa", "Tipo de combustible", draft.rodzajPaliwa, KeyboardType.Text),
+                ReportField("uszkodzenia", "Nowe uszkodzenia", "Nuevos daños", draft.uszkodzenia, KeyboardType.Text),
+                ReportField("odKiedy", "Od kiedy?", "¿Desde cuándo?", draft.odKiedy, KeyboardType.Text),
+            ),
+        ),
+        ReportFieldGroup(
+            titlePl = "Stan opon / przeglądy",
+            titleEs = "Estado de neumáticos / revisiones",
+            fields = listOf(
+                ReportField("lp", "Lewy przedni", "Delantero izquierdo", draft.lp, KeyboardType.Text),
+                ReportField("pp", "Prawy przedni", "Delantero derecho", draft.pp, KeyboardType.Text),
+                ReportField("lt", "Lewy tylny", "Trasero izquierdo", draft.lt, KeyboardType.Text),
+                ReportField("pt", "Prawy tylny", "Trasero derecho", draft.pt, KeyboardType.Text),
+                ReportField("serwis", "Przegląd / Service", "Revisión / Servicio", draft.serwis, KeyboardType.Text),
+                ReportField("przeglad", "Przegląd techniczny", "Inspección técnica", draft.przeglad, KeyboardType.Text),
+            ),
+        ),
+        ReportFieldGroup(
+            titlePl = "Uwagi",
+            titleEs = "Observaciones",
+            fields = listOf(
+                ReportField("uwagi", "Uwagi", "Observaciones", draft.uwagi, KeyboardType.Text),
+            ),
+        ),
+    )
+
+    groups.forEach { group ->
+        Text(
+            text = tr(group.titlePl, group.titleEs),
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.SemiBold,
         )
+        group.fields.forEach { field ->
+            DriverInputField(
+                value = field.value,
+                onValueChange = { newValue ->
+                    onDraftChange(
+                        when (field.id) {
+                            "marka" -> draft.copy(marka = newValue)
+                            "rej" -> draft.copy(rej = newValue)
+                            "przebieg" -> draft.copy(przebieg = newValue)
+                            "olej" -> draft.copy(olej = newValue)
+                            "paliwo" -> draft.copy(paliwo = newValue)
+                            "rodzajPaliwa" -> draft.copy(rodzajPaliwa = newValue)
+                            "lp" -> draft.copy(lp = newValue)
+                            "pp" -> draft.copy(pp = newValue)
+                            "lt" -> draft.copy(lt = newValue)
+                            "pt" -> draft.copy(pt = newValue)
+                            "uszkodzenia" -> draft.copy(uszkodzenia = newValue)
+                            "odKiedy" -> draft.copy(odKiedy = newValue)
+                            "serwis" -> draft.copy(serwis = newValue)
+                            "przeglad" -> draft.copy(przeglad = newValue)
+                            "uwagi" -> draft.copy(uwagi = newValue)
+                            else -> draft
+                        },
+                    )
+                },
+                label = tr(field.labelPl, field.labelEs),
+                keyboardType = field.keyboardType,
+            )
+        }
     }
 }
 
