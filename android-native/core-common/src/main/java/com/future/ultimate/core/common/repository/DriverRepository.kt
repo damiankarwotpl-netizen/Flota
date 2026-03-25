@@ -7,7 +7,9 @@ data class DriverSession(
     val login: String = "",
     val password: String = "",
     val driverName: String = "",
+    val carName: String = "",
     val registration: String = "",
+    val mileage: Int = 0,
     val availableRegistrations: List<String> = emptyList(),
     val changePasswordRequired: Boolean = false,
 )
