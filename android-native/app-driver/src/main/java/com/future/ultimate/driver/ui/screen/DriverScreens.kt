@@ -28,9 +28,7 @@ import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
@@ -426,19 +424,34 @@ fun DriverVehicleReportScreen(navController: NavController) {
     val viewModel: DriverVehicleReportViewModel = viewModel(factory = DriverViewModelFactory(app.container.repository))
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val draft = uiState.draft
-    var captureDashboardPhoto by remember { mutableStateOf(false) }
+    val requiredPhotoCount = 6
+    val guidedPhotoSteps = buildList {
+        add(tr("Przód + prawy bok", "Frente + lado derecho"))
+        add(tr("Przód + lewy bok", "Frente + lado izquierdo"))
+        add(tr("Tył + prawy bok", "Trasera + lado derecho"))
+        add(tr("Tył + lewy bok", "Trasera + lado izquierdo"))
+        add(tr("Wnętrze przód", "Interior delantero"))
+        add(tr("Wnętrze tył", "Interior trasero"))
+        if (draft.warningLights) {
+            add(tr("Deska rozdzielcza (lampki ostrzegawcze)", "Tablero (luces de advertencia)"))
+        }
+    }
+    val capturedSteps = draft.photoPaths.size + if (draft.dashboardPhotoPath.isNotBlank()) 1 else 0
+    val isGuidedCaptureComplete = capturedSteps >= guidedPhotoSteps.size && guidedPhotoSteps.isNotEmpty()
+    val nextStepIndex = capturedSteps.coerceAtMost((guidedPhotoSteps.size - 1).coerceAtLeast(0))
+    val nextStepLabel = guidedPhotoSteps.getOrElse(nextStepIndex) { "-" }
+
     val photoLauncher = rememberLauncherForActivityResult(ActivityResultContracts.TakePicturePreview()) { bitmap: Bitmap? ->
         val savedPath = bitmap?.saveReportPhoto(context)
         if (savedPath.isNullOrBlank()) return@rememberLauncherForActivityResult
+        val captureDashboardPhoto = draft.warningLights && draft.photoPaths.size >= requiredPhotoCount
         val updatedDraft = if (captureDashboardPhoto) {
             draft.copy(dashboardPhotoPath = savedPath)
         } else {
             draft.copy(photoPaths = draft.photoPaths + savedPath)
         }
         viewModel.updateDraft(updatedDraft)
-        captureDashboardPhoto = false
     }
-    val requiredPhotoCount = 6
     val hasMinimumPhotos = draft.photoPaths.size >= requiredPhotoCount
     val needsDashboardPhoto = draft.warningLights
     val hasRequiredDashboardPhoto = !needsDashboardPhoto || draft.dashboardPhotoPath.isNotBlank()
@@ -646,6 +659,36 @@ fun DriverVehicleReportScreen(navController: NavController) {
                         },
                     )
                 }
+            }
+        }
+        item {
+            DriverSectionCard(title = tr("Zdjęcia samochodu", "Fotos del vehículo")) {
+                Text(
+                    tr(
+                        "Wymagane zdjęcia: 1) przód+prawy bok, 2) przód+lewy bok, 3) tył+prawy bok, 4) tył+lewy bok, 5) wnętrze przód, 6) wnętrze tył.",
+                        "Fotos obligatorias: 1) frente+lado derecho, 2) frente+lado izquierdo, 3) trasera+lado derecho, 4) trasera+lado izquierdo, 5) interior delantero, 6) interior trasero.",
+                    ),
+                )
+                Text("${tr("Dodano", "Añadidas")}: $capturedSteps/${guidedPhotoSteps.size}")
+                Text("${tr("Następne zdjęcie", "Siguiente foto")}: $nextStepLabel")
+                DriverActionButton(
+                    text = if (isGuidedCaptureComplete) {
+                        tr("Wszystkie wymagane zdjęcia dodane", "Todas las fotos obligatorias agregadas")
+                    } else {
+                        tr("Zrób następne zdjęcie", "Tomar la siguiente foto")
+                    },
+                    onClick = {
+                        photoLauncher.launch(null)
+                    },
+                    enabled = !isGuidedCaptureComplete,
+                )
+                DriverActionButton(
+                    text = tr("Zacznij od nowa (wyczyść zdjęcia)", "Comenzar de nuevo (limpiar fotos)"),
+                    onClick = {
+                        viewModel.updateDraft(draft.copy(photoPaths = emptyList(), dashboardPhotoPath = ""))
+                    },
+                    secondary = true,
+                )
             }
         }
         item {
