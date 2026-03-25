@@ -47,6 +47,7 @@ Daemon will be stopped at the end of the build
 > Task :core-database:generateDebugRFile
 > Task :core-database:javaPreCompileDebug
 > Task :app-admin:javaPreCompileDebug
+> Task :core-database:javaPreCompileDebug
 > Task :app-admin:mergeDebugShaders
 > Task :app-admin:compileDebugShaders NO-SOURCE
 > Task :app-admin:generateDebugAssets UP-TO-DATE
@@ -102,8 +103,8 @@ Unable to strip the following libraries, packaging them as they are: libandroidx
 > Task :app-driver:compressDebugAssets
 > Task :app-driver:desugarDebugFileDependencies
 > Task :app-driver:processDebugResources
-> Task :app-driver:mergeDebugJniLibFolders
 > Task :app-driver:checkDebugDuplicateClasses
+> Task :app-driver:mergeDebugJniLibFolders
 > Task :app-driver:mergeDebugNativeLibs
 
 > Task :app-driver:stripDebugDebugSymbols

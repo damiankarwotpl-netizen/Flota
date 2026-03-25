@@ -620,6 +620,35 @@ private fun editableFields(draft: VehicleReportDraft, onDraftChange: (VehicleRep
             onValueChange = { onDraftChange(draft.copy(warningLightsDescription = it)) },
             label = tr("Opisz lampkę ostrzegawczą", "Describe la luz de advertencia"),
         )
+        group.fields.forEach { field ->
+            DriverInputField(
+                value = field.value,
+                onValueChange = { newValue ->
+                    onDraftChange(
+                        when (field.id) {
+                            "marka" -> draft.copy(marka = newValue)
+                            "rej" -> draft.copy(rej = newValue)
+                            "przebieg" -> draft.copy(przebieg = newValue)
+                            "olej" -> draft.copy(olej = newValue)
+                            "paliwo" -> draft.copy(paliwo = newValue)
+                            "rodzajPaliwa" -> draft.copy(rodzajPaliwa = newValue)
+                            "lp" -> draft.copy(lp = newValue)
+                            "pp" -> draft.copy(pp = newValue)
+                            "lt" -> draft.copy(lt = newValue)
+                            "pt" -> draft.copy(pt = newValue)
+                            "uszkodzenia" -> draft.copy(uszkodzenia = newValue)
+                            "odKiedy" -> draft.copy(odKiedy = newValue)
+                            "serwis" -> draft.copy(serwis = newValue)
+                            "przeglad" -> draft.copy(przeglad = newValue)
+                            "uwagi" -> draft.copy(uwagi = newValue)
+                            else -> draft
+                        },
+                    )
+                },
+                label = tr(field.labelPl, field.labelEs),
+                keyboardType = field.keyboardType,
+            )
+        }
     }
 
     Text(tr("Stan opon", "Estado de neumáticos"), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
