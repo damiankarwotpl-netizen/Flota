@@ -13,8 +13,8 @@ Daemon will be stopped at the end of the build
 > Task :core-database:preBuild UP-TO-DATE
 > Task :core-database:preDebugBuild UP-TO-DATE
 > Task :core-common:writeDebugAarMetadata
-> Task :app-admin:generateDebugResValues
 > Task :core-database:writeDebugAarMetadata
+> Task :app-admin:generateDebugResValues
 > Task :core-common:generateDebugResValues
 > Task :app-admin:checkDebugAarMetadata
 > Task :core-common:generateDebugResources
@@ -32,19 +32,19 @@ Daemon will be stopped at the end of the build
 > Task :core-database:extractDeepLinksDebug
 > Task :app-admin:parseDebugLocalResources
 > Task :core-common:compileDebugLibraryResources
-> Task :core-common:parseDebugLocalResources
 > Task :core-database:compileDebugLibraryResources
+> Task :core-common:parseDebugLocalResources
 > Task :core-database:parseDebugLocalResources
 > Task :core-common:processDebugManifest
+> Task :core-common:checkKotlinGradlePluginConfigurationErrors SKIPPED
 > Task :core-database:processDebugManifest
+> Task :core-common:javaPreCompileDebug
 > Task :core-common:generateDebugRFile
 > Task :core-database:generateDebugRFile
 > Task :app-admin:processDebugMainManifest
 > Task :app-admin:processDebugManifest
-> Task :core-common:checkKotlinGradlePluginConfigurationErrors SKIPPED
 > Task :core-database:checkKotlinGradlePluginConfigurationErrors SKIPPED
 > Task :app-admin:processDebugManifestForPackage
-> Task :core-common:javaPreCompileDebug
 > Task :core-database:javaPreCompileDebug
 > Task :app-admin:javaPreCompileDebug
 > Task :app-admin:mergeDebugShaders
@@ -61,7 +61,6 @@ Daemon will be stopped at the end of the build
 > Task :app-admin:mergeDebugAssets
 > Task :app-admin:compressDebugAssets
 > Task :app-admin:desugarDebugFileDependencies
-> Task :app-admin:processDebugResources
 > Task :app-admin:mergeDebugJniLibFolders
 > Task :core-common:mergeDebugJniLibFolders
 > Task :core-common:mergeDebugNativeLibs NO-SOURCE
@@ -70,20 +69,21 @@ Daemon will be stopped at the end of the build
 > Task :core-database:mergeDebugNativeLibs NO-SOURCE
 > Task :core-database:copyDebugJniLibsProjectOnly
 > Task :app-admin:checkDebugDuplicateClasses
+> Task :app-admin:processDebugResources
+> Task :app-admin:mergeDebugNativeLibs
+
+> Task :app-admin:stripDebugDebugSymbols
+Unable to strip the following libraries, packaging them as they are: libandroidx.graphics.path.so.
+
 > Task :app-admin:validateSigningDebug
 > Task :app-admin:writeDebugAppMetadata
-> Task :app-admin:mergeDebugNativeLibs
 > Task :app-admin:writeDebugSigningConfigVersions
 > Task :app-driver:preBuild UP-TO-DATE
 > Task :app-driver:preDebugBuild UP-TO-DATE
 > Task :app-driver:mergeDebugNativeDebugMetadata NO-SOURCE
 > Task :app-driver:checkKotlinGradlePluginConfigurationErrors SKIPPED
-
-> Task :app-admin:stripDebugDebugSymbols
-Unable to strip the following libraries, packaging them as they are: libandroidx.graphics.path.so.
-
-> Task :app-driver:generateDebugResValues
 > Task :app-driver:checkDebugAarMetadata
+> Task :app-driver:generateDebugResValues
 > Task :app-driver:mapDebugSourceSetPaths
 > Task :app-driver:generateDebugResources
 > Task :app-driver:packageDebugResources
@@ -93,8 +93,8 @@ Unable to strip the following libraries, packaging them as they are: libandroidx
 > Task :app-driver:mergeDebugResources
 > Task :app-driver:processDebugMainManifest
 > Task :app-driver:processDebugManifest
-> Task :app-driver:javaPreCompileDebug
 > Task :app-driver:processDebugManifestForPackage
+> Task :app-driver:javaPreCompileDebug
 > Task :app-driver:mergeDebugShaders
 > Task :app-driver:compileDebugShaders NO-SOURCE
 > Task :app-driver:generateDebugAssets UP-TO-DATE
@@ -115,47 +115,37 @@ Unable to strip the following libraries, packaging them as they are: libandroidx
 > Task :app-driver:mergeExtDexDebug
 > Task :core-common:compileDebugKotlin
 > Task :core-common:compileDebugJavaWithJavac NO-SOURCE
-> Task :core-common:bundleLibRuntimeToJarDebug
-> Task :core-common:bundleLibCompileToJarDebug
-> Task :core-common:processDebugJavaRes
 > Task :app-admin:mergeExtDexDebug
+> Task :core-common:processDebugJavaRes
+> Task :core-common:bundleLibCompileToJarDebug
+> Task :core-common:bundleLibRuntimeToJarDebug
 > Task :core-common:bundleLibRuntimeToDirDebug
 > Task :core-database:kspDebugKotlin
 > Task :core-database:compileDebugKotlin
 > Task :core-database:compileDebugJavaWithJavac
 > Task :core-database:processDebugJavaRes
-> Task :core-database:bundleLibRuntimeToJarDebug
 > Task :core-database:bundleLibCompileToJarDebug
+> Task :core-database:bundleLibRuntimeToJarDebug
 > Task :core-database:bundleLibRuntimeToDirDebug
 > Task :app-admin:mergeLibDexDebug
 > Task :app-driver:mergeLibDexDebug
 
 > Task :app-driver:compileDebugKotlin FAILED
-e: file:///home/runner/work/Flota/Flota/android-native/app-driver/src/main/java/com/future/ultimate/driver/ui/screen/DriverScreens.kt:701:9 Unresolved reference 'group'.
-e: file:///home/runner/work/Flota/Flota/android-native/app-driver/src/main/java/com/future/ultimate/driver/ui/screen/DriverScreens.kt:701:32 Cannot infer type for this parameter. Please specify it explicitly.
-e: file:///home/runner/work/Flota/Flota/android-native/app-driver/src/main/java/com/future/ultimate/driver/ui/screen/DriverScreens.kt:702:13 @Composable invocations can only happen from the context of a @Composable function
-e: file:///home/runner/work/Flota/Flota/android-native/app-driver/src/main/java/com/future/ultimate/driver/ui/screen/DriverScreens.kt:703:31 Unresolved reference 'value'.
-e: file:///home/runner/work/Flota/Flota/android-native/app-driver/src/main/java/com/future/ultimate/driver/ui/screen/DriverScreens.kt:706:37 Unresolved reference 'id'.
-e: file:///home/runner/work/Flota/Flota/android-native/app-driver/src/main/java/com/future/ultimate/driver/ui/screen/DriverScreens.kt:726:25 @Composable invocations can only happen from the context of a @Composable function
-e: file:///home/runner/work/Flota/Flota/android-native/app-driver/src/main/java/com/future/ultimate/driver/ui/screen/DriverScreens.kt:726:34 Unresolved reference 'labelPl'.
-e: file:///home/runner/work/Flota/Flota/android-native/app-driver/src/main/java/com/future/ultimate/driver/ui/screen/DriverScreens.kt:726:49 Unresolved reference 'labelEs'.
-e: file:///home/runner/work/Flota/Flota/android-native/app-driver/src/main/java/com/future/ultimate/driver/ui/screen/DriverScreens.kt:727:38 Unresolved reference 'keyboardType'.
-e: file:///home/runner/work/Flota/Flota/android-native/app-driver/src/main/java/com/future/ultimate/driver/ui/screen/DriverScreens.kt:731:1 Unresolved reference 'i'.
-e: file:///home/runner/work/Flota/Flota/android-native/app-driver/src/main/java/com/future/ultimate/driver/ui/screen/DriverScreens.kt:732:9 Unresolved reference 'label'.
-e: file:///home/runner/work/Flota/Flota/android-native/app-driver/src/main/java/com/future/ultimate/driver/ui/screen/DriverScreens.kt:732:9 Only expressions are allowed in this context.
-e: file:///home/runner/work/Flota/Flota/android-native/app-driver/src/main/java/com/future/ultimate/driver/ui/screen/DriverScreens.kt:732:97 Syntax error: Expecting ')'.
-e: file:///home/runner/work/Flota/Flota/android-native/app-driver/src/main/java/com/future/ultimate/driver/ui/screen/DriverScreens.kt:732:97 Syntax error: Unexpected tokens (use ';' to separate expressions on the same line).
-e: file:///home/runner/work/Flota/Flota/android-native/app-driver/src/main/java/com/future/ultimate/driver/ui/screen/DriverScreens.kt:733:9 Unresolved reference 'value'.
-e: file:///home/runner/work/Flota/Flota/android-native/app-driver/src/main/java/com/future/ultimate/driver/ui/screen/DriverScreens.kt:733:30 Syntax error: Unexpected tokens (use ';' to separate expressions on the same line).
-e: file:///home/runner/work/Flota/Flota/android-native/app-driver/src/main/java/com/future/ultimate/driver/ui/screen/DriverScreens.kt:734:9 Unresolved reference 'onValueChange'.
-e: file:///home/runner/work/Flota/Flota/android-native/app-driver/src/main/java/com/future/ultimate/driver/ui/screen/DriverScreens.kt:734:62 Unresolved reference 'it'.
-e: file:///home/runner/work/Flota/Flota/android-native/app-driver/src/main/java/com/future/ultimate/driver/ui/screen/DriverScreens.kt:734:68 Syntax error: Unexpected tokens (use ';' to separate expressions on the same line).
-e: file:///home/runner/work/Flota/Flota/android-native/app-driver/src/main/java/com/future/ultimate/driver/ui/screen/DriverScreens.kt:735:5 Syntax error: Expecting an element.
+e: file:///home/runner/work/Flota/Flota/android-native/app-driver/src/main/java/com/future/ultimate/driver/ui/screen/DriverScreens.kt:506:25 Unresolved reference 'captureDashboardPhoto'.
+e: file:///home/runner/work/Flota/Flota/android-native/app-driver/src/main/java/com/future/ultimate/driver/ui/screen/DriverScreens.kt:514:29 Unresolved reference 'captureDashboardPhoto'.
+e: file:///home/runner/work/Flota/Flota/android-native/app-driver/src/main/java/com/future/ultimate/driver/ui/screen/DriverScreens.kt:540:25 Unresolved reference 'captureDashboardPhoto'.
+e: file:///home/runner/work/Flota/Flota/android-native/app-driver/src/main/java/com/future/ultimate/driver/ui/screen/DriverScreens.kt:548:29 Unresolved reference 'captureDashboardPhoto'.
+e: file:///home/runner/work/Flota/Flota/android-native/app-driver/src/main/java/com/future/ultimate/driver/ui/screen/DriverScreens.kt:574:25 Unresolved reference 'captureDashboardPhoto'.
+e: file:///home/runner/work/Flota/Flota/android-native/app-driver/src/main/java/com/future/ultimate/driver/ui/screen/DriverScreens.kt:582:29 Unresolved reference 'captureDashboardPhoto'.
+e: file:///home/runner/work/Flota/Flota/android-native/app-driver/src/main/java/com/future/ultimate/driver/ui/screen/DriverScreens.kt:608:25 Unresolved reference 'captureDashboardPhoto'.
+e: file:///home/runner/work/Flota/Flota/android-native/app-driver/src/main/java/com/future/ultimate/driver/ui/screen/DriverScreens.kt:616:29 Unresolved reference 'captureDashboardPhoto'.
+e: file:///home/runner/work/Flota/Flota/android-native/app-driver/src/main/java/com/future/ultimate/driver/ui/screen/DriverScreens.kt:642:25 Unresolved reference 'captureDashboardPhoto'.
+e: file:///home/runner/work/Flota/Flota/android-native/app-driver/src/main/java/com/future/ultimate/driver/ui/screen/DriverScreens.kt:650:29 Unresolved reference 'captureDashboardPhoto'.
 
 > Task :app-admin:compileDebugKotlin
 w: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/AdminMenu.kt:28:53 'val Icons.Rounded.ReceiptLong: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Rounded.ReceiptLong.
 w: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/ContactsScreen.kt:210:49 'val Icons.Rounded.Chat: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Rounded.Chat.
-gradle/actions: Writing build results to /home/runner/work/_temp/.gradle-actions/build-results/__run_2-1774476830060.json
+gradle/actions: Writing build results to /home/runner/work/_temp/.gradle-actions/build-results/__run_2-1774479052517.json
 
 [Incubating] Problems report is available at: file:///home/runner/work/Flota/Flota/android-native/build/reports/problems/problems-report.html
 
@@ -203,6 +193,35 @@ org.gradle.api.tasks.TaskExecutionException: Execution failed for task ':app-dri
 	at org.gradle.execution.taskgraph.DefaultTaskExecutionGraph$BuildOperationAwareExecutionAction.execute(DefaultTaskExecutionGraph.java:303)
 	at org.gradle.execution.plan.DefaultPlanExecutor$ExecutorWorker.execute(DefaultPlanExecutor.java:459)
 	at org.gradle.execution.plan.DefaultPlanExecutor$ExecutorWorker.run(DefaultPlanExecutor.java:376)
+	at org.gradle.execution.plan.DefaultPlanExecutor.process(DefaultPlanExecutor.java:111)
+	at org.gradle.execution.taskgraph.DefaultTaskExecutionGraph.executeWithServices(DefaultTaskExecutionGraph.java:138)
+	at org.gradle.execution.taskgraph.DefaultTaskExecutionGraph.execute(DefaultTaskExecutionGraph.java:123)
+	at org.gradle.execution.SelectedTaskExecutionAction.execute(SelectedTaskExecutionAction.java:35)
+	at org.gradle.execution.DryRunBuildExecutionAction.execute(DryRunBuildExecutionAction.java:51)
+	at org.gradle.execution.BuildOperationFiringBuildWorkerExecutor$ExecuteTasks.call(BuildOperationFiringBuildWorkerExecutor.java:54)
+	at org.gradle.execution.BuildOperationFiringBuildWorkerExecutor$ExecuteTasks.call(BuildOperationFiringBuildWorkerExecutor.java:43)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner$CallableBuildOperationWorker.execute(DefaultBuildOperationRunner.java:210)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner$CallableBuildOperationWorker.execute(DefaultBuildOperationRunner.java:205)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner$2.execute(DefaultBuildOperationRunner.java:67)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner$2.execute(DefaultBuildOperationRunner.java:60)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner.execute(DefaultBuildOperationRunner.java:167)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner.execute(DefaultBuildOperationRunner.java:60)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner.call(DefaultBuildOperationRunner.java:54)
+	at org.gradle.execution.BuildOperationFiringBuildWorkerExecutor.execute(BuildOperationFiringBuildWorkerExecutor.java:40)
+	at org.gradle.internal.build.DefaultBuildLifecycleController.lambda$executeTasks$10(DefaultBuildLifecycleController.java:313)
+	at org.gradle.internal.model.StateTransitionController.doTransition(StateTransitionController.java:266)
+	at org.gradle.internal.model.StateTransitionController.lambda$tryTransition$8(StateTransitionController.java:177)
+	at org.gradle.internal.work.DefaultSynchronizer.withLock(DefaultSynchronizer.java:46)
+	at org.gradle.internal.model.StateTransitionController.tryTransition(StateTransitionController.java:177)
+	at org.gradle.internal.build.DefaultBuildLifecycleController.executeTasks(DefaultBuildLifecycleController.java:304)
+	at org.gradle.internal.build.DefaultBuildWorkGraphController$DefaultBuildWorkGraph.runWork(DefaultBuildWorkGraphController.java:220)
+	at org.gradle.internal.work.DefaultWorkerLeaseService.withLocks(DefaultWorkerLeaseService.java:263)
+	at org.gradle.internal.work.DefaultWorkerLeaseService.runAsWorkerThread(DefaultWorkerLeaseService.java:127)
+	at org.gradle.composite.internal.DefaultBuildController.doRun(DefaultBuildController.java:181)
+	at org.gradle.composite.internal.DefaultBuildController.access$000(DefaultBuildController.java:50)
+	at org.gradle.composite.internal.DefaultBuildController$BuildOpRunnable.lambda$run$0(DefaultBuildController.java:198)
+	at org.gradle.internal.operations.CurrentBuildOperationRef.with(CurrentBuildOperationRef.java:85)
+	at org.gradle.composite.internal.DefaultBuildController$BuildOpRunnable.run(DefaultBuildController.java:198)
 	at org.gradle.internal.concurrent.ExecutorPolicy$CatchAndRecordFailures.onExecute(ExecutorPolicy.java:64)
 	at org.gradle.internal.concurrent.AbstractManagedExecutor$1.run(AbstractManagedExecutor.java:48)
 Caused by: org.gradle.workers.internal.DefaultWorkerExecutor$WorkExecutionException: A failure occurred while executing org.jetbrains.kotlin.compilerRunner.GradleCompilerRunnerWithWorkers$GradleKotlinCompilerWorkAction
@@ -328,6 +347,35 @@ Caused by: org.gradle.workers.internal.DefaultWorkerExecutor$WorkExecutionExcept
 	at org.gradle.execution.taskgraph.DefaultTaskExecutionGraph$BuildOperationAwareExecutionAction.execute(DefaultTaskExecutionGraph.java:303)
 	at org.gradle.execution.plan.DefaultPlanExecutor$ExecutorWorker.execute(DefaultPlanExecutor.java:459)
 	at org.gradle.execution.plan.DefaultPlanExecutor$ExecutorWorker.run(DefaultPlanExecutor.java:376)
+	at org.gradle.execution.plan.DefaultPlanExecutor.process(DefaultPlanExecutor.java:111)
+	at org.gradle.execution.taskgraph.DefaultTaskExecutionGraph.executeWithServices(DefaultTaskExecutionGraph.java:138)
+	at org.gradle.execution.taskgraph.DefaultTaskExecutionGraph.execute(DefaultTaskExecutionGraph.java:123)
+	at org.gradle.execution.SelectedTaskExecutionAction.execute(SelectedTaskExecutionAction.java:35)
+	at org.gradle.execution.DryRunBuildExecutionAction.execute(DryRunBuildExecutionAction.java:51)
+	at org.gradle.execution.BuildOperationFiringBuildWorkerExecutor$ExecuteTasks.call(BuildOperationFiringBuildWorkerExecutor.java:54)
+	at org.gradle.execution.BuildOperationFiringBuildWorkerExecutor$ExecuteTasks.call(BuildOperationFiringBuildWorkerExecutor.java:43)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner$CallableBuildOperationWorker.execute(DefaultBuildOperationRunner.java:210)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner$CallableBuildOperationWorker.execute(DefaultBuildOperationRunner.java:205)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner$2.execute(DefaultBuildOperationRunner.java:67)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner$2.execute(DefaultBuildOperationRunner.java:60)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner.execute(DefaultBuildOperationRunner.java:167)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner.execute(DefaultBuildOperationRunner.java:60)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner.call(DefaultBuildOperationRunner.java:54)
+	at org.gradle.execution.BuildOperationFiringBuildWorkerExecutor.execute(BuildOperationFiringBuildWorkerExecutor.java:40)
+	at org.gradle.internal.build.DefaultBuildLifecycleController.lambda$executeTasks$10(DefaultBuildLifecycleController.java:313)
+	at org.gradle.internal.model.StateTransitionController.doTransition(StateTransitionController.java:266)
+	at org.gradle.internal.model.StateTransitionController.lambda$tryTransition$8(StateTransitionController.java:177)
+	at org.gradle.internal.work.DefaultSynchronizer.withLock(DefaultSynchronizer.java:46)
+	at org.gradle.internal.model.StateTransitionController.tryTransition(StateTransitionController.java:177)
+	at org.gradle.internal.build.DefaultBuildLifecycleController.executeTasks(DefaultBuildLifecycleController.java:304)
+	at org.gradle.internal.build.DefaultBuildWorkGraphController$DefaultBuildWorkGraph.runWork(DefaultBuildWorkGraphController.java:220)
+	at org.gradle.internal.work.DefaultWorkerLeaseService.withLocks(DefaultWorkerLeaseService.java:263)
+	at org.gradle.internal.work.DefaultWorkerLeaseService.runAsWorkerThread(DefaultWorkerLeaseService.java:127)
+	at org.gradle.composite.internal.DefaultBuildController.doRun(DefaultBuildController.java:181)
+	at org.gradle.composite.internal.DefaultBuildController.access$000(DefaultBuildController.java:50)
+	at org.gradle.composite.internal.DefaultBuildController$BuildOpRunnable.lambda$run$0(DefaultBuildController.java:198)
+	at org.gradle.internal.operations.CurrentBuildOperationRef.with(CurrentBuildOperationRef.java:85)
+	at org.gradle.composite.internal.DefaultBuildController$BuildOpRunnable.run(DefaultBuildController.java:198)
 	at org.gradle.internal.concurrent.ExecutorPolicy$CatchAndRecordFailures.onExecute(ExecutorPolicy.java:64)
 	at org.gradle.internal.concurrent.AbstractManagedExecutor$1.run(AbstractManagedExecutor.java:48)
 Caused by: org.jetbrains.kotlin.gradle.tasks.CompilationErrorException: Compilation error. See log for more details
@@ -369,5 +417,5 @@ You can use '--warning-mode all' to show the individual deprecation warnings and
 
 For more on this, please refer to https://docs.gradle.org/8.14.3/userguide/command_line_interface.html#sec:command_line_warnings in the Gradle documentation.
 
-BUILD FAILED in 1m 24s
+BUILD FAILED in 1m 15s
 100 actionable tasks: 96 executed, 4 up-to-date
