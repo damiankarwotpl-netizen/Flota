@@ -109,6 +109,13 @@ interface AppDao {
     @Query("DELETE FROM driver_accounts WHERE upper(registration) = upper(:registration)")
     suspend fun deleteDriverAccountByRegistration(registration: String)
 
+    @Query(
+        "DELETE FROM driver_accounts " +
+            "WHERE upper(registration) = upper(:registration) " +
+            "AND lower(trim(driverName)) = lower(trim(:driverName))",
+    )
+    suspend fun deleteDriverAccountByRegistrationAndDriverName(registration: String, driverName: String)
+
     @Query("SELECT * FROM workers ORDER BY surname, name")
     fun observeWorkers(): Flow<List<WorkerEntity>>
 
