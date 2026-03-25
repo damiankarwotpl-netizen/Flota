@@ -475,7 +475,6 @@ fun DriverVehicleReportScreen(navController: NavController) {
 
 @Composable
 private fun editableFields(draft: VehicleReportDraft, onDraftChange: (VehicleReportDraft) -> Unit) {
-    data class ReportFieldGroup(val titlePl: String, val titleEs: String, val fields: List<ReportField>)
     data class ReportField(
         val id: String,
         val labelPl: String,
@@ -483,6 +482,7 @@ private fun editableFields(draft: VehicleReportDraft, onDraftChange: (VehicleRep
         val value: String,
         val keyboardType: KeyboardType,
     )
+    data class ReportFieldGroup(val titlePl: String, val titleEs: String, val fields: List<ReportField>)
     val groups = listOf(
         ReportFieldGroup(
             titlePl = "Dane pojazdu",
