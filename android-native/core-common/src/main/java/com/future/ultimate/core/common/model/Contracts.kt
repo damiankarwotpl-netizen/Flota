@@ -16,6 +16,7 @@ data class CarDraft(
     val name: String = "",
     val registration: String = "",
     val driver: String = "",
+    val initialMileage: String = "0",
     val serviceInterval: String = "15000",
     val lastInspectionDate: String = "",
 )
