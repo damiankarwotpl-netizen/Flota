@@ -58,13 +58,6 @@ import java.io.File
 import java.io.FileOutputStream
 import java.time.LocalDate
 
-private data class ChecklistItem(
-    val id: String,
-    val labelPl: String,
-    val labelEs: String,
-    val checked: Boolean,
-)
-
 @Composable
 private fun DriverSectionCard(
     title: String? = null,
@@ -554,6 +547,40 @@ fun DriverVehicleReportScreen(navController: NavController) {
             }
         }
         item {
+            DriverSectionCard(title = tr("Zdjęcia samochodu", "Fotos del vehículo")) {
+                Text(
+                    tr(
+                        "Wymagane zdjęcia: 1) przód+prawy bok, 2) przód+lewy bok, 3) tył+prawy bok, 4) tył+lewy bok, 5) wnętrze przód, 6) wnętrze tył.",
+                        "Fotos obligatorias: 1) frente+lado derecho, 2) frente+lado izquierdo, 3) trasera+lado derecho, 4) trasera+lado izquierdo, 5) interior delantero, 6) interior trasero.",
+                    ),
+                )
+                Text("${tr("Dodano", "Añadidas")}: ${draft.photoPaths.size}/$requiredPhotoCount")
+                DriverActionButton(
+                    text = tr("Zrób zdjęcie samochodu", "Tomar foto del vehículo"),
+                    onClick = {
+                        captureDashboardPhoto = false
+                        photoLauncher.launch(null)
+                    },
+                )
+                if (draft.warningLights) {
+                    DriverActionButton(
+                        text = tr("Zrób zdjęcie deski rozdzielczej", "Tomar foto del tablero"),
+                        onClick = {
+                            captureDashboardPhoto = true
+                            photoLauncher.launch(null)
+                        },
+                    )
+                    Text(
+                        if (draft.dashboardPhotoPath.isNotBlank()) {
+                            tr("Zdjęcie deski: dodane", "Foto del tablero: añadida")
+                        } else {
+                            tr("Zdjęcie deski: wymagane", "Foto del tablero: obligatoria")
+                        },
+                    )
+                }
+            }
+        }
+        item {
             DriverSectionCard {
                 DriverActionButton(
                     text = tr("Wróć do przebiegu", "Volver al kilometraje"),
@@ -702,45 +729,59 @@ private fun editableFields(draft: VehicleReportDraft, onDraftChange: (VehicleRep
 
 @Composable
 private fun checklist(draft: VehicleReportDraft, onDraftChange: (VehicleReportDraft) -> Unit) {
-    val items = listOf(
-        ChecklistItem("trojkat", "Trójkąt", "Triángulo", draft.trojkat),
-        ChecklistItem("kamizelki", "Kamizelki", "Chalecos", draft.kamizelki),
-        ChecklistItem("kolo", "Koło zapasowe", "Rueda de repuesto", draft.kolo),
-        ChecklistItem("dowod", "Dowód rejestracyjny", "Permiso de circulación", draft.dowod),
-        ChecklistItem("apteczka", "Apteczka", "Botiquín", draft.apteczka),
+    checklistRow(
+        label = tr("Trójkąt", "Triángulo"),
+        checked = draft.trojkat,
+        onCheckedChange = { onDraftChange(draft.copy(trojkat = it)) },
     )
-    for (item in items) {
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(18.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)),
+    checklistRow(
+        label = tr("Kamizelki", "Chalecos"),
+        checked = draft.kamizelki,
+        onCheckedChange = { onDraftChange(draft.copy(kamizelki = it)) },
+    )
+    checklistRow(
+        label = tr("Koło zapasowe", "Rueda de repuesto"),
+        checked = draft.kolo,
+        onCheckedChange = { onDraftChange(draft.copy(kolo = it)) },
+    )
+    checklistRow(
+        label = tr("Dowód rejestracyjny", "Permiso de circulación"),
+        checked = draft.dowod,
+        onCheckedChange = { onDraftChange(draft.copy(dowod = it)) },
+    )
+    checklistRow(
+        label = tr("Apteczka", "Botiquín"),
+        checked = draft.apteczka,
+        onCheckedChange = { onDraftChange(draft.copy(apteczka = it)) },
+    )
+}
+
+@Composable
+private fun checklistRow(
+    label: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(18.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)),
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 8.dp, vertical = 4.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 8.dp, vertical = 4.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                Checkbox(
-                    checked = item.checked,
-                    onCheckedChange = { value ->
-                        onDraftChange(
-                            when (item.id) {
-                                "trojkat" -> draft.copy(trojkat = value)
-                                "kamizelki" -> draft.copy(kamizelki = value)
-                                "kolo" -> draft.copy(kolo = value)
-                                "dowod" -> draft.copy(dowod = value)
-                                else -> draft.copy(apteczka = value)
-                            },
-                        )
-                    },
-                )
-                Text(
-                    tr(item.labelPl, item.labelEs),
-                    modifier = Modifier.padding(top = 12.dp),
-                    style = MaterialTheme.typography.bodyLarge,
-                )
-            }
+            Checkbox(
+                checked = checked,
+                onCheckedChange = onCheckedChange,
+            )
+            Text(
+                label,
+                modifier = Modifier.padding(top = 12.dp),
+                style = MaterialTheme.typography.bodyLarge,
+            )
         }
     }
 }
