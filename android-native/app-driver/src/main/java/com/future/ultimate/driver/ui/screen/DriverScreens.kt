@@ -581,6 +581,40 @@ fun DriverVehicleReportScreen(navController: NavController) {
             }
         }
         item {
+            DriverSectionCard(title = tr("Zdjęcia samochodu", "Fotos del vehículo")) {
+                Text(
+                    tr(
+                        "Wymagane zdjęcia: 1) przód+prawy bok, 2) przód+lewy bok, 3) tył+prawy bok, 4) tył+lewy bok, 5) wnętrze przód, 6) wnętrze tył.",
+                        "Fotos obligatorias: 1) frente+lado derecho, 2) frente+lado izquierdo, 3) trasera+lado derecho, 4) trasera+lado izquierdo, 5) interior delantero, 6) interior trasero.",
+                    ),
+                )
+                Text("${tr("Dodano", "Añadidas")}: ${draft.photoPaths.size}/$requiredPhotoCount")
+                DriverActionButton(
+                    text = tr("Zrób zdjęcie samochodu", "Tomar foto del vehículo"),
+                    onClick = {
+                        captureDashboardPhoto = false
+                        photoLauncher.launch(null)
+                    },
+                )
+                if (draft.warningLights) {
+                    DriverActionButton(
+                        text = tr("Zrób zdjęcie deski rozdzielczej", "Tomar foto del tablero"),
+                        onClick = {
+                            captureDashboardPhoto = true
+                            photoLauncher.launch(null)
+                        },
+                    )
+                    Text(
+                        if (draft.dashboardPhotoPath.isNotBlank()) {
+                            tr("Zdjęcie deski: dodane", "Foto del tablero: añadida")
+                        } else {
+                            tr("Zdjęcie deski: wymagane", "Foto del tablero: obligatoria")
+                        },
+                    )
+                }
+            }
+        }
+        item {
             DriverSectionCard {
                 DriverActionButton(
                     text = tr("Wróć do przebiegu", "Volver al kilometraje"),
@@ -664,31 +698,6 @@ private fun editableFields(draft: VehicleReportDraft, onDraftChange: (VehicleRep
             label = tr("Opisz uszkodzenie", "Describe el daño"),
             singleLine = false,
         )
-    }
-    yesNoSelector(
-        label = tr("Czy samochód został wysprzątany/umyty", "¿El vehículo fue limpiado/lavado?"),
-        value = draft.cleaned,
-        onValueChange = { onDraftChange(draft.copy(cleaned = it)) },
-    )
-    yesNoSelector(
-        label = tr("Czy na wyświetlaczu są lampki ostrzegawcze", "¿Hay luces de advertencia en el tablero?"),
-        value = draft.warningLights,
-        onValueChange = { hasWarnings ->
-            onDraftChange(
-                draft.copy(
-                    warningLights = hasWarnings,
-                    warningLightsDescription = if (hasWarnings) draft.warningLightsDescription else "",
-                    dashboardPhotoPath = if (hasWarnings) draft.dashboardPhotoPath else "",
-                ),
-            )
-        },
-    )
-    if (draft.warningLights) {
-        DriverInputField(
-            value = draft.warningLightsDescription,
-            onValueChange = { onDraftChange(draft.copy(warningLightsDescription = it)) },
-            label = tr("Opisz lampkę ostrzegawczą", "Describe la luz de advertencia"),
-        )
         group.fields.forEach { field ->
             DriverInputField(
                 value = field.value,
@@ -718,6 +727,31 @@ private fun editableFields(draft: VehicleReportDraft, onDraftChange: (VehicleRep
                 keyboardType = field.keyboardType,
             )
         }
+    }
+i    yesNoSelector(
+        label = tr("Czy samochód został wysprzątany/umyty", "¿El vehículo fue limpiado/lavado?"),
+        value = draft.cleaned,
+        onValueChange = { onDraftChange(draft.copy(cleaned = it)) },
+    )
+    yesNoSelector(
+        label = tr("Czy na wyświetlaczu są lampki ostrzegawcze", "¿Hay luces de advertencia en el tablero?"),
+        value = draft.warningLights,
+        onValueChange = { hasWarnings ->
+            onDraftChange(
+                draft.copy(
+                    warningLights = hasWarnings,
+                    warningLightsDescription = if (hasWarnings) draft.warningLightsDescription else "",
+                    dashboardPhotoPath = if (hasWarnings) draft.dashboardPhotoPath else "",
+                ),
+            )
+        },
+    )
+    if (draft.warningLights) {
+        DriverInputField(
+            value = draft.warningLightsDescription,
+            onValueChange = { onDraftChange(draft.copy(warningLightsDescription = it)) },
+            label = tr("Opisz lampkę ostrzegawczą", "Describe la luz de advertencia"),
+        )
     }
 
     Text(tr("Stan opon", "Estado de neumáticos"), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
@@ -773,15 +807,19 @@ private fun checklistRow(
                 .padding(horizontal = 8.dp, vertical = 4.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            Checkbox(
-                checked = checked,
-                onCheckedChange = onCheckedChange,
-            )
             Text(
-                label,
-                modifier = Modifier.padding(top = 12.dp),
+                if (checked) "✓ $label" else label,
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(top = 12.dp),
                 style = MaterialTheme.typography.bodyLarge,
             )
+            Button(
+                onClick = { onCheckedChange(!checked) },
+                modifier = Modifier.padding(vertical = 4.dp),
+            ) {
+                Text(if (checked) tr("Odznacz", "Quitar") else tr("Zaznacz", "Marcar"))
+            }
         }
     }
 }
