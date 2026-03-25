@@ -274,17 +274,17 @@ fun DriverChangePasswordScreen(navController: NavController) {
                 DriverInputField(
                     value = uiState.login,
                     onValueChange = {},
-                    label = "Login",
+                    label = tr("Login", "Usuario"),
                     enabled = false,
                 )
                 DriverInputField(
                     value = uiState.password,
                     onValueChange = viewModel::updatePassword,
-                    label = "Nowe hasło",
+                    label = tr("Nowe hasło", "Nueva contraseña"),
                     visualTransformation = PasswordVisualTransformation(),
                 )
                 DriverActionButton(
-                    text = if (uiState.isLoading) "Zapisywanie..." else "Zapisz hasło",
+                    text = if (uiState.isLoading) tr("Zapisywanie...", "Guardando...") else tr("Zapisz hasło", "Guardar contraseña"),
                     onClick = { viewModel.save { navController.navigate(DriverRoute.Mileage.route) } },
                     enabled = !uiState.isLoading && uiState.password.isNotBlank(),
                 )
@@ -310,21 +310,28 @@ fun DriverMileageScreen(navController: NavController) {
         item {
             DriverSectionCard {
                 StatusMessage(
-                    message = if (uiState.driverName.isNotBlank()) "Kierowca: ${uiState.driverName}" else "Brak aktywnego kierowcy.",
+                    message = if (uiState.driverName.isNotBlank()) {
+                        "${tr("Kierowca", "Conductor")}: ${uiState.driverName}"
+                    } else {
+                        tr("Brak aktywnego kierowcy.", "No hay conductor activo.")
+                    },
                     emphasis = true,
                 )
                 if (uiState.registration.isBlank()) {
                     StatusMessage(
-                        message = "W tej chwili nie masz przypisanego samochodu. Zaloguj się ponownie po zmianie przypisania przez admina.",
+                        message = tr(
+                            "W tej chwili nie masz przypisanego samochodu. Zaloguj się ponownie po zmianie przypisania przez admina.",
+                            "Ahora mismo no tienes un vehículo asignado. Inicia sesión de nuevo después de que el administrador cambie la asignación.",
+                        ),
                         emphasis = true,
                     )
                 } else {
                     StatusMessage("${tr("Aktualnie przypisane auto", "Vehículo asignado")}: ${uiState.registration}")
                 }
                 StatusMessage("${tr("Status synchronizacji", "Estado de sincronización")}: ${uiState.syncStatus}")
-                StatusMessage("Kolejka: ${uiState.pendingSyncCount} • Oczekujący przebieg: ${uiState.queuedMileage.ifBlank { "-" }}")
-                StatusMessage("Ostatnia próba: ${uiState.lastAttemptAt.ifBlank { "-" }}")
-                StatusMessage("Ostatnia synchronizacja: ${uiState.lastSyncedAt.ifBlank { "-" }}")
+                StatusMessage("${tr("Kolejka", "Cola")}: ${uiState.pendingSyncCount} • ${tr("Oczekujący przebieg", "Kilometraje pendiente")}: ${uiState.queuedMileage.ifBlank { "-" }}")
+                StatusMessage("${tr("Ostatnia próba", "Último intento")}: ${uiState.lastAttemptAt.ifBlank { "-" }}")
+                StatusMessage("${tr("Ostatnia synchronizacja", "Última sincronización")}: ${uiState.lastSyncedAt.ifBlank { "-" }}")
                 if (uiState.syncError.isNotBlank()) {
                     StatusMessage("${tr("Błąd synchronizacji", "Error de sincronización")}: ${uiState.syncError}", emphasis = true)
                 }
@@ -335,7 +342,7 @@ fun DriverMileageScreen(navController: NavController) {
                 DriverInputField(
                     value = uiState.registration,
                     onValueChange = {},
-                    label = "Rejestracja",
+                    label = tr("Rejestracja", "Matrícula"),
                     enabled = false,
                 )
                 if (uiState.availableRegistrations.size > 1) {
@@ -351,11 +358,11 @@ fun DriverMileageScreen(navController: NavController) {
                 DriverInputField(
                     value = uiState.mileage,
                     onValueChange = viewModel::updateMileage,
-                    label = "Przebieg",
+                    label = tr("Przebieg", "Kilometraje"),
                     keyboardType = KeyboardType.Number,
                 )
                 DriverActionButton(
-                    text = if (uiState.isSaving) "Zapisywanie..." else "Zapisz przebieg",
+                    text = if (uiState.isSaving) tr("Zapisywanie...", "Guardando...") else tr("Zapisz przebieg", "Guardar kilometraje"),
                     onClick = viewModel::save,
                     enabled = !uiState.isSaving && uiState.registration.isNotBlank() && uiState.mileage.isNotBlank(),
                 )
@@ -401,7 +408,11 @@ fun DriverVehicleReportScreen(navController: NavController) {
         item {
             DriverSectionCard {
                 StatusMessage(
-                    message = if (uiState.driverName.isNotBlank()) "Kierowca: ${uiState.driverName}" else "Brak aktywnego kierowcy.",
+                    message = if (uiState.driverName.isNotBlank()) {
+                        "${tr("Kierowca", "Conductor")}: ${uiState.driverName}"
+                    } else {
+                        tr("Brak aktywnego kierowcy.", "No hay conductor activo.")
+                    },
                     emphasis = true,
                 )
                 if (uiState.availableRegistrations.size > 1) {
@@ -434,7 +445,7 @@ fun DriverVehicleReportScreen(navController: NavController) {
                     secondary = true,
                 )
                 DriverActionButton(
-                    text = if (uiState.isSaving) "Zapisywanie..." else "Zapisz PDF",
+                    text = if (uiState.isSaving) tr("Zapisywanie...", "Guardando...") else tr("Zapisz PDF", "Guardar PDF"),
                     onClick = viewModel::save,
                     enabled = !uiState.isSaving,
                 )
@@ -457,62 +468,70 @@ fun DriverVehicleReportScreen(navController: NavController) {
 
 @Composable
 private fun editableFields(draft: VehicleReportDraft, onDraftChange: (VehicleReportDraft) -> Unit) {
+    data class ReportField(
+        val id: String,
+        val labelPl: String,
+        val labelEs: String,
+        val value: String,
+        val keyboardType: KeyboardType,
+    )
     listOf(
-        Triple("Marka", draft.marka, KeyboardType.Text),
-        Triple("Rejestracja", draft.rej, KeyboardType.Text),
-        Triple("Przebieg", draft.przebieg, KeyboardType.Number),
-        Triple("Poziom oleju", draft.olej, KeyboardType.Text),
-        Triple("Wskaźnik paliwa", draft.paliwo, KeyboardType.Text),
-        Triple("Rodzaj paliwa", draft.rodzajPaliwa, KeyboardType.Text),
-        Triple("Lewy przedni", draft.lp, KeyboardType.Text),
-        Triple("Prawy przedni", draft.pp, KeyboardType.Text),
-        Triple("Lewy tylny", draft.lt, KeyboardType.Text),
-        Triple("Prawy tylny", draft.pt, KeyboardType.Text),
-        Triple("Nowe uszkodzenia", draft.uszkodzenia, KeyboardType.Text),
-        Triple("Od kiedy?", draft.odKiedy, KeyboardType.Text),
-        Triple("Przegląd / Service", draft.serwis, KeyboardType.Text),
-        Triple("Przegląd techniczny", draft.przeglad, KeyboardType.Text),
-        Triple("Uwagi", draft.uwagi, KeyboardType.Text),
-    ).forEach { (label, value, keyboardType) ->
+        ReportField("marka", "Marka", "Marca", draft.marka, KeyboardType.Text),
+        ReportField("rej", "Rejestracja", "Matrícula", draft.rej, KeyboardType.Text),
+        ReportField("przebieg", "Przebieg", "Kilometraje", draft.przebieg, KeyboardType.Number),
+        ReportField("olej", "Poziom oleju", "Nivel de aceite", draft.olej, KeyboardType.Text),
+        ReportField("paliwo", "Wskaźnik paliwa", "Indicador de combustible", draft.paliwo, KeyboardType.Text),
+        ReportField("rodzajPaliwa", "Rodzaj paliwa", "Tipo de combustible", draft.rodzajPaliwa, KeyboardType.Text),
+        ReportField("lp", "Lewy przedni", "Delantero izquierdo", draft.lp, KeyboardType.Text),
+        ReportField("pp", "Prawy przedni", "Delantero derecho", draft.pp, KeyboardType.Text),
+        ReportField("lt", "Lewy tylny", "Trasero izquierdo", draft.lt, KeyboardType.Text),
+        ReportField("pt", "Prawy tylny", "Trasero derecho", draft.pt, KeyboardType.Text),
+        ReportField("uszkodzenia", "Nowe uszkodzenia", "Nuevos daños", draft.uszkodzenia, KeyboardType.Text),
+        ReportField("odKiedy", "Od kiedy?", "¿Desde cuándo?", draft.odKiedy, KeyboardType.Text),
+        ReportField("serwis", "Przegląd / Service", "Revisión / Servicio", draft.serwis, KeyboardType.Text),
+        ReportField("przeglad", "Przegląd techniczny", "Inspección técnica", draft.przeglad, KeyboardType.Text),
+        ReportField("uwagi", "Uwagi", "Observaciones", draft.uwagi, KeyboardType.Text),
+    ).forEach { field ->
         DriverInputField(
-            value = value,
+            value = field.value,
             onValueChange = { newValue ->
                 onDraftChange(
-                    when (label) {
-                        "Marka" -> draft.copy(marka = newValue)
-                        "Rejestracja" -> draft.copy(rej = newValue)
-                        "Przebieg" -> draft.copy(przebieg = newValue)
-                        "Poziom oleju" -> draft.copy(olej = newValue)
-                        "Wskaźnik paliwa" -> draft.copy(paliwo = newValue)
-                        "Rodzaj paliwa" -> draft.copy(rodzajPaliwa = newValue)
-                        "Lewy przedni" -> draft.copy(lp = newValue)
-                        "Prawy przedni" -> draft.copy(pp = newValue)
-                        "Lewy tylny" -> draft.copy(lt = newValue)
-                        "Prawy tylny" -> draft.copy(pt = newValue)
-                        "Nowe uszkodzenia" -> draft.copy(uszkodzenia = newValue)
-                        "Od kiedy?" -> draft.copy(odKiedy = newValue)
-                        "Przegląd / Service" -> draft.copy(serwis = newValue)
-                        "Przegląd techniczny" -> draft.copy(przeglad = newValue)
-                        "Uwagi" -> draft.copy(uwagi = newValue)
+                    when (field.id) {
+                        "marka" -> draft.copy(marka = newValue)
+                        "rej" -> draft.copy(rej = newValue)
+                        "przebieg" -> draft.copy(przebieg = newValue)
+                        "olej" -> draft.copy(olej = newValue)
+                        "paliwo" -> draft.copy(paliwo = newValue)
+                        "rodzajPaliwa" -> draft.copy(rodzajPaliwa = newValue)
+                        "lp" -> draft.copy(lp = newValue)
+                        "pp" -> draft.copy(pp = newValue)
+                        "lt" -> draft.copy(lt = newValue)
+                        "pt" -> draft.copy(pt = newValue)
+                        "uszkodzenia" -> draft.copy(uszkodzenia = newValue)
+                        "odKiedy" -> draft.copy(odKiedy = newValue)
+                        "serwis" -> draft.copy(serwis = newValue)
+                        "przeglad" -> draft.copy(przeglad = newValue)
+                        "uwagi" -> draft.copy(uwagi = newValue)
                         else -> draft
                     },
                 )
             },
-            label = label,
-            keyboardType = keyboardType,
+            label = tr(field.labelPl, field.labelEs),
+            keyboardType = field.keyboardType,
         )
     }
 }
 
 @Composable
 private fun checklist(draft: VehicleReportDraft, onDraftChange: (VehicleReportDraft) -> Unit) {
+    data class ChecklistItem(val id: String, val labelPl: String, val labelEs: String, val checked: Boolean)
     listOf(
-        "Trójkąt" to draft.trojkat,
-        "Kamizelki" to draft.kamizelki,
-        "Koło zapasowe" to draft.kolo,
-        "Dowód rejestracyjny" to draft.dowod,
-        "Apteczka" to draft.apteczka,
-    ).forEach { (label, checked) ->
+        ChecklistItem("trojkat", "Trójkąt", "Triángulo", draft.trojkat),
+        ChecklistItem("kamizelki", "Kamizelki", "Chalecos", draft.kamizelki),
+        ChecklistItem("kolo", "Koło zapasowe", "Rueda de repuesto", draft.kolo),
+        ChecklistItem("dowod", "Dowód rejestracyjny", "Permiso de circulación", draft.dowod),
+        ChecklistItem("apteczka", "Apteczka", "Botiquín", draft.apteczka),
+    ).forEach { item ->
         Card(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(18.dp),
@@ -525,20 +544,24 @@ private fun checklist(draft: VehicleReportDraft, onDraftChange: (VehicleReportDr
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 Checkbox(
-                    checked = checked,
+                    checked = item.checked,
                     onCheckedChange = { value ->
                         onDraftChange(
-                            when (label) {
-                                "Trójkąt" -> draft.copy(trojkat = value)
-                                "Kamizelki" -> draft.copy(kamizelki = value)
-                                "Koło zapasowe" -> draft.copy(kolo = value)
-                                "Dowód rejestracyjny" -> draft.copy(dowod = value)
+                            when (item.id) {
+                                "trojkat" -> draft.copy(trojkat = value)
+                                "kamizelki" -> draft.copy(kamizelki = value)
+                                "kolo" -> draft.copy(kolo = value)
+                                "dowod" -> draft.copy(dowod = value)
                                 else -> draft.copy(apteczka = value)
                             },
                         )
                     },
                 )
-                Text(label, modifier = Modifier.padding(top = 12.dp), style = MaterialTheme.typography.bodyLarge)
+                Text(
+                    tr(item.labelPl, item.labelEs),
+                    modifier = Modifier.padding(top = 12.dp),
+                    style = MaterialTheme.typography.bodyLarge,
+                )
             }
         }
     }
