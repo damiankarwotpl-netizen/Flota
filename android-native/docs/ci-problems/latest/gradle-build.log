@@ -16,8 +16,8 @@ Daemon will be stopped at the end of the build
 > Task :core-database:writeDebugAarMetadata
 > Task :app-admin:generateDebugResValues
 > Task :core-common:generateDebugResValues
-> Task :app-admin:checkDebugAarMetadata
 > Task :core-common:generateDebugResources
+> Task :app-admin:checkDebugAarMetadata
 > Task :core-common:packageDebugResources
 > Task :core-database:generateDebugResValues
 > Task :core-database:generateDebugResources
@@ -32,19 +32,19 @@ Daemon will be stopped at the end of the build
 > Task :core-database:extractDeepLinksDebug
 > Task :app-admin:parseDebugLocalResources
 > Task :core-common:compileDebugLibraryResources
-> Task :core-database:compileDebugLibraryResources
 > Task :core-common:parseDebugLocalResources
-> Task :core-database:parseDebugLocalResources
-> Task :core-database:processDebugManifest
+> Task :core-database:compileDebugLibraryResources
 > Task :core-common:processDebugManifest
+> Task :core-common:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :core-database:processDebugManifest
+> Task :core-database:parseDebugLocalResources
+> Task :core-common:javaPreCompileDebug
 > Task :core-common:generateDebugRFile
-> Task :core-database:generateDebugRFile
 > Task :app-admin:processDebugMainManifest
 > Task :app-admin:processDebugManifest
-> Task :core-common:checkKotlinGradlePluginConfigurationErrors SKIPPED
-> Task :app-admin:processDebugManifestForPackage
+> Task :core-database:generateDebugRFile
 > Task :core-database:checkKotlinGradlePluginConfigurationErrors SKIPPED
-> Task :core-common:javaPreCompileDebug
+> Task :app-admin:processDebugManifestForPackage
 > Task :core-database:javaPreCompileDebug
 > Task :app-admin:javaPreCompileDebug
 > Task :app-admin:mergeDebugShaders
@@ -64,15 +64,15 @@ Daemon will be stopped at the end of the build
 > Task :app-admin:mergeDebugJniLibFolders
 > Task :core-common:mergeDebugJniLibFolders
 > Task :core-common:mergeDebugNativeLibs NO-SOURCE
-> Task :app-admin:checkDebugDuplicateClasses
 > Task :core-common:copyDebugJniLibsProjectOnly
-> Task :app-admin:processDebugResources
 > Task :core-database:mergeDebugJniLibFolders
 > Task :core-database:mergeDebugNativeLibs NO-SOURCE
+> Task :app-admin:checkDebugDuplicateClasses
 > Task :core-database:copyDebugJniLibsProjectOnly
+> Task :app-admin:processDebugResources
+> Task :app-admin:mergeDebugNativeLibs
 > Task :app-admin:validateSigningDebug
 > Task :app-admin:writeDebugAppMetadata
-> Task :app-admin:mergeDebugNativeLibs
 > Task :app-admin:writeDebugSigningConfigVersions
 > Task :app-driver:preBuild UP-TO-DATE
 > Task :app-driver:preDebugBuild UP-TO-DATE
@@ -116,36 +116,38 @@ Unable to strip the following libraries, packaging them as they are: libandroidx
 > Task :core-common:compileDebugKotlin
 > Task :core-common:compileDebugJavaWithJavac NO-SOURCE
 > Task :core-common:processDebugJavaRes
-> Task :core-common:bundleLibCompileToJarDebug
 > Task :core-common:bundleLibRuntimeToJarDebug
-> Task :app-admin:mergeExtDexDebug
+> Task :core-common:bundleLibCompileToJarDebug
 > Task :core-common:bundleLibRuntimeToDirDebug
+> Task :app-admin:mergeExtDexDebug
 > Task :core-database:kspDebugKotlin
 > Task :core-database:compileDebugKotlin
 > Task :core-database:compileDebugJavaWithJavac
 > Task :core-database:processDebugJavaRes
-> Task :core-database:bundleLibCompileToJarDebug
 > Task :core-database:bundleLibRuntimeToJarDebug
+> Task :core-database:bundleLibCompileToJarDebug
 > Task :core-database:bundleLibRuntimeToDirDebug
 > Task :app-admin:mergeLibDexDebug
 > Task :app-driver:mergeLibDexDebug
 
+> Task :app-driver:compileDebugKotlin
+e: file:///home/runner/work/Flota/Flota/android-native/app-driver/src/main/java/com/future/ultimate/driver/ui/screen/DriverScreens.kt:532:25 Unresolved reference 'captureDashboardPhoto'.
+e: file:///home/runner/work/Flota/Flota/android-native/app-driver/src/main/java/com/future/ultimate/driver/ui/screen/DriverScreens.kt:540:29 Unresolved reference 'captureDashboardPhoto'.
+e: file:///home/runner/work/Flota/Flota/android-native/app-driver/src/main/java/com/future/ultimate/driver/ui/screen/DriverScreens.kt:566:25 Unresolved reference 'captureDashboardPhoto'.
+e: file:///home/runner/work/Flota/Flota/android-native/app-driver/src/main/java/com/future/ultimate/driver/ui/screen/DriverScreens.kt:574:29 Unresolved reference 'captureDashboardPhoto'.
+e: file:///home/runner/work/Flota/Flota/android-native/app-driver/src/main/java/com/future/ultimate/driver/ui/screen/DriverScreens.kt:600:25 Unresolved reference 'captureDashboardPhoto'.
+e: file:///home/runner/work/Flota/Flota/android-native/app-driver/src/main/java/com/future/ultimate/driver/ui/screen/DriverScreens.kt:608:29 Unresolved reference 'captureDashboardPhoto'.
+e: file:///home/runner/work/Flota/Flota/android-native/app-driver/src/main/java/com/future/ultimate/driver/ui/screen/DriverScreens.kt:634:25 Unresolved reference 'captureDashboardPhoto'.
+e: file:///home/runner/work/Flota/Flota/android-native/app-driver/src/main/java/com/future/ultimate/driver/ui/screen/DriverScreens.kt:642:29 Unresolved reference 'captureDashboardPhoto'.
+e: file:///home/runner/work/Flota/Flota/android-native/app-driver/src/main/java/com/future/ultimate/driver/ui/screen/DriverScreens.kt:668:25 Unresolved reference 'captureDashboardPhoto'.
+e: file:///home/runner/work/Flota/Flota/android-native/app-driver/src/main/java/com/future/ultimate/driver/ui/screen/DriverScreens.kt:676:29 Unresolved reference 'captureDashboardPhoto'.
+
 > Task :app-driver:compileDebugKotlin FAILED
-e: file:///home/runner/work/Flota/Flota/android-native/app-driver/src/main/java/com/future/ultimate/driver/ui/screen/DriverScreens.kt:533:25 Unresolved reference 'captureDashboardPhoto'.
-e: file:///home/runner/work/Flota/Flota/android-native/app-driver/src/main/java/com/future/ultimate/driver/ui/screen/DriverScreens.kt:541:29 Unresolved reference 'captureDashboardPhoto'.
-e: file:///home/runner/work/Flota/Flota/android-native/app-driver/src/main/java/com/future/ultimate/driver/ui/screen/DriverScreens.kt:567:25 Unresolved reference 'captureDashboardPhoto'.
-e: file:///home/runner/work/Flota/Flota/android-native/app-driver/src/main/java/com/future/ultimate/driver/ui/screen/DriverScreens.kt:575:29 Unresolved reference 'captureDashboardPhoto'.
-e: file:///home/runner/work/Flota/Flota/android-native/app-driver/src/main/java/com/future/ultimate/driver/ui/screen/DriverScreens.kt:601:25 Unresolved reference 'captureDashboardPhoto'.
-e: file:///home/runner/work/Flota/Flota/android-native/app-driver/src/main/java/com/future/ultimate/driver/ui/screen/DriverScreens.kt:609:29 Unresolved reference 'captureDashboardPhoto'.
-e: file:///home/runner/work/Flota/Flota/android-native/app-driver/src/main/java/com/future/ultimate/driver/ui/screen/DriverScreens.kt:635:25 Unresolved reference 'captureDashboardPhoto'.
-e: file:///home/runner/work/Flota/Flota/android-native/app-driver/src/main/java/com/future/ultimate/driver/ui/screen/DriverScreens.kt:643:29 Unresolved reference 'captureDashboardPhoto'.
-e: file:///home/runner/work/Flota/Flota/android-native/app-driver/src/main/java/com/future/ultimate/driver/ui/screen/DriverScreens.kt:669:25 Unresolved reference 'captureDashboardPhoto'.
-e: file:///home/runner/work/Flota/Flota/android-native/app-driver/src/main/java/com/future/ultimate/driver/ui/screen/DriverScreens.kt:677:29 Unresolved reference 'captureDashboardPhoto'.
 
 > Task :app-admin:compileDebugKotlin
 w: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/AdminMenu.kt:28:53 'val Icons.Rounded.ReceiptLong: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Rounded.ReceiptLong.
 w: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/ContactsScreen.kt:210:49 'val Icons.Rounded.Chat: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Rounded.Chat.
-gradle/actions: Writing build results to /home/runner/work/_temp/.gradle-actions/build-results/__run_2-1774480622896.json
+gradle/actions: Writing build results to /home/runner/work/_temp/.gradle-actions/build-results/__run_2-1774481788551.json
 
 [Incubating] Problems report is available at: file:///home/runner/work/Flota/Flota/android-native/build/reports/problems/problems-report.html
 
@@ -359,5 +361,5 @@ You can use '--warning-mode all' to show the individual deprecation warnings and
 
 For more on this, please refer to https://docs.gradle.org/8.14.3/userguide/command_line_interface.html#sec:command_line_warnings in the Gradle documentation.
 
-BUILD FAILED in 1m 25s
+BUILD FAILED in 1m 23s
 100 actionable tasks: 96 executed, 4 up-to-date
