@@ -2,6 +2,7 @@ package com.future.ultimate.core.common.pdf
 
 import android.content.Context
 import android.graphics.Color
+import android.graphics.BitmapFactory
 import android.graphics.Paint
 import android.graphics.Typeface
 import android.graphics.pdf.PdfDocument
@@ -44,8 +45,9 @@ object VehicleReportPdfExporter {
         canvas.drawRect(36f, y, 559f, y + 44f, linePaint)
         canvas.drawText("Marka: ${safe(normalizedDraft.marka)}", 48f, y + 18f, textPaint)
         canvas.drawText("Rejestracja: ${safe(normalizedDraft.rej)}", 250f, y + 18f, textPaint)
-        canvas.drawText("Przebieg: ${safe(normalizedDraft.przebieg)}", 430f, y + 18f, textPaint)
-        canvas.drawText("Wygenerowano przez: ${ownerTag}", 48f, y + 36f, textPaint)
+        canvas.drawText("Miejsca: ${safe(normalizedDraft.seats)}", 430f, y + 18f, textPaint)
+        canvas.drawText("Przebieg: ${safe(normalizedDraft.przebieg)}", 48f, y + 36f, textPaint)
+        canvas.drawText("Wypełnione przez: ${safe(normalizedDraft.filledBy.ifBlank { ownerTag })}", 250f, y + 36f, textPaint)
         y += 64f
 
         y = drawSection(canvas, y, "Stan pojazdu", sectionPaint)
@@ -55,15 +57,19 @@ object VehicleReportPdfExporter {
             linePaint = linePaint,
             textPaint = textPaint,
             rows = listOf(
-                "Poziom oleju" to safe(normalizedDraft.olej),
-                "Wskaźnik paliwa" to safe(normalizedDraft.paliwo),
-                "Rodzaj paliwa" to safe(normalizedDraft.rodzajPaliwa),
-                "Nowe uszkodzenia" to safe(normalizedDraft.uszkodzenia),
-                "Od kiedy?" to safe(normalizedDraft.odKiedy),
+                "Bez uszkodzeń" to flag(normalizedDraft.noDamage),
+                "Od kiedy" to safe(normalizedDraft.damageSince),
+                "Opis uszkodzenia" to safe(normalizedDraft.damageDescription),
+                "Przebieg" to safe(normalizedDraft.przebieg),
+                "Wskaźnik paliwa" to "OK",
+                "Auto wysprzątane/umyte" to flag(normalizedDraft.cleaned),
+                "Producent opon" to safe(normalizedDraft.tireProducer),
+                "Lampki ostrzegawcze" to flag(normalizedDraft.warningLights),
+                "Opis lampki ostrzegawczej" to safe(normalizedDraft.warningLightsDescription),
             ),
         )
 
-        y = drawSection(canvas, y, "Stan opon / przeglądy", sectionPaint)
+        y = drawSection(canvas, y, "Stan opon", sectionPaint)
         y = drawBlock(
             canvas = canvas,
             top = y,
@@ -74,8 +80,6 @@ object VehicleReportPdfExporter {
                 "Prawy przedni" to safe(normalizedDraft.pp),
                 "Lewy tylny" to safe(normalizedDraft.lt),
                 "Prawy tylny" to safe(normalizedDraft.pt),
-                "Przegląd / Service" to safe(normalizedDraft.serwis),
-                "Przegląd techniczny" to safe(normalizedDraft.przeglad),
             ),
         )
 
@@ -93,23 +97,32 @@ object VehicleReportPdfExporter {
                 "Apteczka" to flag(normalizedDraft.apteczka),
             ),
         )
-
-        y = drawSection(canvas, y, "Uwagi", sectionPaint)
-        canvas.drawRect(36f, y, 559f, y + 140f, linePaint)
-        drawWrappedText(canvas, safe(normalizedDraft.uwagi), 48f, y + 18f, 499f, textPaint)
-        y += 164f
-
-        canvas.drawText(
-            "Dokument generowany automatycznie z modułu Raport stanu samochodu.",
-            36f,
-            minOf(y, 810f),
-            subtlePaint,
-        )
+        canvas.drawText("Zdjęcia dodano jako kolejne strony dokumentu.", 36f, minOf(y + 16f, 810f), subtlePaint)
 
         document.finishPage(page)
+        appendPhotoPages(document, normalizedDraft)
         outputFile.outputStream().use(document::writeTo)
         document.close()
         return outputFile.absolutePath
+    }
+
+    private fun appendPhotoPages(document: PdfDocument, draft: VehicleReportDraft) {
+        val photos = draft.photoPaths + listOfNotNull(draft.dashboardPhotoPath.takeIf { it.isNotBlank() })
+        photos.forEachIndexed { index, path ->
+            val bitmap = BitmapFactory.decodeFile(path) ?: return@forEachIndexed
+            val pageInfo = PdfDocument.PageInfo.Builder(595, 842, index + 2).create()
+            val page = document.startPage(pageInfo)
+            val canvas = page.canvas
+            val paint = paint(size = 12f, bold = true)
+            canvas.drawText("Zdjęcie ${index + 1}", 36f, 36f, paint)
+            val scale = minOf(523f / bitmap.width.toFloat(), 760f / bitmap.height.toFloat())
+            val width = bitmap.width * scale
+            val height = bitmap.height * scale
+            val left = (595f - width) / 2f
+            val top = 50f
+            canvas.drawBitmap(bitmap, null, android.graphics.RectF(left, top, left + width, top + height), null)
+            document.finishPage(page)
+        }
     }
 
     private fun drawSection(canvas: android.graphics.Canvas, y: Float, title: String, paint: Paint): Float {
@@ -133,39 +146,6 @@ object VehicleReportPdfExporter {
         val bottom = y + 10f
         canvas.drawRect(36f, top, 559f, bottom, linePaint)
         return bottom + 22f
-    }
-
-    private fun drawWrappedText(
-        canvas: android.graphics.Canvas,
-        text: String,
-        x: Float,
-        startY: Float,
-        maxWidth: Float,
-        paint: Paint,
-    ) {
-        if (text.isBlank()) {
-            canvas.drawText("-", x, startY, paint)
-            return
-        }
-        var y = startY
-        val line = StringBuilder()
-        text.split(Regex("\\s+"))
-            .filter { it.isNotBlank() }
-            .forEach { word ->
-                val candidate = if (line.isEmpty()) word else "${line} $word"
-                if (paint.measureText(candidate) > maxWidth && line.isNotEmpty()) {
-                    canvas.drawText(line.toString(), x, y, paint)
-                    line.clear()
-                    line.append(word)
-                    y += 16f
-                } else {
-                    line.clear()
-                    line.append(candidate)
-                }
-            }
-        if (line.isNotEmpty()) {
-            canvas.drawText(line.toString(), x, y, paint)
-        }
     }
 
     private fun paint(size: Float, bold: Boolean = false, color: Int = Color.BLACK): Paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
