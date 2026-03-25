@@ -82,6 +82,21 @@ object VehicleReportPdfExporter {
                 "Prawy tylny" to safe(normalizedDraft.pt),
             ),
         )
+
+        y = drawSection(canvas, y, "Wyposażenie", sectionPaint)
+        y = drawBlock(
+            canvas = canvas,
+            top = y,
+            linePaint = linePaint,
+            textPaint = textPaint,
+            rows = listOf(
+                "Trójkąt" to flag(normalizedDraft.trojkat),
+                "Kamizelki" to flag(normalizedDraft.kamizelki),
+                "Koło zapasowe" to flag(normalizedDraft.kolo),
+                "Dowód rejestracyjny" to flag(normalizedDraft.dowod),
+                "Apteczka" to flag(normalizedDraft.apteczka),
+            ),
+        )
         canvas.drawText("Zdjęcia dodano jako kolejne strony dokumentu.", 36f, minOf(y + 16f, 810f), subtlePaint)
 
         document.finishPage(page)
