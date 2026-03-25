@@ -13,8 +13,8 @@ Daemon will be stopped at the end of the build
 > Task :core-database:preBuild UP-TO-DATE
 > Task :core-database:preDebugBuild UP-TO-DATE
 > Task :core-common:writeDebugAarMetadata
-> Task :app-admin:generateDebugResValues
 > Task :core-database:writeDebugAarMetadata
+> Task :app-admin:generateDebugResValues
 > Task :core-common:generateDebugResValues
 > Task :app-admin:checkDebugAarMetadata
 > Task :core-common:generateDebugResources
@@ -29,19 +29,19 @@ Daemon will be stopped at the end of the build
 > Task :app-admin:createDebugCompatibleScreenManifests
 > Task :app-admin:extractDeepLinksDebug
 > Task :core-common:extractDeepLinksDebug
-> Task :app-admin:parseDebugLocalResources
 > Task :core-database:extractDeepLinksDebug
+> Task :app-admin:parseDebugLocalResources
 > Task :core-common:compileDebugLibraryResources
 > Task :core-database:compileDebugLibraryResources
 > Task :core-common:parseDebugLocalResources
 > Task :core-database:parseDebugLocalResources
-> Task :core-database:processDebugManifest
-> Task :core-common:checkKotlinGradlePluginConfigurationErrors SKIPPED
 > Task :core-common:processDebugManifest
+> Task :core-database:processDebugManifest
 > Task :core-common:generateDebugRFile
-> Task :core-database:generateDebugRFile
 > Task :app-admin:processDebugMainManifest
 > Task :app-admin:processDebugManifest
+> Task :core-common:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :core-database:generateDebugRFile
 > Task :app-admin:processDebugManifestForPackage
 > Task :core-common:javaPreCompileDebug
 > Task :core-database:checkKotlinGradlePluginConfigurationErrors SKIPPED
@@ -65,14 +65,14 @@ Daemon will be stopped at the end of the build
 > Task :app-admin:mergeDebugJniLibFolders
 > Task :core-common:mergeDebugJniLibFolders
 > Task :core-common:mergeDebugNativeLibs NO-SOURCE
+> Task :app-admin:checkDebugDuplicateClasses
 > Task :core-common:copyDebugJniLibsProjectOnly
 > Task :core-database:mergeDebugJniLibFolders
 > Task :core-database:mergeDebugNativeLibs NO-SOURCE
-> Task :app-admin:checkDebugDuplicateClasses
 > Task :core-database:copyDebugJniLibsProjectOnly
-> Task :app-admin:mergeDebugNativeLibs
 > Task :app-admin:validateSigningDebug
 > Task :app-admin:writeDebugAppMetadata
+> Task :app-admin:mergeDebugNativeLibs
 > Task :app-admin:writeDebugSigningConfigVersions
 > Task :app-driver:preBuild UP-TO-DATE
 > Task :app-driver:preDebugBuild UP-TO-DATE
@@ -131,21 +131,31 @@ Unable to strip the following libraries, packaging them as they are: libandroidx
 > Task :app-driver:mergeLibDexDebug
 
 > Task :app-driver:compileDebugKotlin FAILED
-e: file:///home/runner/work/Flota/Flota/android-native/app-driver/src/main/java/com/future/ultimate/driver/ui/screen/DriverScreens.kt:692:9 Unresolved reference 'group'.
-e: file:///home/runner/work/Flota/Flota/android-native/app-driver/src/main/java/com/future/ultimate/driver/ui/screen/DriverScreens.kt:692:32 Cannot infer type for this parameter. Please specify it explicitly.
-e: file:///home/runner/work/Flota/Flota/android-native/app-driver/src/main/java/com/future/ultimate/driver/ui/screen/DriverScreens.kt:693:13 @Composable invocations can only happen from the context of a @Composable function
-e: file:///home/runner/work/Flota/Flota/android-native/app-driver/src/main/java/com/future/ultimate/driver/ui/screen/DriverScreens.kt:694:31 Unresolved reference 'value'.
-e: file:///home/runner/work/Flota/Flota/android-native/app-driver/src/main/java/com/future/ultimate/driver/ui/screen/DriverScreens.kt:697:37 Unresolved reference 'id'.
-e: file:///home/runner/work/Flota/Flota/android-native/app-driver/src/main/java/com/future/ultimate/driver/ui/screen/DriverScreens.kt:717:25 @Composable invocations can only happen from the context of a @Composable function
-e: file:///home/runner/work/Flota/Flota/android-native/app-driver/src/main/java/com/future/ultimate/driver/ui/screen/DriverScreens.kt:717:34 Unresolved reference 'labelPl'.
-e: file:///home/runner/work/Flota/Flota/android-native/app-driver/src/main/java/com/future/ultimate/driver/ui/screen/DriverScreens.kt:717:49 Unresolved reference 'labelEs'.
-e: file:///home/runner/work/Flota/Flota/android-native/app-driver/src/main/java/com/future/ultimate/driver/ui/screen/DriverScreens.kt:718:38 Unresolved reference 'keyboardType'.
-e: file:///home/runner/work/Flota/Flota/android-native/app-driver/src/main/java/com/future/ultimate/driver/ui/screen/DriverScreens.kt:776:13 Unresolved reference 'Checkbox'.
+e: file:///home/runner/work/Flota/Flota/android-native/app-driver/src/main/java/com/future/ultimate/driver/ui/screen/DriverScreens.kt:701:9 Unresolved reference 'group'.
+e: file:///home/runner/work/Flota/Flota/android-native/app-driver/src/main/java/com/future/ultimate/driver/ui/screen/DriverScreens.kt:701:32 Cannot infer type for this parameter. Please specify it explicitly.
+e: file:///home/runner/work/Flota/Flota/android-native/app-driver/src/main/java/com/future/ultimate/driver/ui/screen/DriverScreens.kt:702:13 @Composable invocations can only happen from the context of a @Composable function
+e: file:///home/runner/work/Flota/Flota/android-native/app-driver/src/main/java/com/future/ultimate/driver/ui/screen/DriverScreens.kt:703:31 Unresolved reference 'value'.
+e: file:///home/runner/work/Flota/Flota/android-native/app-driver/src/main/java/com/future/ultimate/driver/ui/screen/DriverScreens.kt:706:37 Unresolved reference 'id'.
+e: file:///home/runner/work/Flota/Flota/android-native/app-driver/src/main/java/com/future/ultimate/driver/ui/screen/DriverScreens.kt:726:25 @Composable invocations can only happen from the context of a @Composable function
+e: file:///home/runner/work/Flota/Flota/android-native/app-driver/src/main/java/com/future/ultimate/driver/ui/screen/DriverScreens.kt:726:34 Unresolved reference 'labelPl'.
+e: file:///home/runner/work/Flota/Flota/android-native/app-driver/src/main/java/com/future/ultimate/driver/ui/screen/DriverScreens.kt:726:49 Unresolved reference 'labelEs'.
+e: file:///home/runner/work/Flota/Flota/android-native/app-driver/src/main/java/com/future/ultimate/driver/ui/screen/DriverScreens.kt:727:38 Unresolved reference 'keyboardType'.
+e: file:///home/runner/work/Flota/Flota/android-native/app-driver/src/main/java/com/future/ultimate/driver/ui/screen/DriverScreens.kt:731:1 Unresolved reference 'i'.
+e: file:///home/runner/work/Flota/Flota/android-native/app-driver/src/main/java/com/future/ultimate/driver/ui/screen/DriverScreens.kt:732:9 Unresolved reference 'label'.
+e: file:///home/runner/work/Flota/Flota/android-native/app-driver/src/main/java/com/future/ultimate/driver/ui/screen/DriverScreens.kt:732:9 Only expressions are allowed in this context.
+e: file:///home/runner/work/Flota/Flota/android-native/app-driver/src/main/java/com/future/ultimate/driver/ui/screen/DriverScreens.kt:732:97 Syntax error: Expecting ')'.
+e: file:///home/runner/work/Flota/Flota/android-native/app-driver/src/main/java/com/future/ultimate/driver/ui/screen/DriverScreens.kt:732:97 Syntax error: Unexpected tokens (use ';' to separate expressions on the same line).
+e: file:///home/runner/work/Flota/Flota/android-native/app-driver/src/main/java/com/future/ultimate/driver/ui/screen/DriverScreens.kt:733:9 Unresolved reference 'value'.
+e: file:///home/runner/work/Flota/Flota/android-native/app-driver/src/main/java/com/future/ultimate/driver/ui/screen/DriverScreens.kt:733:30 Syntax error: Unexpected tokens (use ';' to separate expressions on the same line).
+e: file:///home/runner/work/Flota/Flota/android-native/app-driver/src/main/java/com/future/ultimate/driver/ui/screen/DriverScreens.kt:734:9 Unresolved reference 'onValueChange'.
+e: file:///home/runner/work/Flota/Flota/android-native/app-driver/src/main/java/com/future/ultimate/driver/ui/screen/DriverScreens.kt:734:62 Unresolved reference 'it'.
+e: file:///home/runner/work/Flota/Flota/android-native/app-driver/src/main/java/com/future/ultimate/driver/ui/screen/DriverScreens.kt:734:68 Syntax error: Unexpected tokens (use ';' to separate expressions on the same line).
+e: file:///home/runner/work/Flota/Flota/android-native/app-driver/src/main/java/com/future/ultimate/driver/ui/screen/DriverScreens.kt:735:5 Syntax error: Expecting an element.
 
 > Task :app-admin:compileDebugKotlin
 w: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/AdminMenu.kt:28:53 'val Icons.Rounded.ReceiptLong: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Rounded.ReceiptLong.
 w: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/ContactsScreen.kt:210:49 'val Icons.Rounded.Chat: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Rounded.Chat.
-gradle/actions: Writing build results to /home/runner/work/_temp/.gradle-actions/build-results/__run_2-1774475794319.json
+gradle/actions: Writing build results to /home/runner/work/_temp/.gradle-actions/build-results/__run_2-1774476808752.json
 
 [Incubating] Problems report is available at: file:///home/runner/work/Flota/Flota/android-native/build/reports/problems/problems-report.html
 
@@ -359,5 +369,5 @@ You can use '--warning-mode all' to show the individual deprecation warnings and
 
 For more on this, please refer to https://docs.gradle.org/8.14.3/userguide/command_line_interface.html#sec:command_line_warnings in the Gradle documentation.
 
-BUILD FAILED in 1m 24s
+BUILD FAILED in 1m 21s
 100 actionable tasks: 96 executed, 4 up-to-date
