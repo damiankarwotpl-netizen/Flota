@@ -40,6 +40,7 @@ import com.future.ultimate.core.common.model.DriverRoute
 import com.future.ultimate.core.common.model.VehicleReportDraft
 import com.future.ultimate.core.common.ui.theme.FlotaThemeDefaults
 import com.future.ultimate.driver.DriverApp
+import com.future.ultimate.driver.sync.DriverSyncNotifier
 import com.future.ultimate.driver.ui.tr
 import com.future.ultimate.driver.ui.viewmodel.DriverChangePasswordViewModel
 import com.future.ultimate.driver.ui.viewmodel.DriverLoginViewModel
@@ -296,6 +297,7 @@ fun DriverChangePasswordScreen(navController: NavController) {
 
 @Composable
 fun DriverMileageScreen(navController: NavController) {
+    val context = LocalContext.current
     val app = LocalContext.current.applicationContext as DriverApp
     val viewModel: DriverMileageViewModel = viewModel(factory = DriverViewModelFactory(app.container.repository))
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -374,6 +376,11 @@ fun DriverMileageScreen(navController: NavController) {
                 DriverActionButton(
                     text = tr("Przejdź do raportu stanu samochodu", "Ir al informe del vehículo"),
                     onClick = { navController.navigate(DriverRoute.VehicleReport.route) },
+                )
+                DriverActionButton(
+                    text = tr("Test powiadomienia przypomnienia", "Probar notificación de recordatorio"),
+                    onClick = { DriverSyncNotifier.notifyMileageReminder(context, uiState.registration) },
+                    secondary = true,
                 )
                 DriverActionButton(
                     text = tr("Wyloguj", "Cerrar sesión"),
