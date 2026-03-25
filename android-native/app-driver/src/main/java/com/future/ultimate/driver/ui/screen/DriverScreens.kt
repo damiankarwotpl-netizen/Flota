@@ -454,8 +454,7 @@ fun DriverVehicleReportScreen(navController: NavController) {
             isGuidedCaptureActive = false
             return@rememberLauncherForActivityResult
         }
-        val captureDashboardPhoto = draft.warningLights && draft.photoPaths.size >= requiredPhotoCount
-        val updatedDraft = if (captureDashboardPhoto) {
+        val updatedDraft = if (draft.warningLights && draft.photoPaths.size >= requiredPhotoCount) {
             draft.copy(dashboardPhotoPath = savedPath)
         } else {
             draft.copy(photoPaths = draft.photoPaths + savedPath)
@@ -728,6 +727,70 @@ fun DriverVehicleReportScreen(navController: NavController) {
                 )
                 Text("${tr("Dodano", "Añadidas")}: $capturedSteps/${guidedPhotoSteps.size}")
                 Text("${tr("Następne zdjęcie", "Siguiente foto")}: $nextStepLabel")
+                DriverActionButton(
+                    text = if (isGuidedCaptureActive) {
+                        tr("Trwa sesja zdjęć...", "Sesión de fotos en curso...")
+                    } else if (isGuidedCaptureComplete) {
+                        tr("Wszystkie wymagane zdjęcia dodane", "Todas las fotos obligatorias agregadas")
+                    } else {
+                        tr("Dodaj zdjęcia (prowadzenie)", "Agregar fotos (guiado)")
+                    },
+                    onClick = {
+                        isGuidedCaptureActive = true
+                        Toast.makeText(
+                            context,
+                            "$nextShotPrefix: $nextStepLabel",
+                            Toast.LENGTH_SHORT,
+                        ).show()
+                        photoLauncher.launch(null)
+                    },
+                    enabled = !isGuidedCaptureComplete && !isGuidedCaptureActive,
+                )
+                DriverActionButton(
+                    text = tr("Zacznij od nowa (wyczyść zdjęcia)", "Comenzar de nuevo (limpiar fotos)"),
+                    onClick = {
+                        isGuidedCaptureActive = false
+                        launchNextCapture = false
+                        viewModel.updateDraft(draft.copy(photoPaths = emptyList(), dashboardPhotoPath = ""))
+                    },
+                    secondary = true,
+                )
+            }
+        }
+        item {
+            DriverSectionCard(title = tr("Zdjęcia samochodu", "Fotos del vehículo")) {
+                Text(
+                    tr(
+                        "Wymagane zdjęcia: 1) przód+prawy bok, 2) przód+lewy bok, 3) tył+prawy bok, 4) tył+lewy bok, 5) wnętrze przód, 6) wnętrze tył.",
+                        "Fotos obligatorias: 1) frente+lado derecho, 2) frente+lado izquierdo, 3) trasera+lado derecho, 4) trasera+lado izquierdo, 5) interior delantero, 6) interior trasero.",
+                    ),
+                )
+                Text("${tr("Dodano", "Añadidas")}: $capturedSteps/${guidedPhotoSteps.size}")
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.primaryContainer,
+                    ),
+                ) {
+                    Column(
+                        modifier = Modifier.padding(14.dp),
+                        verticalArrangement = Arrangement.spacedBy(6.dp),
+                    ) {
+                        Text(
+                            "${tr("Krok", "Paso")} ${minOf(capturedSteps + 1, guidedPhotoSteps.size)}/${guidedPhotoSteps.size}",
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer,
+                            fontWeight = FontWeight.Bold,
+                        )
+                        Text(
+                            "${tr("Zrób teraz zdjęcie", "Haz ahora la foto")}: $nextStepLabel",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer,
+                            fontWeight = FontWeight.ExtraBold,
+                        )
+                    }
+                }
                 DriverActionButton(
                     text = if (isGuidedCaptureActive) {
                         tr("Trwa sesja zdjęć...", "Sesión de fotos en curso...")
