@@ -105,11 +105,14 @@ class LocalDriverRepository(
         val activeAccount = matchingAccounts.firstOrNull { it.registration.equals(activeRegistration, ignoreCase = true) }
             ?: primaryAccount
 
+        val activeCar = dao.getCarByRegistration(activeRegistration)
         return DriverSession(
             login = activeAccount.login,
             password = activeAccount.password.ifBlank { normalizedPassword },
             driverName = activeAccount.driverName,
+            carName = activeCar?.name.orEmpty(),
             registration = activeRegistration,
+            mileage = activeCar?.mileage ?: 0,
             availableRegistrations = availableRegistrations.ifEmpty { listOf(activeRegistration).filter { it.isNotBlank() } },
             changePasswordRequired = matchingAccounts.any { it.changePassword == 1 },
         ).also {
@@ -168,7 +171,12 @@ class LocalDriverRepository(
         require(allowedRegistrations.contains(normalizedRegistration)) {
             "Nie możesz wybrać rejestracji spoza przypisanych pojazdów"
         }
-        session.value = current.copy(registration = normalizedRegistration)
+        val selectedCar = dao.getCarByRegistration(normalizedRegistration)
+        session.value = current.copy(
+            registration = normalizedRegistration,
+            carName = selectedCar?.name.orEmpty(),
+            mileage = selectedCar?.mileage ?: 0,
+        )
         persistSessionRegistration(normalizedRegistration)
     }
 
@@ -264,7 +272,9 @@ class LocalDriverRepository(
             login = account.login,
             password = account.password,
             driverName = account.driverName,
+            carName = dao.getCarByRegistration(registration)?.name.orEmpty(),
             registration = account.registration,
+            mileage = dao.getCarByRegistration(registration)?.mileage ?: 0,
             availableRegistrations = registrations.ifEmpty { listOf(account.registration.trim().uppercase()) },
             changePasswordRequired = account.changePassword == 1,
         )

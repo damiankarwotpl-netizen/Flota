@@ -1,5 +1,9 @@
 package com.future.ultimate.driver.ui.screen
 
+import android.app.DatePickerDialog
+import android.graphics.Bitmap
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -9,6 +13,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -17,13 +22,15 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Checkbox
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
@@ -47,6 +54,9 @@ import com.future.ultimate.driver.ui.viewmodel.DriverLoginViewModel
 import com.future.ultimate.driver.ui.viewmodel.DriverMileageViewModel
 import com.future.ultimate.driver.ui.viewmodel.DriverVehicleReportViewModel
 import com.future.ultimate.driver.ui.viewmodel.DriverViewModelFactory
+import java.io.File
+import java.io.FileOutputStream
+import java.time.LocalDate
 
 @Composable
 private fun DriverSectionCard(
@@ -135,6 +145,8 @@ private fun DriverInputField(
     label: String,
     enabled: Boolean = true,
     singleLine: Boolean = true,
+    readOnly: Boolean = false,
+    onClick: (() -> Unit)? = null,
     keyboardType: KeyboardType = KeyboardType.Text,
     visualTransformation: VisualTransformation = VisualTransformation.None,
 ) {
@@ -142,12 +154,21 @@ private fun DriverInputField(
         value = value,
         onValueChange = onValueChange,
         label = { Text(label) },
-        modifier = Modifier.fillMaxWidth(),
         enabled = enabled,
         singleLine = singleLine,
+        readOnly = readOnly,
         shape = RoundedCornerShape(18.dp),
         keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
         visualTransformation = visualTransformation,
+        modifier = Modifier
+            .fillMaxWidth()
+            .then(
+                if (onClick != null) {
+                    Modifier.clickable(onClick = onClick)
+                } else {
+                    Modifier
+                },
+            ),
         colors = OutlinedTextFieldDefaults.colors(
             focusedBorderColor = MaterialTheme.colorScheme.primary,
             unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
@@ -401,15 +422,33 @@ fun DriverMileageScreen(navController: NavController) {
 @Composable
 fun DriverVehicleReportScreen(navController: NavController) {
     val app = LocalContext.current.applicationContext as DriverApp
+    val context = LocalContext.current
     val viewModel: DriverVehicleReportViewModel = viewModel(factory = DriverViewModelFactory(app.container.repository))
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val draft = uiState.draft
+    var captureDashboardPhoto by remember { mutableStateOf(false) }
+    val photoLauncher = rememberLauncherForActivityResult(ActivityResultContracts.TakePicturePreview()) { bitmap: Bitmap? ->
+        val savedPath = bitmap?.saveReportPhoto(context)
+        if (savedPath.isNullOrBlank()) return@rememberLauncherForActivityResult
+        val updatedDraft = if (captureDashboardPhoto) {
+            draft.copy(dashboardPhotoPath = savedPath)
+        } else {
+            draft.copy(photoPaths = draft.photoPaths + savedPath)
+        }
+        viewModel.updateDraft(updatedDraft)
+        captureDashboardPhoto = false
+    }
+    val requiredPhotoCount = 6
+    val hasMinimumPhotos = draft.photoPaths.size >= requiredPhotoCount
+    val needsDashboardPhoto = draft.warningLights
+    val hasRequiredDashboardPhoto = !needsDashboardPhoto || draft.dashboardPhotoPath.isNotBlank()
+    val isReportReadyToSave = hasMinimumPhotos && hasRequiredDashboardPhoto
 
     DriverScreen(
         title = tr("Raport stanu samochodu", "Informe del vehículo"),
         subtitle = tr(
-            "Uzupełnij pola formularza, zaznacz wyposażenie i wygeneruj PDF.",
-            "Completa el formulario, marca el equipamiento y genera el PDF.",
+            "Uzupełnij pola formularza, dodaj zdjęcia i wygeneruj PDF.",
+            "Completa el formulario, agrega fotos y genera el PDF.",
         ),
     ) {
         item {
@@ -440,8 +479,37 @@ fun DriverVehicleReportScreen(navController: NavController) {
             }
         }
         item {
-            DriverSectionCard {
-                checklist(draft) { viewModel.updateDraft(it) }
+            DriverSectionCard(title = tr("Zdjęcia samochodu", "Fotos del vehículo")) {
+                Text(
+                    tr(
+                        "Wymagane zdjęcia: 1) przód+prawy bok, 2) przód+lewy bok, 3) tył+prawy bok, 4) tył+lewy bok, 5) wnętrze przód, 6) wnętrze tył.",
+                        "Fotos obligatorias: 1) frente+lado derecho, 2) frente+lado izquierdo, 3) trasera+lado derecho, 4) trasera+lado izquierdo, 5) interior delantero, 6) interior trasero.",
+                    ),
+                )
+                Text("${tr("Dodano", "Añadidas")}: ${draft.photoPaths.size}/$requiredPhotoCount")
+                DriverActionButton(
+                    text = tr("Zrób zdjęcie samochodu", "Tomar foto del vehículo"),
+                    onClick = {
+                        captureDashboardPhoto = false
+                        photoLauncher.launch(null)
+                    },
+                )
+                if (draft.warningLights) {
+                    DriverActionButton(
+                        text = tr("Zrób zdjęcie deski rozdzielczej", "Tomar foto del tablero"),
+                        onClick = {
+                            captureDashboardPhoto = true
+                            photoLauncher.launch(null)
+                        },
+                    )
+                    Text(
+                        if (draft.dashboardPhotoPath.isNotBlank()) {
+                            tr("Zdjęcie deski: dodane", "Foto del tablero: añadida")
+                        } else {
+                            tr("Zdjęcie deski: wymagane", "Foto del tablero: obligatoria")
+                        },
+                    )
+                }
             }
         }
         item {
@@ -454,7 +522,7 @@ fun DriverVehicleReportScreen(navController: NavController) {
                 DriverActionButton(
                     text = if (uiState.isSaving) tr("Zapisywanie...", "Guardando...") else tr("Zapisz PDF", "Guardar PDF"),
                     onClick = viewModel::save,
-                    enabled = !uiState.isSaving,
+                    enabled = !uiState.isSaving && isReportReadyToSave,
                 )
                 DriverActionButton(
                     text = tr("Wyloguj", "Cerrar sesión"),
@@ -468,6 +536,15 @@ fun DriverVehicleReportScreen(navController: NavController) {
                     secondary = true,
                 )
                 uiState.message?.let { StatusMessage(it, emphasis = true) }
+                if (!isReportReadyToSave) {
+                    StatusMessage(
+                        tr(
+                            "Przed zapisem dodaj wymagane zdjęcia samochodu (minimum 6) oraz zdjęcie deski, jeśli są lampki ostrzegawcze.",
+                            "Antes de guardar, agrega las fotos requeridas del vehículo (mínimo 6) y foto del tablero si hay luces de advertencia.",
+                        ),
+                        emphasis = true,
+                    )
+                }
             }
         }
     }
@@ -475,61 +552,73 @@ fun DriverVehicleReportScreen(navController: NavController) {
 
 @Composable
 private fun editableFields(draft: VehicleReportDraft, onDraftChange: (VehicleReportDraft) -> Unit) {
-    data class ReportField(
-        val id: String,
-        val labelPl: String,
-        val labelEs: String,
-        val value: String,
-        val keyboardType: KeyboardType,
-    )
-    data class ReportFieldGroup(val titlePl: String, val titleEs: String, val fields: List<ReportField>)
-    val groups = listOf(
-        ReportFieldGroup(
-            titlePl = "Dane pojazdu",
-            titleEs = "Datos del vehículo",
-            fields = listOf(
-                ReportField("marka", "Marka", "Marca", draft.marka, KeyboardType.Text),
-                ReportField("rej", "Rejestracja", "Matrícula", draft.rej, KeyboardType.Text),
-                ReportField("przebieg", "Przebieg", "Kilometraje", draft.przebieg, KeyboardType.Number),
-            ),
-        ),
-        ReportFieldGroup(
-            titlePl = "Stan pojazdu",
-            titleEs = "Estado del vehículo",
-            fields = listOf(
-                ReportField("olej", "Poziom oleju", "Nivel de aceite", draft.olej, KeyboardType.Text),
-                ReportField("paliwo", "Wskaźnik paliwa", "Indicador de combustible", draft.paliwo, KeyboardType.Text),
-                ReportField("rodzajPaliwa", "Rodzaj paliwa", "Tipo de combustible", draft.rodzajPaliwa, KeyboardType.Text),
-                ReportField("uszkodzenia", "Nowe uszkodzenia", "Nuevos daños", draft.uszkodzenia, KeyboardType.Text),
-                ReportField("odKiedy", "Od kiedy?", "¿Desde cuándo?", draft.odKiedy, KeyboardType.Text),
-            ),
-        ),
-        ReportFieldGroup(
-            titlePl = "Stan opon / przeglądy",
-            titleEs = "Estado de neumáticos / revisiones",
-            fields = listOf(
-                ReportField("lp", "Lewy przedni", "Delantero izquierdo", draft.lp, KeyboardType.Text),
-                ReportField("pp", "Prawy przedni", "Delantero derecho", draft.pp, KeyboardType.Text),
-                ReportField("lt", "Lewy tylny", "Trasero izquierdo", draft.lt, KeyboardType.Text),
-                ReportField("pt", "Prawy tylny", "Trasero derecho", draft.pt, KeyboardType.Text),
-                ReportField("serwis", "Przegląd / Service", "Revisión / Servicio", draft.serwis, KeyboardType.Text),
-                ReportField("przeglad", "Przegląd techniczny", "Inspección técnica", draft.przeglad, KeyboardType.Text),
-            ),
-        ),
-        ReportFieldGroup(
-            titlePl = "Uwagi",
-            titleEs = "Observaciones",
-            fields = listOf(
-                ReportField("uwagi", "Uwagi", "Observaciones", draft.uwagi, KeyboardType.Text),
-            ),
-        ),
-    )
+    Text(tr("Dane podstawowe", "Datos básicos"), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+    DriverInputField(value = draft.marka, onValueChange = {}, label = tr("Marka", "Marca"), enabled = false)
+    DriverInputField(value = draft.rej, onValueChange = {}, label = tr("Rejestracja", "Matrícula"), enabled = false)
+    DriverInputField(value = draft.filledBy, onValueChange = {}, label = tr("Wypełnione przez (login)", "Rellenado por (usuario)"), enabled = false)
+    DriverInputField(value = draft.przebieg, onValueChange = {}, label = tr("Przebieg", "Kilometraje"), enabled = false)
+    Text(tr("Ilość miejsc", "Cantidad de asientos"))
+    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        (4..9).forEach { seats ->
+            DriverActionButton(
+                text = seats.toString(),
+                onClick = { onDraftChange(draft.copy(seats = seats.toString())) },
+                secondary = draft.seats != seats.toString(),
+                enabled = true,
+            )
+        }
+    }
 
-    groups.forEach { group ->
-        Text(
-            text = tr(group.titlePl, group.titleEs),
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.SemiBold,
+    Text(tr("Stan pojazdu", "Estado del vehículo"), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+    Text("${tr("Wskaźnik paliwa", "Indicador de combustible")}: OK")
+    DriverInputField(
+        value = draft.tireProducer,
+        onValueChange = { onDraftChange(draft.copy(tireProducer = it)) },
+        label = tr("Producent opon", "Fabricante de neumáticos"),
+    )
+    yesNoSelector(
+        label = tr("Bez uszkodzeń", "Sin daños"),
+        value = draft.noDamage,
+        onValueChange = { onDraftChange(draft.copy(noDamage = it)) },
+    )
+    if (!draft.noDamage) {
+        DriverInputField(
+            value = draft.damageSince,
+            onValueChange = {},
+            label = tr("Od kiedy", "Desde cuándo"),
+            readOnly = true,
+            onClick = { showDatePicker(LocalContext.current, draft.damageSince) { onDraftChange(draft.copy(damageSince = it)) } },
+        )
+        DriverInputField(
+            value = draft.damageDescription,
+            onValueChange = { onDraftChange(draft.copy(damageDescription = it)) },
+            label = tr("Opisz uszkodzenie", "Describe el daño"),
+            singleLine = false,
+        )
+    }
+    yesNoSelector(
+        label = tr("Czy samochód został wysprzątany/umyty", "¿El vehículo fue limpiado/lavado?"),
+        value = draft.cleaned,
+        onValueChange = { onDraftChange(draft.copy(cleaned = it)) },
+    )
+    yesNoSelector(
+        label = tr("Czy na wyświetlaczu są lampki ostrzegawcze", "¿Hay luces de advertencia en el tablero?"),
+        value = draft.warningLights,
+        onValueChange = { hasWarnings ->
+            onDraftChange(
+                draft.copy(
+                    warningLights = hasWarnings,
+                    warningLightsDescription = if (hasWarnings) draft.warningLightsDescription else "",
+                    dashboardPhotoPath = if (hasWarnings) draft.dashboardPhotoPath else "",
+                ),
+            )
+        },
+    )
+    if (draft.warningLights) {
+        DriverInputField(
+            value = draft.warningLightsDescription,
+            onValueChange = { onDraftChange(draft.copy(warningLightsDescription = it)) },
+            label = tr("Opisz lampkę ostrzegawczą", "Describe la luz de advertencia"),
         )
         group.fields.forEach { field ->
             DriverInputField(
@@ -561,49 +650,76 @@ private fun editableFields(draft: VehicleReportDraft, onDraftChange: (VehicleRep
             )
         }
     }
+
+    Text(tr("Stan opon", "Estado de neumáticos"), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+    tireStateSelector(tr("Lewy przedni", "Delantero izquierdo"), draft.lp) { onDraftChange(draft.copy(lp = it)) }
+    tireStateSelector(tr("Prawy przedni", "Delantero derecho"), draft.pp) { onDraftChange(draft.copy(pp = it)) }
+    tireStateSelector(tr("Lewy tylny", "Trasero izquierdo"), draft.lt) { onDraftChange(draft.copy(lt = it)) }
+    tireStateSelector(tr("Prawy tylny", "Trasero derecho"), draft.pt) { onDraftChange(draft.copy(pt = it)) }
 }
 
 @Composable
-private fun checklist(draft: VehicleReportDraft, onDraftChange: (VehicleReportDraft) -> Unit) {
-    data class ChecklistItem(val id: String, val labelPl: String, val labelEs: String, val checked: Boolean)
-    listOf(
-        ChecklistItem("trojkat", "Trójkąt", "Triángulo", draft.trojkat),
-        ChecklistItem("kamizelki", "Kamizelki", "Chalecos", draft.kamizelki),
-        ChecklistItem("kolo", "Koło zapasowe", "Rueda de repuesto", draft.kolo),
-        ChecklistItem("dowod", "Dowód rejestracyjny", "Permiso de circulación", draft.dowod),
-        ChecklistItem("apteczka", "Apteczka", "Botiquín", draft.apteczka),
-    ).forEach { item ->
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(18.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)),
-        ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 8.dp, vertical = 4.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+private fun yesNoSelector(
+    label: String,
+    value: Boolean,
+    onValueChange: (Boolean) -> Unit,
+) {
+    Text(label)
+    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Button(onClick = { onValueChange(true) }, modifier = Modifier.weight(1f)) {
+            Text(if (value) "✓ ${tr("Tak", "Sí")}" else tr("Tak", "Sí"))
+        }
+        Button(onClick = { onValueChange(false) }, modifier = Modifier.weight(1f)) {
+            Text(if (!value) "✓ ${tr("Nie", "No")}" else tr("Nie", "No"))
+        }
+    }
+}
+
+@Composable
+private fun tireStateSelector(
+    label: String,
+    value: String,
+    onValueChange: (String) -> Unit,
+) {
+    Text(label)
+    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        listOf(
+            tr("OK", "OK"),
+            tr("Średni", "Medio"),
+            tr("Do wymiany", "Para cambiar"),
+        ).forEach { option ->
+            Button(
+                onClick = { onValueChange(option) },
+                modifier = Modifier.weight(1f),
             ) {
-                Checkbox(
-                    checked = item.checked,
-                    onCheckedChange = { value ->
-                        onDraftChange(
-                            when (item.id) {
-                                "trojkat" -> draft.copy(trojkat = value)
-                                "kamizelki" -> draft.copy(kamizelki = value)
-                                "kolo" -> draft.copy(kolo = value)
-                                "dowod" -> draft.copy(dowod = value)
-                                else -> draft.copy(apteczka = value)
-                            },
-                        )
-                    },
-                )
-                Text(
-                    tr(item.labelPl, item.labelEs),
-                    modifier = Modifier.padding(top = 12.dp),
-                    style = MaterialTheme.typography.bodyLarge,
-                )
+                Text(if (value == option) "✓ $option" else option)
             }
         }
     }
 }
+
+private fun showDatePicker(
+    context: android.content.Context,
+    initialDate: String,
+    onDateSelected: (String) -> Unit,
+) {
+    val initial = runCatching { LocalDate.parse(initialDate) }.getOrNull() ?: LocalDate.now()
+    DatePickerDialog(
+        context,
+        { _, year, month, dayOfMonth ->
+            onDateSelected(LocalDate.of(year, month + 1, dayOfMonth).toString())
+        },
+        initial.year,
+        initial.monthValue - 1,
+        initial.dayOfMonth,
+    ).show()
+}
+
+private fun Bitmap.saveReportPhoto(context: android.content.Context): String? = runCatching {
+    val outputDir = File(context.filesDir, "vehicle-report-photos").apply { mkdirs() }
+    val outputFile = File(outputDir, "photo_${System.currentTimeMillis()}.jpg")
+    FileOutputStream(outputFile).use { out ->
+        compress(Bitmap.CompressFormat.JPEG, 90, out)
+    }
+    outputFile.absolutePath
+}.getOrNull()
