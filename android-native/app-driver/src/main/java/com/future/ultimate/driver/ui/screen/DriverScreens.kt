@@ -479,8 +479,139 @@ fun DriverVehicleReportScreen(navController: NavController) {
             }
         }
         item {
-            DriverSectionCard {
-                checklist(draft) { viewModel.updateDraft(it) }
+            DriverSectionCard(title = tr("Zdjęcia samochodu", "Fotos del vehículo")) {
+                Text(
+                    tr(
+                        "Wymagane zdjęcia: 1) przód+prawy bok, 2) przód+lewy bok, 3) tył+prawy bok, 4) tył+lewy bok, 5) wnętrze przód, 6) wnętrze tył.",
+                        "Fotos obligatorias: 1) frente+lado derecho, 2) frente+lado izquierdo, 3) trasera+lado derecho, 4) trasera+lado izquierdo, 5) interior delantero, 6) interior trasero.",
+                    ),
+                )
+                Text("${tr("Dodano", "Añadidas")}: ${draft.photoPaths.size}/$requiredPhotoCount")
+                DriverActionButton(
+                    text = tr("Zrób zdjęcie samochodu", "Tomar foto del vehículo"),
+                    onClick = {
+                        captureDashboardPhoto = false
+                        photoLauncher.launch(null)
+                    },
+                )
+                if (draft.warningLights) {
+                    DriverActionButton(
+                        text = tr("Zrób zdjęcie deski rozdzielczej", "Tomar foto del tablero"),
+                        onClick = {
+                            captureDashboardPhoto = true
+                            photoLauncher.launch(null)
+                        },
+                    )
+                    Text(
+                        if (draft.dashboardPhotoPath.isNotBlank()) {
+                            tr("Zdjęcie deski: dodane", "Foto del tablero: añadida")
+                        } else {
+                            tr("Zdjęcie deski: wymagane", "Foto del tablero: obligatoria")
+                        },
+                    )
+                }
+            }
+        }
+        item {
+            DriverSectionCard(title = tr("Zdjęcia samochodu", "Fotos del vehículo")) {
+                Text(
+                    tr(
+                        "Wymagane zdjęcia: 1) przód+prawy bok, 2) przód+lewy bok, 3) tył+prawy bok, 4) tył+lewy bok, 5) wnętrze przód, 6) wnętrze tył.",
+                        "Fotos obligatorias: 1) frente+lado derecho, 2) frente+lado izquierdo, 3) trasera+lado derecho, 4) trasera+lado izquierdo, 5) interior delantero, 6) interior trasero.",
+                    ),
+                )
+                Text("${tr("Dodano", "Añadidas")}: ${draft.photoPaths.size}/$requiredPhotoCount")
+                DriverActionButton(
+                    text = tr("Zrób zdjęcie samochodu", "Tomar foto del vehículo"),
+                    onClick = {
+                        captureDashboardPhoto = false
+                        photoLauncher.launch(null)
+                    },
+                )
+                if (draft.warningLights) {
+                    DriverActionButton(
+                        text = tr("Zrób zdjęcie deski rozdzielczej", "Tomar foto del tablero"),
+                        onClick = {
+                            captureDashboardPhoto = true
+                            photoLauncher.launch(null)
+                        },
+                    )
+                    Text(
+                        if (draft.dashboardPhotoPath.isNotBlank()) {
+                            tr("Zdjęcie deski: dodane", "Foto del tablero: añadida")
+                        } else {
+                            tr("Zdjęcie deski: wymagane", "Foto del tablero: obligatoria")
+                        },
+                    )
+                }
+            }
+        }
+        item {
+            DriverSectionCard(title = tr("Zdjęcia samochodu", "Fotos del vehículo")) {
+                Text(
+                    tr(
+                        "Wymagane zdjęcia: 1) przód+prawy bok, 2) przód+lewy bok, 3) tył+prawy bok, 4) tył+lewy bok, 5) wnętrze przód, 6) wnętrze tył.",
+                        "Fotos obligatorias: 1) frente+lado derecho, 2) frente+lado izquierdo, 3) trasera+lado derecho, 4) trasera+lado izquierdo, 5) interior delantero, 6) interior trasero.",
+                    ),
+                )
+                Text("${tr("Dodano", "Añadidas")}: ${draft.photoPaths.size}/$requiredPhotoCount")
+                DriverActionButton(
+                    text = tr("Zrób zdjęcie samochodu", "Tomar foto del vehículo"),
+                    onClick = {
+                        captureDashboardPhoto = false
+                        photoLauncher.launch(null)
+                    },
+                )
+                if (draft.warningLights) {
+                    DriverActionButton(
+                        text = tr("Zrób zdjęcie deski rozdzielczej", "Tomar foto del tablero"),
+                        onClick = {
+                            captureDashboardPhoto = true
+                            photoLauncher.launch(null)
+                        },
+                    )
+                    Text(
+                        if (draft.dashboardPhotoPath.isNotBlank()) {
+                            tr("Zdjęcie deski: dodane", "Foto del tablero: añadida")
+                        } else {
+                            tr("Zdjęcie deski: wymagane", "Foto del tablero: obligatoria")
+                        },
+                    )
+                }
+            }
+        }
+        item {
+            DriverSectionCard(title = tr("Zdjęcia samochodu", "Fotos del vehículo")) {
+                Text(
+                    tr(
+                        "Wymagane zdjęcia: 1) przód+prawy bok, 2) przód+lewy bok, 3) tył+prawy bok, 4) tył+lewy bok, 5) wnętrze przód, 6) wnętrze tył.",
+                        "Fotos obligatorias: 1) frente+lado derecho, 2) frente+lado izquierdo, 3) trasera+lado derecho, 4) trasera+lado izquierdo, 5) interior delantero, 6) interior trasero.",
+                    ),
+                )
+                Text("${tr("Dodano", "Añadidas")}: ${draft.photoPaths.size}/$requiredPhotoCount")
+                DriverActionButton(
+                    text = tr("Zrób zdjęcie samochodu", "Tomar foto del vehículo"),
+                    onClick = {
+                        captureDashboardPhoto = false
+                        photoLauncher.launch(null)
+                    },
+                )
+                if (draft.warningLights) {
+                    DriverActionButton(
+                        text = tr("Zrób zdjęcie deski rozdzielczej", "Tomar foto del tablero"),
+                        onClick = {
+                            captureDashboardPhoto = true
+                            photoLauncher.launch(null)
+                        },
+                    )
+                    Text(
+                        if (draft.dashboardPhotoPath.isNotBlank()) {
+                            tr("Zdjęcie deski: dodane", "Foto del tablero: añadida")
+                        } else {
+                            tr("Zdjęcie deski: wymagane", "Foto del tablero: obligatoria")
+                        },
+                    )
+                }
             }
         }
         item {
