@@ -67,6 +67,15 @@ object DriverSyncNotifier {
         )
     }
 
+    fun notifyMileageReminder(context: Context, registration: String = "") {
+        val suffix = registration.trim().takeIf { it.isNotBlank() }?.let { " • Auto: $it" }.orEmpty()
+        postNotification(
+            context = context,
+            title = "Przypomnienie",
+            body = "Dodaj przebieg w APK kierowcy$suffix",
+        )
+    }
+
     private fun postNotification(context: Context, title: String, body: String) {
         if (!canPostNotifications(context)) return
         val payload = "$title|$body"

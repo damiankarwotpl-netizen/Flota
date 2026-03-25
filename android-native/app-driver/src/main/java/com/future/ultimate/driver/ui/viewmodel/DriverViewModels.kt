@@ -234,7 +234,12 @@ class DriverVehicleReportViewModel(
                 _uiState.value = _uiState.value.copy(
                     driverName = session.driverName,
                     availableRegistrations = session.availableRegistrations,
-                    draft = _uiState.value.draft.copy(rej = session.registration),
+                    draft = _uiState.value.draft.copy(
+                        marka = session.carName.ifBlank { _uiState.value.draft.marka },
+                        rej = session.registration,
+                        filledBy = session.login,
+                        przebieg = session.mileage.toString(),
+                    ),
                 )
             }
         }.launchIn(viewModelScope)
