@@ -453,7 +453,6 @@ fun DriverVehicleReportScreen(navController: NavController) {
     var captureDashboardPhoto by remember { mutableStateOf(false) }
     var pendingCaptureMode by remember { mutableStateOf("vehicle") }
     var showGuidedStepDialog by remember { mutableStateOf(false) }
-    var pendingGuidedBitmap by remember { mutableStateOf<Bitmap?>(null) }
 
     LaunchedEffect(Unit) {
         if (draft.rej.isNotBlank() && (draft.marka.isBlank() || draft.przebieg.isBlank())) {
@@ -466,10 +465,6 @@ fun DriverVehicleReportScreen(navController: NavController) {
             if (pendingCaptureMode == "guided") isGuidedCaptureActive = false
             return@rememberLauncherForActivityResult
         }
-        if (pendingCaptureMode == "guided") {
-            pendingGuidedBitmap = bitmap
-            return@rememberLauncherForActivityResult
-        }
         val savedPath = bitmap.saveReportPhoto(context)
         if (savedPath.isNullOrBlank()) return@rememberLauncherForActivityResult
         val shouldSaveDashboardPhoto = pendingCaptureMode == "dashboard" || captureDashboardPhoto || (draft.warningLights && draft.photoPaths.size >= requiredPhotoCount)
@@ -480,6 +475,14 @@ fun DriverVehicleReportScreen(navController: NavController) {
             draft.copy(photoPaths = draft.photoPaths + savedPath)
         }
         viewModel.updateDraft(updatedDraft)
+        if (pendingCaptureMode == "guided") {
+            val updatedCapturedSteps = updatedDraft.photoPaths.size + if (updatedDraft.dashboardPhotoPath.isNotBlank()) 1 else 0
+            if (updatedCapturedSteps < guidedPhotoSteps.size) {
+                showGuidedStepDialog = true
+            } else {
+                isGuidedCaptureActive = false
+            }
+        }
     }
     val damagePhotoLauncher = rememberLauncherForActivityResult(ActivityResultContracts.TakePicturePreview()) { bitmap: Bitmap? ->
         val savedPath = bitmap?.saveReportPhoto(context)
@@ -595,7 +598,6 @@ fun DriverVehicleReportScreen(navController: NavController) {
                     onClick = {
                         isGuidedCaptureActive = false
                         showGuidedStepDialog = false
-                        pendingGuidedBitmap = null
                         viewModel.updateDraft(draft.copy(photoPaths = emptyList(), dashboardPhotoPath = ""))
                     },
                     secondary = true,
@@ -663,48 +665,6 @@ fun DriverVehicleReportScreen(navController: NavController) {
                         isGuidedCaptureActive = false
                     },
                 ) { Text(tr("Anuluj", "Cancelar")) }
-            },
-        )
-    }
-
-    pendingGuidedBitmap?.let { capturedBitmap ->
-        AlertDialog(
-            onDismissRequest = { pendingGuidedBitmap = null },
-            title = { Text(tr("Akceptacja zdjęcia", "Aceptar foto")) },
-            text = { Text(tr("Czy zaakceptować to zdjęcie i przejść do kolejnego kroku?", "¿Aceptar esta foto y pasar al siguiente paso?")) },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        val savedPath = capturedBitmap.saveReportPhoto(context)
-                        pendingGuidedBitmap = null
-                        if (!savedPath.isNullOrBlank()) {
-                            val shouldSaveDashboardPhoto = draft.warningLights && draft.photoPaths.size >= requiredPhotoCount
-                            val updatedDraft = if (shouldSaveDashboardPhoto) {
-                                draft.copy(dashboardPhotoPath = savedPath)
-                            } else {
-                                draft.copy(photoPaths = draft.photoPaths + savedPath)
-                            }
-                            viewModel.updateDraft(updatedDraft)
-                            val updatedCapturedSteps = updatedDraft.photoPaths.size + if (updatedDraft.dashboardPhotoPath.isNotBlank()) 1 else 0
-                            if (updatedCapturedSteps < guidedPhotoSteps.size) {
-                                showGuidedStepDialog = true
-                            } else {
-                                isGuidedCaptureActive = false
-                            }
-                        } else {
-                            isGuidedCaptureActive = false
-                        }
-                    },
-                ) { Text(tr("Akceptuj", "Aceptar")) }
-            },
-            dismissButton = {
-                TextButton(
-                    onClick = {
-                        pendingGuidedBitmap = null
-                        pendingCaptureMode = "guided"
-                        photoLauncher.launch(null)
-                    },
-                ) { Text(tr("Powtórz", "Repetir")) }
             },
         )
     }
