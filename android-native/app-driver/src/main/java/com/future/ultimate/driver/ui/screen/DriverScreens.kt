@@ -1,10 +1,11 @@
 package com.future.ultimate.driver.ui.screen
 
 import android.app.DatePickerDialog
-import android.graphics.Bitmap
+import android.net.Uri
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.FileProvider
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -63,7 +64,6 @@ import com.future.ultimate.driver.ui.viewmodel.DriverMileageViewModel
 import com.future.ultimate.driver.ui.viewmodel.DriverVehicleReportViewModel
 import com.future.ultimate.driver.ui.viewmodel.DriverViewModelFactory
 import java.io.File
-import java.io.FileOutputStream
 import java.time.LocalDate
 
 @Composable
@@ -452,6 +452,7 @@ fun DriverVehicleReportScreen(navController: NavController) {
     var isGuidedCaptureActive by remember { mutableStateOf(false) }
     var captureDashboardPhoto by remember { mutableStateOf(false) }
     var pendingCaptureMode by remember { mutableStateOf("vehicle") }
+    var pendingCapturePath by remember { mutableStateOf<String?>(null) }
     var showGuidedStepDialog by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
@@ -460,13 +461,18 @@ fun DriverVehicleReportScreen(navController: NavController) {
         }
     }
 
-    val photoLauncher = rememberLauncherForActivityResult(ActivityResultContracts.TakePicturePreview()) { bitmap: Bitmap? ->
-        if (bitmap == null) {
+    val photoLauncher = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { success: Boolean ->
+        val savedPath = pendingCapturePath
+        pendingCapturePath = null
+        if (!success || savedPath.isNullOrBlank()) {
             if (pendingCaptureMode == "guided") isGuidedCaptureActive = false
+            savedPath?.let { File(it).delete() }
             return@rememberLauncherForActivityResult
         }
-        val savedPath = bitmap.saveReportPhoto(context)
-        if (savedPath.isNullOrBlank()) return@rememberLauncherForActivityResult
+        if (pendingCaptureMode == "damage") {
+            viewModel.updateDraft(draft.copy(damagePhotoPaths = draft.damagePhotoPaths + savedPath))
+            return@rememberLauncherForActivityResult
+        }
         val shouldSaveDashboardPhoto = pendingCaptureMode == "dashboard" || captureDashboardPhoto || (draft.warningLights && draft.photoPaths.size >= requiredPhotoCount)
         val updatedDraft = if (shouldSaveDashboardPhoto && pendingCaptureMode != "vehicle") {
             captureDashboardPhoto = false
@@ -484,11 +490,12 @@ fun DriverVehicleReportScreen(navController: NavController) {
             }
         }
     }
-    val damagePhotoLauncher = rememberLauncherForActivityResult(ActivityResultContracts.TakePicturePreview()) { bitmap: Bitmap? ->
-        val savedPath = bitmap?.saveReportPhoto(context)
-        if (!savedPath.isNullOrBlank()) {
-            viewModel.updateDraft(draft.copy(damagePhotoPaths = draft.damagePhotoPaths + savedPath))
-        }
+    val launchHighResPhotoCapture = { mode: String ->
+        createReportPhotoUri(context)?.let { (uri, path) ->
+            pendingCaptureMode = mode
+            pendingCapturePath = path
+            photoLauncher.launch(uri)
+        } ?: Toast.makeText(context, tr("Nie udało się uruchomić aparatu.", "No se pudo abrir la cámara."), Toast.LENGTH_SHORT).show()
     }
 
     val hasMinimumPhotos = draft.photoPaths.size >= requiredPhotoCount
@@ -530,7 +537,7 @@ fun DriverVehicleReportScreen(navController: NavController) {
                 editableFields(
                     draft = draft,
                     onDraftChange = viewModel::updateDraft,
-                    onAddDamagePhoto = { damagePhotoLauncher.launch(null) },
+                    onAddDamagePhoto = { launchHighResPhotoCapture("damage") },
                     onClearDamagePhotos = { viewModel.updateDraft(draft.copy(damagePhotoPaths = emptyList())) },
                 )
             }
@@ -556,8 +563,7 @@ fun DriverVehicleReportScreen(navController: NavController) {
                     text = tr("Zrób zdjęcie samochodu", "Tomar foto del vehículo"),
                     onClick = {
                         captureDashboardPhoto = false
-                        pendingCaptureMode = "vehicle"
-                        photoLauncher.launch(null)
+                        launchHighResPhotoCapture("vehicle")
                     },
                     secondary = true,
                 )
@@ -566,8 +572,7 @@ fun DriverVehicleReportScreen(navController: NavController) {
                         text = tr("Zrób zdjęcie deski rozdzielczej", "Tomar foto del tablero"),
                         onClick = {
                             captureDashboardPhoto = true
-                            pendingCaptureMode = "dashboard"
-                            photoLauncher.launch(null)
+                            launchHighResPhotoCapture("dashboard")
                         },
                         secondary = true,
                     )
@@ -653,8 +658,7 @@ fun DriverVehicleReportScreen(navController: NavController) {
                 TextButton(
                     onClick = {
                         showGuidedStepDialog = false
-                        pendingCaptureMode = "guided"
-                        photoLauncher.launch(null)
+                        launchHighResPhotoCapture("guided")
                     },
                 ) { Text("OK") }
             },
@@ -924,11 +928,13 @@ private fun showDatePicker(
     ).show()
 }
 
-private fun Bitmap.saveReportPhoto(context: android.content.Context): String? = runCatching {
+private fun createReportPhotoUri(context: android.content.Context): Pair<Uri, String>? = runCatching {
     val outputDir = File(context.filesDir, "vehicle-report-photos").apply { mkdirs() }
     val outputFile = File(outputDir, "photo_${System.currentTimeMillis()}.jpg")
-    FileOutputStream(outputFile).use { out ->
-        compress(Bitmap.CompressFormat.JPEG, 90, out)
-    }
-    outputFile.absolutePath
+    val uri = FileProvider.getUriForFile(
+        context,
+        "${context.packageName}.fileprovider",
+        outputFile,
+    )
+    uri to outputFile.absolutePath
 }.getOrNull()
