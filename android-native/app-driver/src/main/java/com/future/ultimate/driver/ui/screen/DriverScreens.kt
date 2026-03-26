@@ -701,7 +701,27 @@ private fun editableFields(
     }
 
     Text(tr("Stan pojazdu", "Estado del vehículo"), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-    Text("${tr("Wskaźnik paliwa", "Indicador de combustible")}: OK")
+    Text(tr("Rodzaj paliwa", "Tipo de combustible"))
+    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        listOf(
+            tr("Benzyna", "Gasolina"),
+            tr("Disel", "Diésel"),
+        ).forEach { fuelType ->
+            Button(
+                onClick = { onDraftChange(draft.copy(rodzajPaliwa = fuelType)) },
+                modifier = Modifier.weight(1f),
+            ) {
+                Text(if (draft.rodzajPaliwa == fuelType) "✓ $fuelType" else fuelType)
+            }
+        }
+    }
+    yesNoSelector(
+        label = tr("Poziom oleju OK", "Nivel de aceite OK"),
+        value = draft.olej != tr("Niski", "Bajo"),
+        onValueChange = { isOilOk ->
+            onDraftChange(draft.copy(olej = if (isOilOk) tr("OK", "OK") else tr("Niski", "Bajo")))
+        },
+    )
     DriverInputField(
         value = draft.tireProducer,
         onValueChange = { onDraftChange(draft.copy(tireProducer = it)) },
