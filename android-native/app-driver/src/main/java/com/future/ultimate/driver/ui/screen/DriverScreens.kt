@@ -1,11 +1,13 @@
 package com.future.ultimate.driver.ui.screen
 
 import android.app.DatePickerDialog
-import android.graphics.Bitmap
+import android.net.Uri
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.FileProvider
 import androidx.compose.foundation.background
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
@@ -23,15 +25,18 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.Modifier
@@ -42,6 +47,8 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.layout.width
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
@@ -57,7 +64,6 @@ import com.future.ultimate.driver.ui.viewmodel.DriverMileageViewModel
 import com.future.ultimate.driver.ui.viewmodel.DriverVehicleReportViewModel
 import com.future.ultimate.driver.ui.viewmodel.DriverViewModelFactory
 import java.io.File
-import java.io.FileOutputStream
 import java.time.LocalDate
 
 @Composable
@@ -124,10 +130,11 @@ private fun DriverActionButton(
     onClick: () -> Unit,
     enabled: Boolean = true,
     secondary: Boolean = false,
+    modifier: Modifier = Modifier.fillMaxWidth(),
 ) {
     Button(
         onClick = onClick,
-        modifier = Modifier.fillMaxWidth(),
+        modifier = modifier,
         enabled = enabled,
         shape = FlotaThemeDefaults.pillShape,
         colors = ButtonDefaults.buttonColors(
@@ -436,48 +443,60 @@ fun DriverVehicleReportScreen(navController: NavController) {
         add(tr("Tył + lewy bok", "Trasera + lado izquierdo"))
         add(tr("Wnętrze przód", "Interior delantero"))
         add(tr("Wnętrze tył", "Interior trasero"))
-        if (draft.warningLights) {
-            add(tr("Deska rozdzielcza (lampki ostrzegawcze)", "Tablero (luces de advertencia)"))
-        }
+        if (draft.warningLights) add(tr("Deska rozdzielcza (lampki ostrzegawcze)", "Tablero (luces de advertencia)"))
     }
     val capturedSteps = draft.photoPaths.size + if (draft.dashboardPhotoPath.isNotBlank()) 1 else 0
     val isGuidedCaptureComplete = capturedSteps >= guidedPhotoSteps.size && guidedPhotoSteps.isNotEmpty()
     val nextStepIndex = capturedSteps.coerceAtMost((guidedPhotoSteps.size - 1).coerceAtLeast(0))
     val nextStepLabel = guidedPhotoSteps.getOrElse(nextStepIndex) { "-" }
-    val nextShotPrefix = tr("Następne zdjęcie", "Siguiente foto")
+    val cameraLaunchErrorMessage = tr("Nie udało się uruchomić aparatu.", "No se pudo abrir la cámara.")
     var isGuidedCaptureActive by remember { mutableStateOf(false) }
-    var launchNextCapture by remember { mutableStateOf(false) }
+    var pendingCaptureMode by remember { mutableStateOf("vehicle") }
+    var pendingCapturePath by remember { mutableStateOf<String?>(null) }
+    var showGuidedStepDialog by remember { mutableStateOf(false) }
 
-    val photoLauncher = rememberLauncherForActivityResult(ActivityResultContracts.TakePicturePreview()) { bitmap: Bitmap? ->
-        val savedPath = bitmap?.saveReportPhoto(context)
-        if (savedPath.isNullOrBlank()) {
-            isGuidedCaptureActive = false
+    LaunchedEffect(Unit) {
+        if (draft.rej.isNotBlank() && (draft.marka.isBlank() || draft.przebieg.isBlank())) {
+            viewModel.selectRegistration(draft.rej)
+        }
+    }
+
+    val photoLauncher = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { success: Boolean ->
+        val savedPath = pendingCapturePath
+        pendingCapturePath = null
+        if (!success || savedPath.isNullOrBlank()) {
+            if (pendingCaptureMode == "guided") isGuidedCaptureActive = false
+            savedPath?.let { File(it).delete() }
             return@rememberLauncherForActivityResult
         }
-        val updatedDraft = if (draft.warningLights && draft.photoPaths.size >= requiredPhotoCount) {
+        if (pendingCaptureMode == "damage") {
+            viewModel.updateDraft(draft.copy(damagePhotoPaths = draft.damagePhotoPaths + savedPath))
+            return@rememberLauncherForActivityResult
+        }
+        val shouldSaveDashboardPhoto = draft.warningLights && draft.photoPaths.size >= requiredPhotoCount
+        val updatedDraft = if (shouldSaveDashboardPhoto) {
             draft.copy(dashboardPhotoPath = savedPath)
         } else {
             draft.copy(photoPaths = draft.photoPaths + savedPath)
         }
         viewModel.updateDraft(updatedDraft)
-        val updatedCapturedSteps = updatedDraft.photoPaths.size + if (updatedDraft.dashboardPhotoPath.isNotBlank()) 1 else 0
-        if (isGuidedCaptureActive && updatedCapturedSteps < guidedPhotoSteps.size) {
-            Toast.makeText(
-                context,
-                "$nextShotPrefix: ${guidedPhotoSteps[updatedCapturedSteps]}",
-                Toast.LENGTH_SHORT,
-            ).show()
-            launchNextCapture = true
-        } else {
-            isGuidedCaptureActive = false
+        if (pendingCaptureMode == "guided") {
+            val updatedCapturedSteps = updatedDraft.photoPaths.size + if (updatedDraft.dashboardPhotoPath.isNotBlank()) 1 else 0
+            if (updatedCapturedSteps < guidedPhotoSteps.size) {
+                showGuidedStepDialog = true
+            } else {
+                isGuidedCaptureActive = false
+            }
         }
     }
-    LaunchedEffect(launchNextCapture) {
-        if (launchNextCapture) {
-            launchNextCapture = false
-            photoLauncher.launch(null)
-        }
+    val launchHighResPhotoCapture = { mode: String ->
+        createReportPhotoUri(context)?.let { (uri, path) ->
+            pendingCaptureMode = mode
+            pendingCapturePath = path
+            photoLauncher.launch(uri)
+        } ?: Toast.makeText(context, cameraLaunchErrorMessage, Toast.LENGTH_SHORT).show()
     }
+
     val hasMinimumPhotos = draft.photoPaths.size >= requiredPhotoCount
     val needsDashboardPhoto = draft.warningLights
     val hasRequiredDashboardPhoto = !needsDashboardPhoto || draft.dashboardPhotoPath.isNotBlank()
@@ -514,177 +533,17 @@ fun DriverVehicleReportScreen(navController: NavController) {
         }
         item {
             DriverSectionCard {
-                editableFields(draft) { viewModel.updateDraft(it) }
+                editableFields(
+                    draft = draft,
+                    onDraftChange = viewModel::updateDraft,
+                    onAddDamagePhoto = { launchHighResPhotoCapture("damage") },
+                    onClearDamagePhotos = { viewModel.updateDraft(draft.copy(damagePhotoPaths = emptyList())) },
+                )
             }
         }
         item {
-            DriverSectionCard(title = tr("Zdjęcia samochodu", "Fotos del vehículo")) {
-                Text(
-                    tr(
-                        "Wymagane zdjęcia: 1) przód+prawy bok, 2) przód+lewy bok, 3) tył+prawy bok, 4) tył+lewy bok, 5) wnętrze przód, 6) wnętrze tył.",
-                        "Fotos obligatorias: 1) frente+lado derecho, 2) frente+lado izquierdo, 3) trasera+lado derecho, 4) trasera+lado izquierdo, 5) interior delantero, 6) interior trasero.",
-                    ),
-                )
-                Text("${tr("Dodano", "Añadidas")}: ${draft.photoPaths.size}/$requiredPhotoCount")
-                DriverActionButton(
-                    text = tr("Zrób zdjęcie samochodu", "Tomar foto del vehículo"),
-                    onClick = {
-                        captureDashboardPhoto = false
-                        photoLauncher.launch(null)
-                    },
-                )
-                if (draft.warningLights) {
-                    DriverActionButton(
-                        text = tr("Zrób zdjęcie deski rozdzielczej", "Tomar foto del tablero"),
-                        onClick = {
-                            captureDashboardPhoto = true
-                            photoLauncher.launch(null)
-                        },
-                    )
-                    Text(
-                        if (draft.dashboardPhotoPath.isNotBlank()) {
-                            tr("Zdjęcie deski: dodane", "Foto del tablero: añadida")
-                        } else {
-                            tr("Zdjęcie deski: wymagane", "Foto del tablero: obligatoria")
-                        },
-                    )
-                }
-            }
-        }
-        item {
-            DriverSectionCard(title = tr("Zdjęcia samochodu", "Fotos del vehículo")) {
-                Text(
-                    tr(
-                        "Wymagane zdjęcia: 1) przód+prawy bok, 2) przód+lewy bok, 3) tył+prawy bok, 4) tył+lewy bok, 5) wnętrze przód, 6) wnętrze tył.",
-                        "Fotos obligatorias: 1) frente+lado derecho, 2) frente+lado izquierdo, 3) trasera+lado derecho, 4) trasera+lado izquierdo, 5) interior delantero, 6) interior trasero.",
-                    ),
-                )
-                Text("${tr("Dodano", "Añadidas")}: ${draft.photoPaths.size}/$requiredPhotoCount")
-                DriverActionButton(
-                    text = tr("Zrób zdjęcie samochodu", "Tomar foto del vehículo"),
-                    onClick = {
-                        captureDashboardPhoto = false
-                        photoLauncher.launch(null)
-                    },
-                )
-                if (draft.warningLights) {
-                    DriverActionButton(
-                        text = tr("Zrób zdjęcie deski rozdzielczej", "Tomar foto del tablero"),
-                        onClick = {
-                            captureDashboardPhoto = true
-                            photoLauncher.launch(null)
-                        },
-                    )
-                    Text(
-                        if (draft.dashboardPhotoPath.isNotBlank()) {
-                            tr("Zdjęcie deski: dodane", "Foto del tablero: añadida")
-                        } else {
-                            tr("Zdjęcie deski: wymagane", "Foto del tablero: obligatoria")
-                        },
-                    )
-                }
-            }
-        }
-        item {
-            DriverSectionCard(title = tr("Zdjęcia samochodu", "Fotos del vehículo")) {
-                Text(
-                    tr(
-                        "Wymagane zdjęcia: 1) przód+prawy bok, 2) przód+lewy bok, 3) tył+prawy bok, 4) tył+lewy bok, 5) wnętrze przód, 6) wnętrze tył.",
-                        "Fotos obligatorias: 1) frente+lado derecho, 2) frente+lado izquierdo, 3) trasera+lado derecho, 4) trasera+lado izquierdo, 5) interior delantero, 6) interior trasero.",
-                    ),
-                )
-                Text("${tr("Dodano", "Añadidas")}: ${draft.photoPaths.size}/$requiredPhotoCount")
-                DriverActionButton(
-                    text = tr("Zrób zdjęcie samochodu", "Tomar foto del vehículo"),
-                    onClick = {
-                        captureDashboardPhoto = false
-                        photoLauncher.launch(null)
-                    },
-                )
-                if (draft.warningLights) {
-                    DriverActionButton(
-                        text = tr("Zrób zdjęcie deski rozdzielczej", "Tomar foto del tablero"),
-                        onClick = {
-                            captureDashboardPhoto = true
-                            photoLauncher.launch(null)
-                        },
-                    )
-                    Text(
-                        if (draft.dashboardPhotoPath.isNotBlank()) {
-                            tr("Zdjęcie deski: dodane", "Foto del tablero: añadida")
-                        } else {
-                            tr("Zdjęcie deski: wymagane", "Foto del tablero: obligatoria")
-                        },
-                    )
-                }
-            }
-        }
-        item {
-            DriverSectionCard(title = tr("Zdjęcia samochodu", "Fotos del vehículo")) {
-                Text(
-                    tr(
-                        "Wymagane zdjęcia: 1) przód+prawy bok, 2) przód+lewy bok, 3) tył+prawy bok, 4) tył+lewy bok, 5) wnętrze przód, 6) wnętrze tył.",
-                        "Fotos obligatorias: 1) frente+lado derecho, 2) frente+lado izquierdo, 3) trasera+lado derecho, 4) trasera+lado izquierdo, 5) interior delantero, 6) interior trasero.",
-                    ),
-                )
-                Text("${tr("Dodano", "Añadidas")}: ${draft.photoPaths.size}/$requiredPhotoCount")
-                DriverActionButton(
-                    text = tr("Zrób zdjęcie samochodu", "Tomar foto del vehículo"),
-                    onClick = {
-                        captureDashboardPhoto = false
-                        photoLauncher.launch(null)
-                    },
-                )
-                if (draft.warningLights) {
-                    DriverActionButton(
-                        text = tr("Zrób zdjęcie deski rozdzielczej", "Tomar foto del tablero"),
-                        onClick = {
-                            captureDashboardPhoto = true
-                            photoLauncher.launch(null)
-                        },
-                    )
-                    Text(
-                        if (draft.dashboardPhotoPath.isNotBlank()) {
-                            tr("Zdjęcie deski: dodane", "Foto del tablero: añadida")
-                        } else {
-                            tr("Zdjęcie deski: wymagane", "Foto del tablero: obligatoria")
-                        },
-                    )
-                }
-            }
-        }
-        item {
-            DriverSectionCard(title = tr("Zdjęcia samochodu", "Fotos del vehículo")) {
-                Text(
-                    tr(
-                        "Wymagane zdjęcia: 1) przód+prawy bok, 2) przód+lewy bok, 3) tył+prawy bok, 4) tył+lewy bok, 5) wnętrze przód, 6) wnętrze tył.",
-                        "Fotos obligatorias: 1) frente+lado derecho, 2) frente+lado izquierdo, 3) trasera+lado derecho, 4) trasera+lado izquierdo, 5) interior delantero, 6) interior trasero.",
-                    ),
-                )
-                Text("${tr("Dodano", "Añadidas")}: ${draft.photoPaths.size}/$requiredPhotoCount")
-                DriverActionButton(
-                    text = tr("Zrób zdjęcie samochodu", "Tomar foto del vehículo"),
-                    onClick = {
-                        captureDashboardPhoto = false
-                        photoLauncher.launch(null)
-                    },
-                )
-                if (draft.warningLights) {
-                    DriverActionButton(
-                        text = tr("Zrób zdjęcie deski rozdzielczej", "Tomar foto del tablero"),
-                        onClick = {
-                            captureDashboardPhoto = true
-                            photoLauncher.launch(null)
-                        },
-                    )
-                    Text(
-                        if (draft.dashboardPhotoPath.isNotBlank()) {
-                            tr("Zdjęcie deski: dodane", "Foto del tablero: añadida")
-                        } else {
-                            tr("Zdjęcie deski: wymagane", "Foto del tablero: obligatoria")
-                        },
-                    )
-                }
+            DriverSectionCard(title = tr("Wyposażenie", "Equipamiento")) {
+                checklist(draft = draft, onDraftChange = viewModel::updateDraft)
             }
         }
         item {
@@ -696,100 +555,17 @@ fun DriverVehicleReportScreen(navController: NavController) {
                     ),
                 )
                 Text("${tr("Dodano", "Añadidas")}: $capturedSteps/${guidedPhotoSteps.size}")
-                Text("${tr("Następne zdjęcie", "Siguiente foto")}: $nextStepLabel")
-                DriverActionButton(
-                    text = if (isGuidedCaptureComplete) {
-                        tr("Wszystkie wymagane zdjęcia dodane", "Todas las fotos obligatorias agregadas")
-                    } else {
-                        tr("Zrób następne zdjęcie", "Tomar la siguiente foto")
-                    },
-                    onClick = {
-                        photoLauncher.launch(null)
-                    },
-                    enabled = !isGuidedCaptureComplete,
-                )
-                DriverActionButton(
-                    text = tr("Zacznij od nowa (wyczyść zdjęcia)", "Comenzar de nuevo (limpiar fotos)"),
-                    onClick = {
-                        viewModel.updateDraft(draft.copy(photoPaths = emptyList(), dashboardPhotoPath = ""))
-                    },
-                    secondary = true,
-                )
-            }
-        }
-        item {
-            DriverSectionCard(title = tr("Zdjęcia samochodu", "Fotos del vehículo")) {
-                Text(
-                    tr(
-                        "Wymagane zdjęcia: 1) przód+prawy bok, 2) przód+lewy bok, 3) tył+prawy bok, 4) tył+lewy bok, 5) wnętrze przód, 6) wnętrze tył.",
-                        "Fotos obligatorias: 1) frente+lado derecho, 2) frente+lado izquierdo, 3) trasera+lado derecho, 4) trasera+lado izquierdo, 5) interior delantero, 6) interior trasero.",
-                    ),
-                )
-                Text("${tr("Dodano", "Añadidas")}: $capturedSteps/${guidedPhotoSteps.size}")
-                Text("${tr("Następne zdjęcie", "Siguiente foto")}: $nextStepLabel")
-                DriverActionButton(
-                    text = if (isGuidedCaptureActive) {
-                        tr("Trwa sesja zdjęć...", "Sesión de fotos en curso...")
-                    } else if (isGuidedCaptureComplete) {
-                        tr("Wszystkie wymagane zdjęcia dodane", "Todas las fotos obligatorias agregadas")
-                    } else {
-                        tr("Dodaj zdjęcia (prowadzenie)", "Agregar fotos (guiado)")
-                    },
-                    onClick = {
-                        isGuidedCaptureActive = true
-                        Toast.makeText(
-                            context,
-                            "$nextShotPrefix: $nextStepLabel",
-                            Toast.LENGTH_SHORT,
-                        ).show()
-                        photoLauncher.launch(null)
-                    },
-                    enabled = !isGuidedCaptureComplete && !isGuidedCaptureActive,
-                )
-                DriverActionButton(
-                    text = tr("Zacznij od nowa (wyczyść zdjęcia)", "Comenzar de nuevo (limpiar fotos)"),
-                    onClick = {
-                        isGuidedCaptureActive = false
-                        launchNextCapture = false
-                        viewModel.updateDraft(draft.copy(photoPaths = emptyList(), dashboardPhotoPath = ""))
-                    },
-                    secondary = true,
-                )
-            }
-        }
-        item {
-            DriverSectionCard(title = tr("Zdjęcia samochodu", "Fotos del vehículo")) {
-                Text(
-                    tr(
-                        "Wymagane zdjęcia: 1) przód+prawy bok, 2) przód+lewy bok, 3) tył+prawy bok, 4) tył+lewy bok, 5) wnętrze przód, 6) wnętrze tył.",
-                        "Fotos obligatorias: 1) frente+lado derecho, 2) frente+lado izquierdo, 3) trasera+lado derecho, 4) trasera+lado izquierdo, 5) interior delantero, 6) interior trasero.",
-                    ),
-                )
-                Text("${tr("Dodano", "Añadidas")}: $capturedSteps/${guidedPhotoSteps.size}")
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.primaryContainer,
-                    ),
-                ) {
-                    Column(
-                        modifier = Modifier.padding(14.dp),
-                        verticalArrangement = Arrangement.spacedBy(6.dp),
-                    ) {
-                        Text(
-                            "${tr("Krok", "Paso")} ${minOf(capturedSteps + 1, guidedPhotoSteps.size)}/${guidedPhotoSteps.size}",
-                            style = MaterialTheme.typography.labelLarge,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer,
-                            fontWeight = FontWeight.Bold,
-                        )
-                        Text(
-                            "${tr("Zrób teraz zdjęcie", "Haz ahora la foto")}: $nextStepLabel",
-                            style = MaterialTheme.typography.titleMedium,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer,
-                            fontWeight = FontWeight.ExtraBold,
-                        )
-                    }
+                if (guidedPhotoSteps.isNotEmpty()) {
+                    Text("${tr("Następne zdjęcie", "Siguiente foto")}: $nextStepLabel")
+                }
+                if (draft.warningLights) {
+                    Text(
+                        if (draft.dashboardPhotoPath.isNotBlank()) {
+                            tr("Zdjęcie deski: dodane", "Foto del tablero: añadida")
+                        } else {
+                            tr("Zdjęcie deski: wymagane", "Foto del tablero: obligatoria")
+                        },
+                    )
                 }
                 DriverActionButton(
                     text = if (isGuidedCaptureActive) {
@@ -797,16 +573,11 @@ fun DriverVehicleReportScreen(navController: NavController) {
                     } else if (isGuidedCaptureComplete) {
                         tr("Wszystkie wymagane zdjęcia dodane", "Todas las fotos obligatorias agregadas")
                     } else {
-                        tr("Dodaj zdjęcia (prowadzenie)", "Agregar fotos (guiado)")
+                        tr("Dodaj zdjęcia", "Agregar fotos")
                     },
                     onClick = {
                         isGuidedCaptureActive = true
-                        Toast.makeText(
-                            context,
-                            "$nextShotPrefix: $nextStepLabel",
-                            Toast.LENGTH_SHORT,
-                        ).show()
-                        photoLauncher.launch(null)
+                        showGuidedStepDialog = true
                     },
                     enabled = !isGuidedCaptureComplete && !isGuidedCaptureActive,
                 )
@@ -814,71 +585,7 @@ fun DriverVehicleReportScreen(navController: NavController) {
                     text = tr("Zacznij od nowa (wyczyść zdjęcia)", "Comenzar de nuevo (limpiar fotos)"),
                     onClick = {
                         isGuidedCaptureActive = false
-                        launchNextCapture = false
-                        viewModel.updateDraft(draft.copy(photoPaths = emptyList(), dashboardPhotoPath = ""))
-                    },
-                    secondary = true,
-                )
-            }
-        }
-        item {
-            DriverSectionCard(title = tr("Zdjęcia samochodu", "Fotos del vehículo")) {
-                Text(
-                    tr(
-                        "Wymagane zdjęcia: 1) przód+prawy bok, 2) przód+lewy bok, 3) tył+prawy bok, 4) tył+lewy bok, 5) wnętrze przód, 6) wnętrze tył.",
-                        "Fotos obligatorias: 1) frente+lado derecho, 2) frente+lado izquierdo, 3) trasera+lado derecho, 4) trasera+lado izquierdo, 5) interior delantero, 6) interior trasero.",
-                    ),
-                )
-                Text("${tr("Dodano", "Añadidas")}: $capturedSteps/${guidedPhotoSteps.size}")
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.primaryContainer,
-                    ),
-                ) {
-                    Column(
-                        modifier = Modifier.padding(14.dp),
-                        verticalArrangement = Arrangement.spacedBy(6.dp),
-                    ) {
-                        Text(
-                            "${tr("Krok", "Paso")} ${minOf(capturedSteps + 1, guidedPhotoSteps.size)}/${guidedPhotoSteps.size}",
-                            style = MaterialTheme.typography.labelLarge,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer,
-                            fontWeight = FontWeight.Bold,
-                        )
-                        Text(
-                            "${tr("Zrób teraz zdjęcie", "Haz ahora la foto")}: $nextStepLabel",
-                            style = MaterialTheme.typography.titleMedium,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer,
-                            fontWeight = FontWeight.ExtraBold,
-                        )
-                    }
-                }
-                DriverActionButton(
-                    text = if (isGuidedCaptureActive) {
-                        tr("Trwa sesja zdjęć...", "Sesión de fotos en curso...")
-                    } else if (isGuidedCaptureComplete) {
-                        tr("Wszystkie wymagane zdjęcia dodane", "Todas las fotos obligatorias agregadas")
-                    } else {
-                        tr("Dodaj zdjęcia (prowadzenie)", "Agregar fotos (guiado)")
-                    },
-                    onClick = {
-                        isGuidedCaptureActive = true
-                        Toast.makeText(
-                            context,
-                            "$nextShotPrefix: $nextStepLabel",
-                            Toast.LENGTH_SHORT,
-                        ).show()
-                        photoLauncher.launch(null)
-                    },
-                    enabled = !isGuidedCaptureComplete && !isGuidedCaptureActive,
-                )
-                DriverActionButton(
-                    text = tr("Zacznij od nowa (wyczyść zdjęcia)", "Comenzar de nuevo (limpiar fotos)"),
-                    onClick = {
-                        isGuidedCaptureActive = false
-                        launchNextCapture = false
+                        showGuidedStepDialog = false
                         viewModel.updateDraft(draft.copy(photoPaths = emptyList(), dashboardPhotoPath = ""))
                     },
                     secondary = true,
@@ -921,30 +628,89 @@ fun DriverVehicleReportScreen(navController: NavController) {
             }
         }
     }
+
+    if (showGuidedStepDialog && isGuidedCaptureActive && !isGuidedCaptureComplete) {
+        AlertDialog(
+            onDismissRequest = {
+                showGuidedStepDialog = false
+                isGuidedCaptureActive = false
+            },
+            title = { Text(tr("Następne zdjęcie", "Siguiente foto")) },
+            text = { Text(nextStepLabel) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showGuidedStepDialog = false
+                        launchHighResPhotoCapture("guided")
+                    },
+                ) { Text("OK") }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = {
+                        showGuidedStepDialog = false
+                        isGuidedCaptureActive = false
+                    },
+                ) { Text(tr("Anuluj", "Cancelar")) }
+            },
+        )
+    }
 }
 
 @Composable
-private fun editableFields(draft: VehicleReportDraft, onDraftChange: (VehicleReportDraft) -> Unit) {
+private fun editableFields(
+    draft: VehicleReportDraft,
+    onDraftChange: (VehicleReportDraft) -> Unit,
+    onAddDamagePhoto: () -> Unit,
+    onClearDamagePhotos: () -> Unit,
+) {
     val context = LocalContext.current
     Text(tr("Dane podstawowe", "Datos básicos"), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-    DriverInputField(value = draft.marka, onValueChange = {}, label = tr("Marka", "Marca"), enabled = false)
+    DriverInputField(value = draft.marka, onValueChange = { onDraftChange(draft.copy(marka = it)) }, label = tr("Marka", "Marca"))
     DriverInputField(value = draft.rej, onValueChange = {}, label = tr("Rejestracja", "Matrícula"), enabled = false)
     DriverInputField(value = draft.filledBy, onValueChange = {}, label = tr("Wypełnione przez (login)", "Rellenado por (usuario)"), enabled = false)
-    DriverInputField(value = draft.przebieg, onValueChange = {}, label = tr("Przebieg", "Kilometraje"), enabled = false)
+    DriverInputField(value = draft.przebieg, onValueChange = { onDraftChange(draft.copy(przebieg = it)) }, label = tr("Przebieg", "Kilometraje"), keyboardType = KeyboardType.Number)
     Text(tr("Ilość miejsc", "Cantidad de asientos"))
-    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .horizontalScroll(rememberScrollState()),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
         (4..9).forEach { seats ->
             DriverActionButton(
                 text = seats.toString(),
                 onClick = { onDraftChange(draft.copy(seats = seats.toString())) },
                 secondary = draft.seats != seats.toString(),
-                enabled = true,
+                modifier = Modifier.width(72.dp),
             )
         }
     }
 
     Text(tr("Stan pojazdu", "Estado del vehículo"), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-    Text("${tr("Wskaźnik paliwa", "Indicador de combustible")}: OK")
+    Text(tr("Rodzaj paliwa", "Tipo de combustible"))
+    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        listOf(
+            tr("Benzyna", "Gasolina"),
+            tr("Disel", "Diésel"),
+        ).forEach { fuelType ->
+            Button(
+                onClick = { onDraftChange(draft.copy(rodzajPaliwa = fuelType)) },
+                modifier = Modifier.weight(1f),
+            ) {
+                Text(if (draft.rodzajPaliwa == fuelType) "✓ $fuelType" else fuelType)
+            }
+        }
+    }
+    val lowOilValue = tr("Niski", "Bajo")
+    val okOilValue = tr("OK", "OK")
+    yesNoSelector(
+        label = tr("Poziom oleju OK", "Nivel de aceite OK"),
+        value = draft.olej != lowOilValue,
+        onValueChange = { isOilOk ->
+            onDraftChange(draft.copy(olej = if (isOilOk) okOilValue else lowOilValue))
+        },
+    )
     DriverInputField(
         value = draft.tireProducer,
         onValueChange = { onDraftChange(draft.copy(tireProducer = it)) },
@@ -956,19 +722,33 @@ private fun editableFields(draft: VehicleReportDraft, onDraftChange: (VehicleRep
         onValueChange = { onDraftChange(draft.copy(noDamage = it)) },
     )
     if (!draft.noDamage) {
-        DriverInputField(
-            value = draft.damageSince,
-            onValueChange = {},
-            label = tr("Od kiedy", "Desde cuándo"),
-            readOnly = true,
+        DriverActionButton(
+            text = if (draft.damageSince.isNotBlank()) {
+                "${tr("Data uszkodzenia", "Fecha del daño")}: ${draft.damageSince}"
+            } else {
+                tr("Wybierz datę uszkodzenia", "Selecciona la fecha del daño")
+            },
             onClick = { showDatePicker(context, draft.damageSince) { onDraftChange(draft.copy(damageSince = it)) } },
+            secondary = true,
         )
         DriverInputField(
             value = draft.damageDescription,
             onValueChange = { onDraftChange(draft.copy(damageDescription = it)) },
-            label = tr("Opisz uszkodzenie", "Describe el daño"),
+            label = tr("Nowe uszkodzenie (opis)", "Nuevo daño (descripción)"),
             singleLine = false,
         )
+        DriverActionButton(
+            text = tr("Dodaj zdjęcie uszkodzenia", "Agregar foto del daño"),
+            onClick = onAddDamagePhoto,
+        )
+        Text("${tr("Zdjęcia nowego uszkodzenia", "Fotos del nuevo daño")}: ${draft.damagePhotoPaths.size}")
+        if (draft.damagePhotoPaths.isNotEmpty()) {
+            DriverActionButton(
+                text = tr("Usuń zdjęcia uszkodzenia", "Eliminar fotos del daño"),
+                onClick = onClearDamagePhotos,
+                secondary = true,
+            )
+        }
     }
     yesNoSelector(
         label = tr("Czy samochód został wysprzątany/umyty", "¿El vehículo fue limpiado/lavado?"),
@@ -1100,7 +880,11 @@ private fun tireStateSelector(
                 onClick = { onValueChange(option) },
                 modifier = Modifier.weight(1f),
             ) {
-                Text(if (value == option) "✓ $option" else option)
+                Text(
+                    text = if (value == option) "✓ $option" else option,
+                    fontSize = 13.sp,
+                    maxLines = 1,
+                )
             }
         }
     }
@@ -1123,11 +907,13 @@ private fun showDatePicker(
     ).show()
 }
 
-private fun Bitmap.saveReportPhoto(context: android.content.Context): String? = runCatching {
+private fun createReportPhotoUri(context: android.content.Context): Pair<Uri, String>? = runCatching {
     val outputDir = File(context.filesDir, "vehicle-report-photos").apply { mkdirs() }
     val outputFile = File(outputDir, "photo_${System.currentTimeMillis()}.jpg")
-    FileOutputStream(outputFile).use { out ->
-        compress(Bitmap.CompressFormat.JPEG, 90, out)
-    }
-    outputFile.absolutePath
+    val uri = FileProvider.getUriForFile(
+        context,
+        "${context.packageName}.fileprovider",
+        outputFile,
+    )
+    uri to outputFile.absolutePath
 }.getOrNull()
