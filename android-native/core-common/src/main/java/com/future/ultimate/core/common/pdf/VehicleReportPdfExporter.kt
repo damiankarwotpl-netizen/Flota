@@ -110,62 +110,51 @@ object VehicleReportPdfExporter {
     }
 
     private fun appendPhotoPages(document: PdfDocument, draft: VehicleReportDraft) {
-        val basePhotos = draft.photoPaths + listOfNotNull(draft.dashboardPhotoPath.takeIf { it.isNotBlank() })
-        basePhotos.forEachIndexed { index, path ->
-            val bitmap = BitmapFactory.decodeFile(path) ?: return@forEachIndexed
-            val pageInfo = PdfDocument.PageInfo.Builder(595, 842, index + 2).create()
-            val page = document.startPage(pageInfo)
-            val canvas = page.canvas
-            val paint = paint(size = 12f, bold = true)
-            canvas.drawText(photoLabel(index), 36f, 36f, paint)
-            val scale = minOf(523f / bitmap.width.toFloat(), 760f / bitmap.height.toFloat())
-            val width = bitmap.width * scale
-            val height = bitmap.height * scale
-            val left = (595f - width) / 2f
-            val top = 50f
-            canvas.drawBitmap(bitmap, null, android.graphics.RectF(left, top, left + width, top + height), null)
-            document.finishPage(page)
+        val basePhotoPaths = draft.photoPaths + listOfNotNull(draft.dashboardPhotoPath.takeIf { it.isNotBlank() })
+
+        basePhotoPaths.forEachIndexed { baseIndex, basePath ->
+            appendSinglePhotoPage(
+                document = document,
+                pageNumber = baseIndex + 2,
+                label = photoLabel(baseIndex),
+                path = basePath,
+            )
         }
-        val damageLabel = buildString {
-            append("Nowe uszkodzenie")
-            if (draft.damageSince.isNotBlank()) append(" - ${draft.damageSince}")
+
+        draft.damagePhotoPaths.forEachIndexed { damageIndex, damagePath ->
+            val label = buildString {
+                append("Nowe uszkodzenie")
+                if (draft.damageSince.isNotBlank()) append(" - ${draft.damageSince}")
+                append(" (${damageIndex + 1})")
+            }
+            appendSinglePhotoPage(
+                document = document,
+                pageNumber = basePhotoPaths.size + damageIndex + 2,
+                label = label,
+                path = damagePath,
+            )
         }
-        draft.damagePhotoPaths.forEachIndexed { index, path ->
-            val bitmap = BitmapFactory.decodeFile(path) ?: return@forEachIndexed
-            val pageNumber = basePhotos.size + index + 2
-            val pageInfo = PdfDocument.PageInfo.Builder(595, 842, pageNumber).create()
-            val page = document.startPage(pageInfo)
-            val canvas = page.canvas
-            val paint = paint(size = 12f, bold = true)
-            canvas.drawText("$damageLabel (${index + 1})", 36f, 36f, paint)
-            val scale = minOf(523f / bitmap.width.toFloat(), 760f / bitmap.height.toFloat())
-            val width = bitmap.width * scale
-            val height = bitmap.height * scale
-            val left = (595f - width) / 2f
-            val top = 50f
-            canvas.drawBitmap(bitmap, null, android.graphics.RectF(left, top, left + width, top + height), null)
-            document.finishPage(page)
-        }
-        val damageLabel = buildString {
-            append("Nowe uszkodzenie")
-            if (draft.damageSince.isNotBlank()) append(" - ${draft.damageSince}")
-        }
-        draft.damagePhotoPaths.forEachIndexed { index, path ->
-            val bitmap = BitmapFactory.decodeFile(path) ?: return@forEachIndexed
-            val pageNumber = basePhotos.size + index + 2
-            val pageInfo = PdfDocument.PageInfo.Builder(595, 842, pageNumber).create()
-            val page = document.startPage(pageInfo)
-            val canvas = page.canvas
-            val paint = paint(size = 12f, bold = true)
-            canvas.drawText("$damageLabel (${index + 1})", 36f, 36f, paint)
-            val scale = minOf(523f / bitmap.width.toFloat(), 760f / bitmap.height.toFloat())
-            val width = bitmap.width * scale
-            val height = bitmap.height * scale
-            val left = (595f - width) / 2f
-            val top = 50f
-            canvas.drawBitmap(bitmap, null, android.graphics.RectF(left, top, left + width, top + height), null)
-            document.finishPage(page)
-        }
+    }
+
+    private fun appendSinglePhotoPage(
+        document: PdfDocument,
+        pageNumber: Int,
+        label: String,
+        path: String,
+    ) {
+        val bitmap = BitmapFactory.decodeFile(path) ?: return
+        val pageInfo = PdfDocument.PageInfo.Builder(595, 842, pageNumber).create()
+        val page = document.startPage(pageInfo)
+        val canvas = page.canvas
+        val labelPaint = paint(size = 12f, bold = true)
+        canvas.drawText(label, 36f, 36f, labelPaint)
+        val scale = minOf(523f / bitmap.width.toFloat(), 760f / bitmap.height.toFloat())
+        val width = bitmap.width * scale
+        val height = bitmap.height * scale
+        val left = (595f - width) / 2f
+        val top = 50f
+        canvas.drawBitmap(bitmap, null, android.graphics.RectF(left, top, left + width, top + height), null)
+        document.finishPage(page)
     }
 
     private fun drawSection(canvas: android.graphics.Canvas, y: Float, title: String, paint: Paint): Float {
