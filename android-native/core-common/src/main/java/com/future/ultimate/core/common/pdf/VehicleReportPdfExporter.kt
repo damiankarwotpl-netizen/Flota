@@ -146,6 +146,26 @@ object VehicleReportPdfExporter {
             canvas.drawBitmap(bitmap, null, android.graphics.RectF(left, top, left + width, top + height), null)
             document.finishPage(page)
         }
+        val damageLabel = buildString {
+            append("Nowe uszkodzenie")
+            if (draft.damageSince.isNotBlank()) append(" - ${draft.damageSince}")
+        }
+        draft.damagePhotoPaths.forEachIndexed { index, path ->
+            val bitmap = BitmapFactory.decodeFile(path) ?: return@forEachIndexed
+            val pageNumber = basePhotos.size + index + 2
+            val pageInfo = PdfDocument.PageInfo.Builder(595, 842, pageNumber).create()
+            val page = document.startPage(pageInfo)
+            val canvas = page.canvas
+            val paint = paint(size = 12f, bold = true)
+            canvas.drawText("$damageLabel (${index + 1})", 36f, 36f, paint)
+            val scale = minOf(523f / bitmap.width.toFloat(), 760f / bitmap.height.toFloat())
+            val width = bitmap.width * scale
+            val height = bitmap.height * scale
+            val left = (595f - width) / 2f
+            val top = 50f
+            canvas.drawBitmap(bitmap, null, android.graphics.RectF(left, top, left + width, top + height), null)
+            document.finishPage(page)
+        }
     }
 
     private fun drawSection(canvas: android.graphics.Canvas, y: Float, title: String, paint: Paint): Float {
