@@ -715,11 +715,13 @@ private fun editableFields(
             }
         }
     }
+    val lowOilValue = tr("Niski", "Bajo")
+    val okOilValue = tr("OK", "OK")
     yesNoSelector(
         label = tr("Poziom oleju OK", "Nivel de aceite OK"),
-        value = draft.olej != tr("Niski", "Bajo"),
+        value = draft.olej != lowOilValue,
         onValueChange = { isOilOk ->
-            onDraftChange(draft.copy(olej = if (isOilOk) tr("OK", "OK") else tr("Niski", "Bajo")))
+            onDraftChange(draft.copy(olej = if (isOilOk) okOilValue else lowOilValue))
         },
     )
     DriverInputField(
