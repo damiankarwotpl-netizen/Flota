@@ -449,6 +449,7 @@ fun DriverVehicleReportScreen(navController: NavController) {
     val isGuidedCaptureComplete = capturedSteps >= guidedPhotoSteps.size && guidedPhotoSteps.isNotEmpty()
     val nextStepIndex = capturedSteps.coerceAtMost((guidedPhotoSteps.size - 1).coerceAtLeast(0))
     val nextStepLabel = guidedPhotoSteps.getOrElse(nextStepIndex) { "-" }
+    val cameraLaunchErrorMessage = tr("Nie udało się uruchomić aparatu.", "No se pudo abrir la cámara.")
     var isGuidedCaptureActive by remember { mutableStateOf(false) }
     var captureDashboardPhoto by remember { mutableStateOf(false) }
     var pendingCaptureMode by remember { mutableStateOf("vehicle") }
@@ -495,7 +496,7 @@ fun DriverVehicleReportScreen(navController: NavController) {
             pendingCaptureMode = mode
             pendingCapturePath = path
             photoLauncher.launch(uri)
-        } ?: Toast.makeText(context, tr("Nie udało się uruchomić aparatu.", "No se pudo abrir la cámara."), Toast.LENGTH_SHORT).show()
+        } ?: Toast.makeText(context, cameraLaunchErrorMessage, Toast.LENGTH_SHORT).show()
     }
 
     val hasMinimumPhotos = draft.photoPaths.size >= requiredPhotoCount
