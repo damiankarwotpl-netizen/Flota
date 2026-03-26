@@ -876,6 +876,11 @@ private fun tireStateSelector(
             tr("Średni", "Medio"),
             tr("Do wymiany", "Para cambiar"),
         ).forEach { option ->
+            val displayLabel = if (option == tr("Do wymiany", "Para cambiar")) {
+                tr("Do\nwymiany", "Para\ncambiar")
+            } else {
+                option
+            }
             Button(
                 onClick = { onValueChange(option) },
                 modifier = Modifier.weight(1f),
