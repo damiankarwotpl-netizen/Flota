@@ -38,7 +38,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.platform.LocalContext
@@ -193,6 +192,7 @@ fun DriverLoginScreen(navController: NavController) {
     val app = LocalContext.current.applicationContext as DriverApp
     val viewModel: DriverLoginViewModel = viewModel(factory = DriverViewModelFactory(app.container.repository))
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    var showEndpointSettings by remember { mutableStateOf(false) }
 
     DriverScreen(
         title = tr("Login kierowcy", "Inicio de sesión del conductor"),
@@ -202,58 +202,51 @@ fun DriverLoginScreen(navController: NavController) {
         ),
     ) {
         item {
-            DriverSectionCard(
-                title = tr("Endpoint synchronizacji", "Endpoint de sincronización"),
-                subtitle = tr(
-                    "APK kierowcy działa domyślnie na stałym endpointcie. Edycja jest ukryta za hasłem serwisowym.",
-                    "La app del conductor usa por defecto un endpoint fijo. La edición está protegida por contraseña de servicio.",
-                ),
-            ) {
-                StatusMessage(tr("Aktywny endpoint APK:", "Endpoint activo de la app:"), emphasis = true)
-                Text(
-                    text = uiState.remoteApiUrl,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 3,
-                    overflow = TextOverflow.Ellipsis,
+            DriverSectionCard {
+                DriverActionButton(
+                    text = tr("⚙ Ustawienia", "⚙ Ajustes"),
+                    onClick = { showEndpointSettings = !showEndpointSettings },
+                    secondary = true,
                 )
-                if (uiState.isEndpointEditorUnlocked) {
-                    DriverInputField(
-                        value = uiState.remoteApiUrl,
-                        onValueChange = viewModel::updateRemoteApiUrl,
-                        label = tr("Endpoint zdalnego syncu kierowców", "Endpoint remoto de sincronización"),
-                        singleLine = false,
-                    )
-                    DriverActionButton(
-                        text = if (uiState.isSavingRemoteSettings) tr("Zapisywanie endpointu...", "Guardando endpoint...") else tr("Zapisz endpoint", "Guardar endpoint"),
-                        onClick = viewModel::saveRemoteSettings,
-                        enabled = !uiState.isSavingRemoteSettings && uiState.remoteApiUrl.isNotBlank(),
-                        secondary = true,
-                    )
-                    DriverActionButton(
-                        text = if (uiState.isValidatingRemoteSettings) tr("Sprawdzanie endpointu...", "Validando endpoint...") else tr("Sprawdź endpoint", "Validar endpoint"),
-                        onClick = viewModel::validateRemoteSettings,
-                        enabled = !uiState.isValidatingRemoteSettings && uiState.remoteApiUrl.isNotBlank(),
-                        secondary = true,
-                    )
-                    DriverActionButton(
-                        text = tr("Ukryj edycję endpointu", "Ocultar edición de endpoint"),
-                        onClick = viewModel::lockEndpointEditor,
-                        secondary = true,
-                    )
-                } else {
-                    DriverInputField(
-                        value = uiState.endpointAccessPassword,
-                        onValueChange = viewModel::updateEndpointAccessPassword,
-                        label = tr("Hasło serwisowe do edycji endpointu", "Contraseña de servicio para editar endpoint"),
-                        visualTransformation = PasswordVisualTransformation(),
-                    )
-                    DriverActionButton(
-                        text = tr("Odblokuj edycję endpointu", "Desbloquear edición de endpoint"),
-                        onClick = viewModel::unlockEndpointEditor,
-                        enabled = uiState.endpointAccessPassword.isNotBlank(),
-                        secondary = true,
-                    )
+                if (showEndpointSettings) {
+                    if (uiState.isEndpointEditorUnlocked) {
+                        DriverInputField(
+                            value = uiState.remoteApiUrl,
+                            onValueChange = viewModel::updateRemoteApiUrl,
+                            label = tr("Endpoint zdalnego syncu kierowców", "Endpoint remoto de sincronización"),
+                            singleLine = false,
+                        )
+                        DriverActionButton(
+                            text = if (uiState.isSavingRemoteSettings) tr("Zapisywanie endpointu...", "Guardando endpoint...") else tr("Zapisz endpoint", "Guardar endpoint"),
+                            onClick = viewModel::saveRemoteSettings,
+                            enabled = !uiState.isSavingRemoteSettings && uiState.remoteApiUrl.isNotBlank(),
+                            secondary = true,
+                        )
+                        DriverActionButton(
+                            text = if (uiState.isValidatingRemoteSettings) tr("Sprawdzanie endpointu...", "Validando endpoint...") else tr("Sprawdź endpoint", "Validar endpoint"),
+                            onClick = viewModel::validateRemoteSettings,
+                            enabled = !uiState.isValidatingRemoteSettings && uiState.remoteApiUrl.isNotBlank(),
+                            secondary = true,
+                        )
+                        DriverActionButton(
+                            text = tr("Ukryj edycję endpointu", "Ocultar edición de endpoint"),
+                            onClick = viewModel::lockEndpointEditor,
+                            secondary = true,
+                        )
+                    } else {
+                        DriverInputField(
+                            value = uiState.endpointAccessPassword,
+                            onValueChange = viewModel::updateEndpointAccessPassword,
+                            label = tr("Hasło serwisowe do edycji endpointu", "Contraseña de servicio para editar endpoint"),
+                            visualTransformation = PasswordVisualTransformation(),
+                        )
+                        DriverActionButton(
+                            text = tr("Odblokuj edycję endpointu", "Desbloquear edición de endpoint"),
+                            onClick = viewModel::unlockEndpointEditor,
+                            enabled = uiState.endpointAccessPassword.isNotBlank(),
+                            secondary = true,
+                        )
+                    }
                 }
             }
         }
