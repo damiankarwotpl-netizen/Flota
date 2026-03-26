@@ -447,6 +447,7 @@ fun DriverVehicleReportScreen(navController: NavController) {
     val nextShotPrefix = tr("Następne zdjęcie", "Siguiente foto")
     var isGuidedCaptureActive by remember { mutableStateOf(false) }
     var launchNextCapture by remember { mutableStateOf(false) }
+    var captureDashboardPhoto by remember { mutableStateOf(false) }
 
     val photoLauncher = rememberLauncherForActivityResult(ActivityResultContracts.TakePicturePreview()) { bitmap: Bitmap? ->
         val savedPath = bitmap?.saveReportPhoto(context)
@@ -454,7 +455,9 @@ fun DriverVehicleReportScreen(navController: NavController) {
             isGuidedCaptureActive = false
             return@rememberLauncherForActivityResult
         }
-        val updatedDraft = if (draft.warningLights && draft.photoPaths.size >= requiredPhotoCount) {
+        val shouldSaveDashboardPhoto = captureDashboardPhoto || (draft.warningLights && draft.photoPaths.size >= requiredPhotoCount)
+        val updatedDraft = if (shouldSaveDashboardPhoto) {
+            captureDashboardPhoto = false
             draft.copy(dashboardPhotoPath = savedPath)
         } else {
             draft.copy(photoPaths = draft.photoPaths + savedPath)
