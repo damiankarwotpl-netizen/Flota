@@ -263,9 +263,9 @@ class LocalAdminRepository(
         )
     }
 
-    override suspend fun updateCarDriverLicense(id: Long, licenseType: String, validUntil: String) {
+    override suspend fun updateCarDriverLicense(id: Long, driverName: String, licenseType: String, validUntil: String) {
         val car = dao.getCar(id) ?: return
-        val normalizedDriver = parseDriverNames(car.driver).firstOrNull().orEmpty()
+        val normalizedDriver = driverName.trim().ifBlank { parseDriverNames(car.driver).firstOrNull().orEmpty() }
         if (normalizedDriver.isBlank()) return
         val normalizedLicenseType = licenseType.trim().ifBlank { "PL" }
         val normalizedValidUntil = validUntil.trim()
@@ -286,9 +286,9 @@ class LocalAdminRepository(
         }
     }
 
-    override suspend fun resetCarDriverCredentials(id: Long): DriverAccountCredentials {
+    override suspend fun resetCarDriverCredentials(id: Long, driverName: String): DriverAccountCredentials {
         val car = dao.getCar(id) ?: return DriverAccountCredentials()
-        val normalizedDriver = parseDriverNames(car.driver).firstOrNull().orEmpty()
+        val normalizedDriver = driverName.trim().ifBlank { parseDriverNames(car.driver).firstOrNull().orEmpty() }
         if (normalizedDriver.isBlank()) {
             dao.deleteDriverAccountByRegistration(car.registration)
             syncRemoteDriverDeletion(car.registration)

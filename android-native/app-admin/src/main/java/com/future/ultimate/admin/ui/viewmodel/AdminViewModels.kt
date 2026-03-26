@@ -264,15 +264,15 @@ class CarsViewModel(private val repository: AdminRepository) : ViewModel() {
         _uiState.value = _uiState.value.copy(actionInFlightId = null, actionMessage = "Samochód usunięty")
     }
 
-    fun updateDriverLicense(id: Long, licenseType: String, validUntil: String) = viewModelScope.launch {
+    fun updateDriverLicense(id: Long, driverName: String, licenseType: String, validUntil: String) = viewModelScope.launch {
         _uiState.value = _uiState.value.copy(actionInFlightId = id, actionMessage = null)
-        repository.updateCarDriverLicense(id, licenseType, validUntil)
+        repository.updateCarDriverLicense(id, driverName, licenseType, validUntil)
         _uiState.value = _uiState.value.copy(actionInFlightId = null, actionMessage = "Dane prawa jazdy zapisane")
     }
 
-    fun resetDriverCredentials(id: Long) = viewModelScope.launch {
+    fun resetDriverCredentials(id: Long, driverName: String) = viewModelScope.launch {
         _uiState.value = _uiState.value.copy(actionInFlightId = id, actionMessage = null)
-        val credentials = repository.resetCarDriverCredentials(id)
+        val credentials = repository.resetCarDriverCredentials(id, driverName)
         _uiState.value = _uiState.value.copy(
             actionInFlightId = null,
             actionMessage = if (credentials.login.isBlank()) {
