@@ -91,6 +91,7 @@ data class VehicleReportDraft(
     val warningLightsDescription: String = "",
     val photoPaths: List<String> = emptyList(),
     val dashboardPhotoPath: String = "",
+    val damagePhotoPaths: List<String> = emptyList(),
     val uszkodzenia: String = "",
     val odKiedy: String = "",
     val serwis: String = "",
