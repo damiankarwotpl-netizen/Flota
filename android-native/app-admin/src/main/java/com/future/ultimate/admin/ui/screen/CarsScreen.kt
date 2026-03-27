@@ -228,6 +228,9 @@ fun CarsScreen() {
                                 Text("Hasło startowe: brak")
                             } else {
                                 val primaryAssignment = currentAssignments.first()
+                                val hasMultipleAssignedDrivers = currentAssignments.any { assignment ->
+                                    assignment.driver.assignedDrivers().size > 1
+                                }
                                 val driverAccount = currentAssignments
                                     .asSequence()
                                     .mapNotNull { assignment ->
@@ -236,18 +239,43 @@ fun CarsScreen() {
                                         }
                                     }
                                     .firstOrNull()
-                                Text("Login: ${(driverAccount?.login ?: primaryAssignment.driverLogin).ifBlank { "brak" }}")
+                                val resolvedLogin = when {
+                                    driverAccount != null -> driverAccount.login
+                                    hasMultipleAssignedDrivers -> ""
+                                    else -> primaryAssignment.driverLogin
+                                }
+                                val resolvedPassword = when {
+                                    driverAccount != null -> driverAccount.password
+                                    hasMultipleAssignedDrivers -> ""
+                                    else -> primaryAssignment.driverPassword
+                                }
+                                val resolvedChangePasswordRequired = when {
+                                    driverAccount != null -> driverAccount.changePasswordRequired
+                                    hasMultipleAssignedDrivers -> false
+                                    else -> primaryAssignment.changePasswordRequired
+                                }
+                                val resolvedLicenseType = when {
+                                    driverAccount != null -> driverAccount.licenseType
+                                    hasMultipleAssignedDrivers -> ""
+                                    else -> primaryAssignment.licenseType
+                                }
+                                val resolvedLicenseValidUntil = when {
+                                    driverAccount != null -> driverAccount.licenseValidUntil
+                                    hasMultipleAssignedDrivers -> ""
+                                    else -> primaryAssignment.licenseValidUntil
+                                }
+
+                                Text("Login: ${resolvedLogin.ifBlank { "brak" }}")
                                 Text(
                                     when {
-                                        (driverAccount?.password ?: primaryAssignment.driverPassword).isBlank() -> "Hasło startowe: brak"
-                                        (driverAccount?.changePasswordRequired ?: primaryAssignment.changePasswordRequired) -> {
-                                            "Hasło startowe: ${driverAccount?.password ?: primaryAssignment.driverPassword}"
+                                        resolvedPassword.isBlank() && hasMultipleAssignedDrivers -> "Hasło startowe: trwa synchronizacja konta kierowcy"
+                                        resolvedPassword.isBlank() -> "Hasło startowe: brak"
+                                        resolvedChangePasswordRequired -> {
+                                            "Hasło startowe: $resolvedPassword"
                                         }
                                         else -> "Hasło startowe zostało już zmienione"
                                     },
                                 )
-                                val resolvedLicenseType = driverAccount?.licenseType ?: primaryAssignment.licenseType
-                                val resolvedLicenseValidUntil = driverAccount?.licenseValidUntil ?: primaryAssignment.licenseValidUntil
                                 Text("Typ prawa jazdy: ${resolvedLicenseType.ifBlank { "PL" }}")
                                 Text("Data ważności prawa jazdy: ${formatDateLabel(resolvedLicenseValidUntil, "Brak daty")}")
                                 Row(
