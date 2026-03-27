@@ -423,6 +423,12 @@ class PayrollViewModel(private val repository: AdminRepository) : ViewModel() {
             previewRows = emptyList(),
             selectedPreviewRowIndexes = emptySet(),
             selectedPreviewColumnIndexes = emptySet(),
+            isPreviewBulkSending = false,
+            previewBulkProcessed = 0,
+            previewBulkTotal = 0,
+            previewBulkSent = 0,
+            previewBulkSkipped = 0,
+            previewBulkErrors = 0,
             actionMessage = "Staging workbooka wyczyszczony",
             progressLabel = "Gotowy",
         )
@@ -505,9 +511,21 @@ class PayrollViewModel(private val repository: AdminRepository) : ViewModel() {
             return@launch
         }
 
-        val recipient = contactsCache.firstOrNull {
-            it.name.trim().equals(row.name.trim(), ignoreCase = true) &&
-                it.surname.trim().equals(row.surname.trim(), ignoreCase = true)
+        val (nameIdx, surnameIdx, peselIdx) = detectPayrollIdentityColumns(_uiState.value.previewHeaders)
+        val rowPesel = peselIdx?.let { idx -> normalizePesel(row.cells.getOrNull(idx).orEmpty()) }.orEmpty()
+        val recipient = when {
+            rowPesel.isNotBlank() -> contactsCache.firstOrNull {
+                normalizePesel(it.pesel) == rowPesel
+            }
+
+            else -> {
+                val rowName = row.cells.getOrNull(nameIdx).orEmpty().trim().ifBlank { row.name.trim() }
+                val rowSurname = row.cells.getOrNull(surnameIdx).orEmpty().trim().ifBlank { row.surname.trim() }
+                contactsCache.firstOrNull {
+                    it.name.trim().equals(rowName, ignoreCase = true) &&
+                        it.surname.trim().equals(rowSurname, ignoreCase = true)
+                }
+            }
         }
         if (recipient == null) {
             _uiState.value = _uiState.value.copy(
@@ -555,6 +573,128 @@ class PayrollViewModel(private val repository: AdminRepository) : ViewModel() {
                 actionMessage = error.message ?: "Nie udało się wysłać emaila dla wybranego wiersza",
             )
         }
+    }
+
+    fun sendPreviewRowsMassMailing() = viewModelScope.launch {
+        if (_uiState.value.isPreviewBulkSending) {
+            _uiState.value = _uiState.value.copy(actionMessage = "Masowa wysyłka z podglądu już trwa")
+            return@launch
+        }
+        val allRows = _uiState.value.previewRows
+        if (allRows.isEmpty()) {
+            _uiState.value = _uiState.value.copy(actionMessage = "Brak wierszy do masowej wysyłki")
+            return@launch
+        }
+        val selectedColumns = _uiState.value.selectedPreviewColumnIndexes
+        if (selectedColumns.isEmpty()) {
+            _uiState.value = _uiState.value.copy(actionMessage = "Wybierz co najmniej jedną kolumnę do wysyłki")
+            return@launch
+        }
+
+        val headers = selectedHeaders(selectedColumns)
+        val contactByPesel = contactsCache
+            .asSequence()
+            .filter { it.email.isNotBlank() }
+            .mapNotNull { contact ->
+                val key = normalizePesel(contact.pesel)
+                if (key.isBlank()) null else key to contact
+            }
+            .toMap()
+        val contactByName = contactsCache
+            .asSequence()
+            .filter { it.email.isNotBlank() }
+            .associateBy { "${it.name.trim().lowercase()}|${it.surname.trim().lowercase()}" }
+
+        val (nameIdx, surnameIdx, peselIdx) = detectPayrollIdentityColumns(_uiState.value.previewHeaders)
+
+        var sent = 0
+        var skipped = 0
+        var errors = 0
+        _uiState.value = _uiState.value.copy(
+            isPreviewBulkSending = true,
+            previewBulkTotal = allRows.size,
+            previewBulkProcessed = 0,
+            previewBulkSent = 0,
+            previewBulkSkipped = 0,
+            previewBulkErrors = 0,
+            progressLabel = "Masowa wysyłka z podglądu: start",
+            actionMessage = null,
+        )
+
+        allRows.forEachIndexed { index, row ->
+            val rowCells = row.cells
+            val rowPesel = peselIdx?.let { idx -> normalizePesel(rowCells.getOrNull(idx).orEmpty()) }.orEmpty()
+            val recipient = when {
+                rowPesel.isNotBlank() -> contactByPesel[rowPesel]
+                else -> {
+                    val rowName = rowCells.getOrNull(nameIdx).orEmpty().trim().ifBlank { row.name.trim() }
+                    val rowSurname = rowCells.getOrNull(surnameIdx).orEmpty().trim().ifBlank { row.surname.trim() }
+                    contactByName["${rowName.lowercase()}|${rowSurname.lowercase()}"]
+                }
+            }
+            if (recipient == null || recipient.email.isBlank()) {
+                skipped++
+                _uiState.value = _uiState.value.copy(
+                    previewBulkProcessed = index + 1,
+                    previewBulkSent = sent,
+                    previewBulkSkipped = skipped,
+                    previewBulkErrors = errors,
+                    progressLabel = "Masowa wysyłka z podglądu: ${index + 1}/${allRows.size}",
+                )
+                return@forEachIndexed
+            }
+
+            val filteredRow = rowCells.filterIndexed { columnIndex, _ -> columnIndex in selectedColumns }.map(::normalizePayrollCell)
+            val attachmentPath = repository.exportPayrollRowsXlsx(
+                headers = headers,
+                rows = listOf(filteredRow),
+                filePrefix = "PPI",
+                nameHint = row.name,
+                surnameHint = row.surname,
+            )
+            if (attachmentPath.isBlank()) {
+                errors++
+                _uiState.value = _uiState.value.copy(
+                    previewBulkProcessed = index + 1,
+                    previewBulkSent = sent,
+                    previewBulkSkipped = skipped,
+                    previewBulkErrors = errors,
+                    progressLabel = "Masowa wysyłka z podglądu: ${index + 1}/${allRows.size}",
+                )
+                return@forEachIndexed
+            }
+
+            runCatching {
+                repository.sendSpecialMailing(
+                    recipients = listOf(recipient),
+                    attachmentPaths = listOf(attachmentPath),
+                    subject = templateCache.subject,
+                    body = templateCache.body,
+                )
+            }.onSuccess { result ->
+                when {
+                    result.ok > 0 -> sent++
+                    result.skip > 0 -> skipped++
+                    else -> errors++
+                }
+            }.onFailure {
+                errors++
+            }
+
+            _uiState.value = _uiState.value.copy(
+                previewBulkProcessed = index + 1,
+                previewBulkSent = sent,
+                previewBulkSkipped = skipped,
+                previewBulkErrors = errors,
+                progressLabel = "Masowa wysyłka z podglądu: ${index + 1}/${allRows.size}",
+            )
+        }
+
+        _uiState.value = _uiState.value.copy(
+            isPreviewBulkSending = false,
+            progressLabel = "Masowa wysyłka zakończona",
+            actionMessage = "Wysłano: $sent, pominięto: $skipped, błędy: $errors",
+        )
     }
 
     fun exportSinglePreviewRowToFolder(context: Context, index: Int) = viewModelScope.launch {
@@ -663,6 +803,24 @@ class PayrollViewModel(private val repository: AdminRepository) : ViewModel() {
     }
 
     private fun normalizePayrollCell(value: String): String = value.trim().ifBlank { "0" }
+
+    private fun normalizePesel(value: String): String = value.filter(Char::isDigit)
+
+    private fun detectPayrollIdentityColumns(headers: List<String>): Triple<Int, Int, Int?> {
+        val normalized = headers.map { it.trim().lowercase() }
+        val nameIdx = normalized.indexOfFirst { header ->
+            header.contains("imi") || header == "name" || header.contains("first")
+        }.takeIf { it >= 0 } ?: 0
+        val surnameIdx = normalized.indexOfFirst { header ->
+            header.contains("nazw") || header.contains("surname") || header.contains("last")
+        }.takeIf { it >= 0 } ?: 1
+        val peselIdx = normalized.indexOfFirst { header ->
+            header.contains("pesel") ||
+                header.contains("nr pesel") ||
+                header.contains("numer pesel")
+        }.takeIf { it >= 0 }
+        return Triple(nameIdx, surnameIdx, peselIdx)
+    }
 
     private fun calculateCashReportTotal(headers: List<String>, rows: List<List<String>>): String {
         val amountIndex = headers.indexOfFirst { header ->

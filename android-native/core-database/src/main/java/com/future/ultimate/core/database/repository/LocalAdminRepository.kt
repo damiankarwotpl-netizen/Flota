@@ -27,6 +27,7 @@ import com.future.ultimate.core.common.repository.ContactListItem
 import com.future.ultimate.core.common.repository.DatabaseWorkbookImportResult
 import com.future.ultimate.core.common.repository.DashboardStats
 import com.future.ultimate.core.common.repository.DriverAccountCredentials
+import com.future.ultimate.core.common.repository.DriverAccountListItem
 import com.future.ultimate.core.common.repository.DriverRemoteSettingsData
 import com.future.ultimate.core.common.repository.EmailTemplateData
 import com.future.ultimate.core.common.repository.MailApprovalRequest
@@ -77,6 +78,9 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 import org.apache.poi.ss.usermodel.DataFormatter
 import org.apache.poi.ss.usermodel.FillPatternType
 import org.apache.poi.ss.usermodel.HorizontalAlignment
@@ -93,6 +97,7 @@ class LocalAdminRepository(
     private companion object {
         const val CarDriverHistoryPrefix = "car_driver_history_"
     }
+    private val remoteSyncScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     override fun observeContacts(): Flow<List<ContactListItem>> = dao.observeContacts().map { items ->
         items.map {
             ContactListItem(
@@ -198,7 +203,19 @@ class LocalAdminRepository(
                     val accountsForCar = accountsByRegistration[registrationKey].orEmpty()
                     val assignedDrivers = parseDriverNames(it.driver)
                     val primaryAssignedDriver = assignedDrivers.firstOrNull().orEmpty()
+                    val driverAccounts = accountsForCar.map { account ->
+                        DriverAccountListItem(
+                            driverName = account.driverName,
+                            login = account.login,
+                            password = account.password,
+                            changePasswordRequired = account.changePassword == 1,
+                            licenseType = account.licenseType,
+                            licenseValidUntil = account.licenseValidUntil,
+                        )
+                    }
                     val driverAccount = accountsForCar.firstOrNull { account ->
+                        account.driverName.equals(primaryAssignedDriver, ignoreCase = true)
+                    } ?: accountsForCar.firstOrNull { account ->
                         assignedDrivers.any { assignedDriver -> account.driverName.equals(assignedDriver, ignoreCase = true) }
                     } ?: accountsForCar.firstOrNull()
                     val driverPlant = plantByDriver[primaryAssignedDriver.lowercase()].orEmpty()
@@ -227,6 +244,7 @@ class LocalAdminRepository(
                         remoteDriverSyncAt = settings["driver_remote_sync_at_$registrationKey"].orEmpty(),
                         remoteDriverSyncStatus = settings["driver_remote_sync_status_$registrationKey"].orEmpty(),
                         remoteDriverSyncError = settings["driver_remote_sync_error_$registrationKey"].orEmpty(),
+                        driverAccounts = driverAccounts,
                     )
                 }
             }
@@ -2067,9 +2085,19 @@ class LocalAdminRepository(
         )
         dao.upsertDriverAccount(account)
         if (shouldRotateCredentials || forceRemote) {
-            syncRemoteDriverUpsert(account, action = if (forceReset) "reset_driver" else "create_driver")
+            queueRemoteSync(
+                registration = normalizedRegistration,
+                inProgressStatus = "Trwa zdalna synchronizacja konta kierowcy",
+            ) {
+                syncRemoteDriverUpsert(account, action = if (forceReset) "reset_driver" else "create_driver")
+            }
         } else {
-            syncRemoteDriverAssignment(account)
+            queueRemoteSync(
+                registration = normalizedRegistration,
+                inProgressStatus = "Trwa zdalna synchronizacja przypisania kierowcy",
+            ) {
+                syncRemoteDriverAssignment(account)
+            }
         }
         return account
     }
@@ -2256,5 +2284,42 @@ class LocalAdminRepository(
 
     private suspend fun syncRemoteDriverDeletion(registration: String) {
         DriverRemoteSyncGateway.syncDriverDeletion(dao, registration)
+    }
+
+    private suspend fun queueRemoteSync(
+        registration: String,
+        inProgressStatus: String,
+        block: suspend () -> Unit,
+    ) {
+        val normalizedRegistration = registration.trim().uppercase()
+        if (normalizedRegistration.isBlank()) return
+        markRemoteSyncState(
+            registration = normalizedRegistration,
+            status = inProgressStatus,
+            error = "",
+        )
+        remoteSyncScope.launch {
+            runCatching { block() }
+                .onFailure { error ->
+                    markRemoteSyncState(
+                        registration = normalizedRegistration,
+                        status = "Błąd zdalnej synchronizacji kierowcy",
+                        error = error.message ?: "Nieznany błąd zdalnej synchronizacji",
+                    )
+                }
+        }
+    }
+
+    private suspend fun markRemoteSyncState(
+        registration: String,
+        status: String,
+        error: String,
+    ) {
+        val normalizedRegistration = registration.trim().uppercase()
+        if (normalizedRegistration.isBlank()) return
+        val timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
+        dao.upsertSetting(SettingEntity(key = "driver_remote_sync_at_$normalizedRegistration", valText = timestamp))
+        dao.upsertSetting(SettingEntity(key = "driver_remote_sync_status_$normalizedRegistration", valText = status))
+        dao.upsertSetting(SettingEntity(key = "driver_remote_sync_error_$normalizedRegistration", valText = error))
     }
 }
