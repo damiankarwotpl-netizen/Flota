@@ -163,17 +163,45 @@ class LocalAdminRepository(
         dao.observeCars()
             .combine(dao.observeDriverAccounts()) { items, accounts -> items to accounts }
             .combine(dao.observeSettings()) { (items, accounts), settings ->
-                Triple(items, accounts, settings.associateBy({ it.key }, { it.valText }))
+                Triple(items, accounts, settings)
             }
-            .map { (items, accounts, settings) ->
+            .combine(dao.observeContacts()) { (items, accounts, settings), contacts ->
+                Pair(Triple(items, accounts, settings), contacts)
+            }
+            .combine(dao.observeWorkers()) { (bundle, contacts), workers ->
+                val (items, accounts, settings) = bundle
+                Quintuple(items, accounts, settings.associateBy({ it.key }, { it.valText }), contacts, workers)
+            }
+            .map { (items, accounts, settings, contacts, workers) ->
                 val accountsByRegistration = accounts.groupBy { it.registration.uppercase() }
+                val plantByDriver = mutableMapOf<String, String>()
+                contacts.forEach { contact ->
+                    val fullName = listOf(contact.name.trim(), contact.surname.trim())
+                        .filter { it.isNotBlank() }
+                        .joinToString(" ")
+                        .lowercase()
+                    if (fullName.isNotBlank() && contact.workplace.isNotBlank()) {
+                        plantByDriver[fullName] = contact.workplace.trim()
+                    }
+                }
+                workers.forEach { worker ->
+                    val fullName = listOf(worker.name.trim(), worker.surname.trim())
+                        .filter { it.isNotBlank() }
+                        .joinToString(" ")
+                        .lowercase()
+                    if (fullName.isNotBlank() && worker.plant.isNotBlank()) {
+                        plantByDriver.putIfAbsent(fullName, worker.plant.trim())
+                    }
+                }
                 items.map {
                     val registrationKey = it.registration.uppercase()
                     val accountsForCar = accountsByRegistration[registrationKey].orEmpty()
                     val assignedDrivers = parseDriverNames(it.driver)
+                    val primaryAssignedDriver = assignedDrivers.firstOrNull().orEmpty()
                     val driverAccount = accountsForCar.firstOrNull { account ->
                         assignedDrivers.any { assignedDriver -> account.driverName.equals(assignedDriver, ignoreCase = true) }
                     } ?: accountsForCar.firstOrNull()
+                    val driverPlant = plantByDriver[primaryAssignedDriver.lowercase()].orEmpty()
                     val queuedMileage = settings["driver_mileage_sync_pending_$registrationKey"]
                         ?.substringBefore("|")
                         ?.toIntOrNull()
@@ -182,6 +210,7 @@ class LocalAdminRepository(
                         name = it.name,
                         registration = it.registration,
                         driver = it.driver,
+                        driverPlant = driverPlant,
                         mileage = it.mileage,
                         serviceInterval = it.serviceInterval,
                         lastService = it.lastService,
@@ -201,6 +230,14 @@ class LocalAdminRepository(
                     )
                 }
             }
+
+    private data class Quintuple<A, B, C, D, E>(
+        val first: A,
+        val second: B,
+        val third: C,
+        val fourth: D,
+        val fifth: E,
+    )
 
     override fun observeKnownCarDrivers(): Flow<List<String>> =
         dao.observeCars().combine(dao.observeSettings()) { cars, settings ->

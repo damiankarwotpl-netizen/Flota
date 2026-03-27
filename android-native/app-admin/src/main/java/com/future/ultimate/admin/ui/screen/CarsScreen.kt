@@ -438,6 +438,7 @@ private fun CarCard(
         subtitle = serviceDistanceLabel(car.remainingToService),
     ) {
         Text("Kierowca: ${car.driver.ifBlank { "nieprzypisany" }}")
+        Text("Zakład: ${car.driverPlant.ifBlank { "brak" }}")
         Text("Przebieg: ${car.mileage} km")
         Text("Status serwisu: $serviceStatus")
         Text("Ostatni przegląd: ${formatDateLabel(car.lastInspectionDate, "Brak daty")}")

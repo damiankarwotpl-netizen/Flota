@@ -27,6 +27,7 @@ data class CarListItem(
     val name: String,
     val registration: String,
     val driver: String,
+    val driverPlant: String = "",
     val mileage: Int,
     val serviceInterval: Int,
     val lastService: Int,
