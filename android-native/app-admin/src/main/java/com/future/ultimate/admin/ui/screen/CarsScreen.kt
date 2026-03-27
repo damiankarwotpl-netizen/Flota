@@ -244,13 +244,20 @@ fun CarsScreen() {
                                     verticalAlignment = Alignment.CenterVertically,
                                 ) {
                                     Button(
-                                        onClick = { viewModel.updateDriverLicense(primaryAssignment.id, "PL", primaryAssignment.licenseValidUntil) },
+                                        onClick = { viewModel.updateDriverLicense(primaryAssignment.id, driverName, "PL", primaryAssignment.licenseValidUntil) },
                                         modifier = Modifier.weight(1f),
                                     ) {
                                         Text("PL")
                                     }
                                     Button(
-                                        onClick = { viewModel.updateDriverLicense(primaryAssignment.id, "MIĘDZYNARODOWE", primaryAssignment.licenseValidUntil) },
+                                        onClick = {
+                                            viewModel.updateDriverLicense(
+                                                primaryAssignment.id,
+                                                driverName,
+                                                "MIĘDZYNARODOWE",
+                                                primaryAssignment.licenseValidUntil,
+                                            )
+                                        },
                                         modifier = Modifier.weight(1f),
                                     ) {
                                         Text("MIĘDZYNARODOWE")
@@ -261,6 +268,7 @@ fun CarsScreen() {
                                         showDatePicker(context, primaryAssignment.licenseValidUntil) {
                                             viewModel.updateDriverLicense(
                                                 primaryAssignment.id,
+                                                driverName,
                                                 primaryAssignment.licenseType.ifBlank { "PL" },
                                                 it,
                                             )
@@ -271,7 +279,7 @@ fun CarsScreen() {
                                     Text("Ustaw datę ważności prawa jazdy")
                                 }
                                 Button(
-                                    onClick = { viewModel.resetDriverCredentials(primaryAssignment.id) },
+                                    onClick = { viewModel.resetDriverCredentials(primaryAssignment.id, driverName) },
                                     modifier = Modifier.fillMaxWidth(),
                                 ) {
                                     Text(
@@ -430,6 +438,7 @@ private fun CarCard(
         subtitle = serviceDistanceLabel(car.remainingToService),
     ) {
         Text("Kierowca: ${car.driver.ifBlank { "nieprzypisany" }}")
+        Text("Zakład: ${car.driverPlant.ifBlank { "brak" }}")
         Text("Przebieg: ${car.mileage} km")
         Text("Status serwisu: $serviceStatus")
         Text("Ostatni przegląd: ${formatDateLabel(car.lastInspectionDate, "Brak daty")}")

@@ -27,6 +27,7 @@ data class CarListItem(
     val name: String,
     val registration: String,
     val driver: String,
+    val driverPlant: String = "",
     val mileage: Int,
     val serviceInterval: Int,
     val lastService: Int,
@@ -227,8 +228,8 @@ interface AdminRepository {
     suspend fun saveCar(draft: CarDraft)
     suspend fun updateCarMileage(id: Long, mileage: Int)
     suspend fun updateCarDriver(id: Long, driver: String)
-    suspend fun updateCarDriverLicense(id: Long, licenseType: String, validUntil: String)
-    suspend fun resetCarDriverCredentials(id: Long): DriverAccountCredentials
+    suspend fun updateCarDriverLicense(id: Long, driverName: String, licenseType: String, validUntil: String)
+    suspend fun resetCarDriverCredentials(id: Long, driverName: String): DriverAccountCredentials
     suspend fun retryCarDriverRemoteSync(id: Long)
     suspend fun deleteKnownCarDriver(driver: String)
     suspend fun confirmCarService(id: Long)

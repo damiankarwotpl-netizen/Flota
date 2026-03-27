@@ -163,17 +163,45 @@ class LocalAdminRepository(
         dao.observeCars()
             .combine(dao.observeDriverAccounts()) { items, accounts -> items to accounts }
             .combine(dao.observeSettings()) { (items, accounts), settings ->
-                Triple(items, accounts, settings.associateBy({ it.key }, { it.valText }))
+                Triple(items, accounts, settings)
             }
-            .map { (items, accounts, settings) ->
+            .combine(dao.observeContacts()) { (items, accounts, settings), contacts ->
+                Pair(Triple(items, accounts, settings), contacts)
+            }
+            .combine(dao.observeWorkers()) { (bundle, contacts), workers ->
+                val (items, accounts, settings) = bundle
+                Quintuple(items, accounts, settings.associateBy({ it.key }, { it.valText }), contacts, workers)
+            }
+            .map { (items, accounts, settings, contacts, workers) ->
                 val accountsByRegistration = accounts.groupBy { it.registration.uppercase() }
+                val plantByDriver = mutableMapOf<String, String>()
+                contacts.forEach { contact ->
+                    val fullName = listOf(contact.name.trim(), contact.surname.trim())
+                        .filter { it.isNotBlank() }
+                        .joinToString(" ")
+                        .lowercase()
+                    if (fullName.isNotBlank() && contact.workplace.isNotBlank()) {
+                        plantByDriver[fullName] = contact.workplace.trim()
+                    }
+                }
+                workers.forEach { worker ->
+                    val fullName = listOf(worker.name.trim(), worker.surname.trim())
+                        .filter { it.isNotBlank() }
+                        .joinToString(" ")
+                        .lowercase()
+                    if (fullName.isNotBlank() && worker.plant.isNotBlank()) {
+                        plantByDriver.putIfAbsent(fullName, worker.plant.trim())
+                    }
+                }
                 items.map {
                     val registrationKey = it.registration.uppercase()
                     val accountsForCar = accountsByRegistration[registrationKey].orEmpty()
                     val assignedDrivers = parseDriverNames(it.driver)
+                    val primaryAssignedDriver = assignedDrivers.firstOrNull().orEmpty()
                     val driverAccount = accountsForCar.firstOrNull { account ->
                         assignedDrivers.any { assignedDriver -> account.driverName.equals(assignedDriver, ignoreCase = true) }
                     } ?: accountsForCar.firstOrNull()
+                    val driverPlant = plantByDriver[primaryAssignedDriver.lowercase()].orEmpty()
                     val queuedMileage = settings["driver_mileage_sync_pending_$registrationKey"]
                         ?.substringBefore("|")
                         ?.toIntOrNull()
@@ -182,6 +210,7 @@ class LocalAdminRepository(
                         name = it.name,
                         registration = it.registration,
                         driver = it.driver,
+                        driverPlant = driverPlant,
                         mileage = it.mileage,
                         serviceInterval = it.serviceInterval,
                         lastService = it.lastService,
@@ -201,6 +230,14 @@ class LocalAdminRepository(
                     )
                 }
             }
+
+    private data class Quintuple<A, B, C, D, E>(
+        val first: A,
+        val second: B,
+        val third: C,
+        val fourth: D,
+        val fifth: E,
+    )
 
     override fun observeKnownCarDrivers(): Flow<List<String>> =
         dao.observeCars().combine(dao.observeSettings()) { cars, settings ->
@@ -263,9 +300,9 @@ class LocalAdminRepository(
         )
     }
 
-    override suspend fun updateCarDriverLicense(id: Long, licenseType: String, validUntil: String) {
+    override suspend fun updateCarDriverLicense(id: Long, driverName: String, licenseType: String, validUntil: String) {
         val car = dao.getCar(id) ?: return
-        val normalizedDriver = parseDriverNames(car.driver).firstOrNull().orEmpty()
+        val normalizedDriver = driverName.trim().ifBlank { parseDriverNames(car.driver).firstOrNull().orEmpty() }
         if (normalizedDriver.isBlank()) return
         val normalizedLicenseType = licenseType.trim().ifBlank { "PL" }
         val normalizedValidUntil = validUntil.trim()
@@ -286,9 +323,9 @@ class LocalAdminRepository(
         }
     }
 
-    override suspend fun resetCarDriverCredentials(id: Long): DriverAccountCredentials {
+    override suspend fun resetCarDriverCredentials(id: Long, driverName: String): DriverAccountCredentials {
         val car = dao.getCar(id) ?: return DriverAccountCredentials()
-        val normalizedDriver = parseDriverNames(car.driver).firstOrNull().orEmpty()
+        val normalizedDriver = driverName.trim().ifBlank { parseDriverNames(car.driver).firstOrNull().orEmpty() }
         if (normalizedDriver.isBlank()) {
             dao.deleteDriverAccountByRegistration(car.registration)
             syncRemoteDriverDeletion(car.registration)
@@ -2004,8 +2041,16 @@ class LocalAdminRepository(
         )
         val existingByLogin = dao.getDriverAccountsByLogin(generatedLogin).firstOrNull()
             ?: runCatching { DriverRemoteSyncGateway.findDriverAccount(dao, generatedLogin) }.getOrNull()
+        val loginBelongsToSameDriver = existingByLogin?.driverName?.equals(normalizedDriver, ignoreCase = true) == true
+        val resolvedLogin = when {
+            loginBelongsToSameDriver -> existingByLogin?.login ?: generatedLogin
+            else -> resolveUniqueLogin(normalizedDriver, generatedLogin)
+        }
+        val existingByResolvedLogin = dao.getDriverAccountsByLogin(resolvedLogin).firstOrNull()
+            ?: runCatching { DriverRemoteSyncGateway.findDriverAccount(dao, resolvedLogin) }.getOrNull()
         val authoritativeExisting = when {
-            existingByLogin != null && existingByLogin.login.equals(generatedLogin, ignoreCase = true) -> existingByLogin
+            existingByResolvedLogin != null &&
+                existingByResolvedLogin.driverName.equals(normalizedDriver, ignoreCase = true) -> existingByResolvedLogin
             existingByRegistration != null && existingByRegistration.driverName.equals(normalizedDriver, ignoreCase = true) -> existingByRegistration
             else -> null
         }
@@ -2013,7 +2058,7 @@ class LocalAdminRepository(
         val shouldRotateCredentials = forceReset || authoritativeExisting == null
         val account = DriverAccountEntity(
             registration = normalizedRegistration,
-            login = authoritativeExisting?.login ?: generatedLogin,
+            login = authoritativeExisting?.login ?: resolvedLogin,
             password = if (shouldRotateCredentials) generatePassword() else authoritativeExisting.password,
             driverName = normalizedDriver,
             changePassword = if (shouldRotateCredentials) 1 else authoritativeExisting.changePassword,
@@ -2036,6 +2081,25 @@ class LocalAdminRepository(
             .replace(Regex("\\.{2,}"), ".")
             .trim('.')
         return sanitized.ifBlank { "driver" }
+    }
+
+    private suspend fun resolveUniqueLogin(driverName: String, baseLogin: String): String {
+        val normalizedDriver = driverName.trim()
+        val normalizedBase = baseLogin.trim().ifBlank { "driver" }
+        val baseOwner = dao.getDriverAccountsByLogin(normalizedBase).firstOrNull()
+            ?: runCatching { DriverRemoteSyncGateway.findDriverAccount(dao, normalizedBase) }.getOrNull()
+        if (baseOwner == null || baseOwner.driverName.equals(normalizedDriver, ignoreCase = true)) {
+            return normalizedBase
+        }
+        for (index in 2..999) {
+            val candidate = "$normalizedBase.$index"
+            val owner = dao.getDriverAccountsByLogin(candidate).firstOrNull()
+                ?: runCatching { DriverRemoteSyncGateway.findDriverAccount(dao, candidate) }.getOrNull()
+            if (owner == null || owner.driverName.equals(normalizedDriver, ignoreCase = true)) {
+                return candidate
+            }
+        }
+        return "${normalizedBase}.${System.currentTimeMillis()}"
     }
 
     private fun parseDriverNames(value: String): List<String> = value

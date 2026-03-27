@@ -16,6 +16,7 @@ import java.util.Locale
 object VehicleReportPdfExporter {
     fun export(context: Context, draft: VehicleReportDraft, ownerTag: String): String {
         val normalizedDraft = draft.copy(rej = draft.rej.trim().uppercase())
+        val polishDraft = normalizedDraft.toPolishForPdf()
         val outputDir = File(
             context.getExternalFilesDir(Environment.DIRECTORY_DOCUMENTS) ?: context.filesDir,
             "vehicle-reports",
@@ -43,11 +44,11 @@ object VehicleReportPdfExporter {
         y += 24f
 
         canvas.drawRect(36f, y, 559f, y + 44f, linePaint)
-        canvas.drawText("Marka: ${safe(normalizedDraft.marka)}", 48f, y + 18f, textPaint)
-        canvas.drawText("Rejestracja: ${safe(normalizedDraft.rej)}", 250f, y + 18f, textPaint)
-        canvas.drawText("Miejsca: ${safe(normalizedDraft.seats)}", 430f, y + 18f, textPaint)
-        canvas.drawText("Przebieg: ${safe(normalizedDraft.przebieg)}", 48f, y + 36f, textPaint)
-        canvas.drawText("Wypełnione przez: ${safe(normalizedDraft.filledBy.ifBlank { ownerTag })}", 250f, y + 36f, textPaint)
+        canvas.drawText("Marka: ${safe(polishDraft.marka)}", 48f, y + 18f, textPaint)
+        canvas.drawText("Rejestracja: ${safe(polishDraft.rej)}", 250f, y + 18f, textPaint)
+        canvas.drawText("Miejsca: ${safe(polishDraft.seats)}", 430f, y + 18f, textPaint)
+        canvas.drawText("Przebieg: ${safe(polishDraft.przebieg)}", 48f, y + 36f, textPaint)
+        canvas.drawText("Wypełnione przez: ${safe(polishDraft.filledBy.ifBlank { ownerTag })}", 250f, y + 36f, textPaint)
         y += 64f
 
         y = drawSection(canvas, y, "Stan pojazdu", sectionPaint)
@@ -57,15 +58,17 @@ object VehicleReportPdfExporter {
             linePaint = linePaint,
             textPaint = textPaint,
             rows = listOf(
-                "Bez uszkodzeń" to flag(normalizedDraft.noDamage),
-                "Od kiedy" to safe(normalizedDraft.damageSince),
-                "Opis uszkodzenia" to safe(normalizedDraft.damageDescription),
-                "Przebieg" to safe(normalizedDraft.przebieg),
-                "Wskaźnik paliwa" to "OK",
-                "Auto wysprzątane/umyte" to flag(normalizedDraft.cleaned),
-                "Producent opon" to safe(normalizedDraft.tireProducer),
-                "Lampki ostrzegawcze" to flag(normalizedDraft.warningLights),
-                "Opis lampki ostrzegawczej" to safe(normalizedDraft.warningLightsDescription),
+                "Bez uszkodzeń" to flag(polishDraft.noDamage),
+                "Od kiedy" to safe(polishDraft.damageSince),
+                "Nowe uszkodzenie (opis)" to safe(polishDraft.damageDescription),
+                "Nowe uszkodzenie (zdjęcia)" to polishDraft.damagePhotoPaths.size.toString(),
+                "Przebieg" to safe(polishDraft.przebieg),
+                "Rodzaj paliwa" to safe(polishDraft.rodzajPaliwa),
+                "Poziom oleju" to safe(polishDraft.olej),
+                "Auto wysprzątane/umyte" to flag(polishDraft.cleaned),
+                "Producent opon" to safe(polishDraft.tireProducer),
+                "Lampki ostrzegawcze" to flag(polishDraft.warningLights),
+                "Opis lampki ostrzegawczej" to safe(polishDraft.warningLightsDescription),
             ),
         )
 
@@ -76,10 +79,10 @@ object VehicleReportPdfExporter {
             linePaint = linePaint,
             textPaint = textPaint,
             rows = listOf(
-                "Lewy przedni" to safe(normalizedDraft.lp),
-                "Prawy przedni" to safe(normalizedDraft.pp),
-                "Lewy tylny" to safe(normalizedDraft.lt),
-                "Prawy tylny" to safe(normalizedDraft.pt),
+                "Lewy przedni" to safe(polishDraft.lp),
+                "Prawy przedni" to safe(polishDraft.pp),
+                "Lewy tylny" to safe(polishDraft.lt),
+                "Prawy tylny" to safe(polishDraft.pt),
             ),
         )
 
@@ -90,39 +93,68 @@ object VehicleReportPdfExporter {
             linePaint = linePaint,
             textPaint = textPaint,
             rows = listOf(
-                "Trójkąt" to flag(normalizedDraft.trojkat),
-                "Kamizelki" to flag(normalizedDraft.kamizelki),
-                "Koło zapasowe" to flag(normalizedDraft.kolo),
-                "Dowód rejestracyjny" to flag(normalizedDraft.dowod),
-                "Apteczka" to flag(normalizedDraft.apteczka),
+                "Trójkąt" to flag(polishDraft.trojkat),
+                "Kamizelki" to flag(polishDraft.kamizelki),
+                "Koło zapasowe" to flag(polishDraft.kolo),
+                "Dowód rejestracyjny" to flag(polishDraft.dowod),
+                "Apteczka" to flag(polishDraft.apteczka),
             ),
         )
         canvas.drawText("Zdjęcia dodano jako kolejne strony dokumentu.", 36f, minOf(y + 16f, 810f), subtlePaint)
 
         document.finishPage(page)
-        appendPhotoPages(document, normalizedDraft)
+        appendPhotoPages(document, polishDraft)
         outputFile.outputStream().use(document::writeTo)
         document.close()
         return outputFile.absolutePath
     }
 
     private fun appendPhotoPages(document: PdfDocument, draft: VehicleReportDraft) {
-        val photos = draft.photoPaths + listOfNotNull(draft.dashboardPhotoPath.takeIf { it.isNotBlank() })
-        photos.forEachIndexed { index, path ->
-            val bitmap = BitmapFactory.decodeFile(path) ?: return@forEachIndexed
-            val pageInfo = PdfDocument.PageInfo.Builder(595, 842, index + 2).create()
-            val page = document.startPage(pageInfo)
-            val canvas = page.canvas
-            val paint = paint(size = 12f, bold = true)
-            canvas.drawText("Zdjęcie ${index + 1}", 36f, 36f, paint)
-            val scale = minOf(523f / bitmap.width.toFloat(), 760f / bitmap.height.toFloat())
-            val width = bitmap.width * scale
-            val height = bitmap.height * scale
-            val left = (595f - width) / 2f
-            val top = 50f
-            canvas.drawBitmap(bitmap, null, android.graphics.RectF(left, top, left + width, top + height), null)
-            document.finishPage(page)
+        val basePhotoPaths = draft.photoPaths + listOfNotNull(draft.dashboardPhotoPath.takeIf { it.isNotBlank() })
+
+        basePhotoPaths.forEachIndexed { baseIndex, basePath ->
+            appendSinglePhotoPage(
+                document = document,
+                pageNumber = baseIndex + 2,
+                label = photoLabel(baseIndex),
+                path = basePath,
+            )
         }
+
+        draft.damagePhotoPaths.forEachIndexed { damageIndex, damagePath ->
+            val label = buildString {
+                append("Nowe uszkodzenie")
+                if (draft.damageSince.isNotBlank()) append(" - ${draft.damageSince}")
+                append(" (${damageIndex + 1})")
+            }
+            appendSinglePhotoPage(
+                document = document,
+                pageNumber = basePhotoPaths.size + damageIndex + 2,
+                label = label,
+                path = damagePath,
+            )
+        }
+    }
+
+    private fun appendSinglePhotoPage(
+        document: PdfDocument,
+        pageNumber: Int,
+        label: String,
+        path: String,
+    ) {
+        val bitmap = BitmapFactory.decodeFile(path) ?: return
+        val pageInfo = PdfDocument.PageInfo.Builder(595, 842, pageNumber).create()
+        val page = document.startPage(pageInfo)
+        val canvas = page.canvas
+        val labelPaint = paint(size = 12f, bold = true)
+        canvas.drawText(label, 36f, 36f, labelPaint)
+        val scale = minOf(523f / bitmap.width.toFloat(), 760f / bitmap.height.toFloat())
+        val width = bitmap.width * scale
+        val height = bitmap.height * scale
+        val left = (595f - width) / 2f
+        val top = 50f
+        canvas.drawBitmap(bitmap, null, android.graphics.RectF(left, top, left + width, top + height), null)
+        document.finishPage(page)
     }
 
     private fun drawSection(canvas: android.graphics.Canvas, y: Float, title: String, paint: Paint): Float {
@@ -166,6 +198,38 @@ object VehicleReportPdfExporter {
         .lowercase(Locale.ROOT)
         .replace(Regex("[^a-z0-9]+"), "_")
         .trim('_')
+
+    private fun photoLabel(index: Int): String = when (index) {
+        0 -> "Zdjęcie 1 - Przód + prawy bok"
+        1 -> "Zdjęcie 2 - Przód + lewy bok"
+        2 -> "Zdjęcie 3 - Tył + prawy bok"
+        3 -> "Zdjęcie 4 - Tył + lewy bok"
+        4 -> "Zdjęcie 5 - Wnętrze przód"
+        5 -> "Zdjęcie 6 - Wnętrze tył"
+        else -> "Zdjęcie ${index + 1}"
+    }
+
+    private fun VehicleReportDraft.toPolishForPdf(): VehicleReportDraft = copy(
+        rodzajPaliwa = toPolishValue(rodzajPaliwa),
+        olej = toPolishValue(olej),
+        lp = toPolishValue(lp),
+        pp = toPolishValue(pp),
+        lt = toPolishValue(lt),
+        pt = toPolishValue(pt),
+    )
+
+    private fun toPolishValue(value: String): String {
+        return when (value.trim().lowercase(Locale.ROOT)) {
+            "gasolina", "benzyna" -> "Benzyna"
+            "diésel", "diesel", "disel" -> "Diesel"
+            "bajo", "niski" -> "Niski"
+            "medio", "średni", "sredni" -> "Średni"
+            "para cambiar", "do wymiany" -> "Do wymiany"
+            "si", "sí", "tak" -> "TAK"
+            "no", "nie" -> "NIE"
+            else -> value
+        }
+    }
 
     private fun safe(value: String): String = value.trim().ifBlank { "-" }
     private fun flag(value: Boolean): String = if (value) "TAK" else "NIE"
