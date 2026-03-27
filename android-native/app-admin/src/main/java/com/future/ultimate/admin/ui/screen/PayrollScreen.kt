@@ -7,6 +7,8 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.Row
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.LinearProgressIndicator
@@ -260,5 +262,37 @@ fun PayrollScreen(_navController: NavController) {
                 text = { Text(message) },
             )
         }
+    }
+
+    if (uiState.isAwaitingMissingPeselConfirmation) {
+        AlertDialog(
+            onDismissRequest = {},
+            title = { Text("Brak PESEL") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("Wiersz ${uiState.missingPeselRowLabel} nie ma PESEL. Czy na pewno wysłać po dopasowaniu imię+nazwisko?")
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        Checkbox(
+                            checked = uiState.applyMissingPeselDecisionToAll,
+                            onCheckedChange = viewModel::updateMissingPeselApplyAll,
+                        )
+                        Text("Zastosuj dla wszystkich")
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { viewModel.resolveMissingPeselConfirmation(true) }) {
+                    Text("Wyślij")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { viewModel.resolveMissingPeselConfirmation(false) }) {
+                    Text("Pomiń")
+                }
+            },
+        )
     }
 }

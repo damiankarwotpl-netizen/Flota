@@ -327,6 +327,7 @@ class PayrollViewModel(private val repository: AdminRepository) : ViewModel() {
     private var templateCache: EmailTemplateData = EmailTemplateData()
     private var mailingJob: Job? = null
     private var pendingApprovalDecision: CompletableDeferred<Boolean>? = null
+    private var pendingMissingPeselDecision: CompletableDeferred<MissingPeselDecision>? = null
     private val payslipModule = PayslipModule(
         excelParser = DelimitedExcelParser(),
         mapper = PayslipMapper(),
@@ -429,6 +430,9 @@ class PayrollViewModel(private val repository: AdminRepository) : ViewModel() {
             previewBulkSent = 0,
             previewBulkSkipped = 0,
             previewBulkErrors = 0,
+            isAwaitingMissingPeselConfirmation = false,
+            missingPeselRowLabel = "",
+            applyMissingPeselDecisionToAll = false,
             actionMessage = "Staging workbooka wyczyszczony",
             progressLabel = "Gotowy",
         )
@@ -606,6 +610,7 @@ class PayrollViewModel(private val repository: AdminRepository) : ViewModel() {
             .associateBy { "${it.name.trim().lowercase()}|${it.surname.trim().lowercase()}" }
 
         val (nameIdx, surnameIdx, peselIdx) = detectPayrollIdentityColumns(_uiState.value.previewHeaders)
+        var missingPeselDefaultDecision: Boolean? = null
 
         var sent = 0
         var skipped = 0
@@ -621,19 +626,88 @@ class PayrollViewModel(private val repository: AdminRepository) : ViewModel() {
             actionMessage = null,
         )
 
-        allRows.forEachIndexed { index, row ->
-            val rowCells = row.cells
-            val rowPesel = peselIdx?.let { idx -> normalizePesel(rowCells.getOrNull(idx).orEmpty()) }.orEmpty()
-            val recipient = when {
-                rowPesel.isNotBlank() -> contactByPesel[rowPesel]
-                else -> {
-                    val rowName = rowCells.getOrNull(nameIdx).orEmpty().trim().ifBlank { row.name.trim() }
-                    val rowSurname = rowCells.getOrNull(surnameIdx).orEmpty().trim().ifBlank { row.surname.trim() }
-                    contactByName["${rowName.lowercase()}|${rowSurname.lowercase()}"]
+        try {
+            allRows.forEachIndexed { index, row ->
+                val rowCells = row.cells
+                val rowPesel = peselIdx?.let { idx -> normalizePesel(rowCells.getOrNull(idx).orEmpty()) }.orEmpty()
+                if (rowPesel.isBlank()) {
+                    val rowLabel = listOf(row.name, row.surname).joinToString(" ").trim().ifBlank { "Wiersz ${index + 1}" }
+                    val shouldSend = missingPeselDefaultDecision ?: run {
+                        val decision = awaitMissingPeselConfirmation(rowLabel)
+                        if (decision.applyToAll) {
+                            missingPeselDefaultDecision = decision.approved
+                        }
+                        decision.approved
+                    }
+                    if (!shouldSend) {
+                        skipped++
+                        _uiState.value = _uiState.value.copy(
+                            previewBulkProcessed = index + 1,
+                            previewBulkSent = sent,
+                            previewBulkSkipped = skipped,
+                            previewBulkErrors = errors,
+                            progressLabel = "Masowa wysyłka z podglądu: ${index + 1}/${allRows.size}",
+                        )
+                        return@forEachIndexed
+                    }
                 }
-            }
-            if (recipient == null || recipient.email.isBlank()) {
-                skipped++
+                val recipient = when {
+                    rowPesel.isNotBlank() -> contactByPesel[rowPesel]
+                    else -> {
+                        val rowName = rowCells.getOrNull(nameIdx).orEmpty().trim().ifBlank { row.name.trim() }
+                        val rowSurname = rowCells.getOrNull(surnameIdx).orEmpty().trim().ifBlank { row.surname.trim() }
+                        contactByName["${rowName.lowercase()}|${rowSurname.lowercase()}"]
+                    }
+                }
+                if (recipient == null || recipient.email.isBlank()) {
+                    skipped++
+                    _uiState.value = _uiState.value.copy(
+                        previewBulkProcessed = index + 1,
+                        previewBulkSent = sent,
+                        previewBulkSkipped = skipped,
+                        previewBulkErrors = errors,
+                        progressLabel = "Masowa wysyłka z podglądu: ${index + 1}/${allRows.size}",
+                    )
+                    return@forEachIndexed
+                }
+
+                val filteredRow = rowCells.filterIndexed { columnIndex, _ -> columnIndex in selectedColumns }.map(::normalizePayrollCell)
+                val attachmentPath = repository.exportPayrollRowsXlsx(
+                    headers = headers,
+                    rows = listOf(filteredRow),
+                    filePrefix = "PPI",
+                    nameHint = row.name,
+                    surnameHint = row.surname,
+                )
+                if (attachmentPath.isBlank()) {
+                    errors++
+                    _uiState.value = _uiState.value.copy(
+                        previewBulkProcessed = index + 1,
+                        previewBulkSent = sent,
+                        previewBulkSkipped = skipped,
+                        previewBulkErrors = errors,
+                        progressLabel = "Masowa wysyłka z podglądu: ${index + 1}/${allRows.size}",
+                    )
+                    return@forEachIndexed
+                }
+
+                runCatching {
+                    repository.sendSpecialMailing(
+                        recipients = listOf(recipient),
+                        attachmentPaths = listOf(attachmentPath),
+                        subject = templateCache.subject,
+                        body = templateCache.body,
+                    )
+                }.onSuccess { result ->
+                    when {
+                        result.ok > 0 -> sent++
+                        result.skip > 0 -> skipped++
+                        else -> errors++
+                    }
+                }.onFailure {
+                    errors++
+                }
+
                 _uiState.value = _uiState.value.copy(
                     previewBulkProcessed = index + 1,
                     previewBulkSent = sent,
@@ -641,59 +715,42 @@ class PayrollViewModel(private val repository: AdminRepository) : ViewModel() {
                     previewBulkErrors = errors,
                     progressLabel = "Masowa wysyłka z podglądu: ${index + 1}/${allRows.size}",
                 )
-                return@forEachIndexed
             }
-
-            val filteredRow = rowCells.filterIndexed { columnIndex, _ -> columnIndex in selectedColumns }.map(::normalizePayrollCell)
-            val attachmentPath = repository.exportPayrollRowsXlsx(
-                headers = headers,
-                rows = listOf(filteredRow),
-                filePrefix = "PPI",
-                nameHint = row.name,
-                surnameHint = row.surname,
-            )
-            if (attachmentPath.isBlank()) {
-                errors++
-                _uiState.value = _uiState.value.copy(
-                    previewBulkProcessed = index + 1,
-                    previewBulkSent = sent,
-                    previewBulkSkipped = skipped,
-                    previewBulkErrors = errors,
-                    progressLabel = "Masowa wysyłka z podglądu: ${index + 1}/${allRows.size}",
-                )
-                return@forEachIndexed
-            }
-
-            runCatching {
-                repository.sendSpecialMailing(
-                    recipients = listOf(recipient),
-                    attachmentPaths = listOf(attachmentPath),
-                    subject = templateCache.subject,
-                    body = templateCache.body,
-                )
-            }.onSuccess { result ->
-                when {
-                    result.ok > 0 -> sent++
-                    result.skip > 0 -> skipped++
-                    else -> errors++
-                }
-            }.onFailure {
-                errors++
-            }
-
             _uiState.value = _uiState.value.copy(
-                previewBulkProcessed = index + 1,
-                previewBulkSent = sent,
-                previewBulkSkipped = skipped,
-                previewBulkErrors = errors,
-                progressLabel = "Masowa wysyłka z podglądu: ${index + 1}/${allRows.size}",
+                isPreviewBulkSending = false,
+                progressLabel = "Masowa wysyłka zakończona",
+                actionMessage = "Wysłano: $sent, pominięto: $skipped, błędy: $errors",
+            )
+        } finally {
+            pendingMissingPeselDecision?.cancel()
+            pendingMissingPeselDecision = null
+            _uiState.value = _uiState.value.copy(
+                isPreviewBulkSending = false,
+                isAwaitingMissingPeselConfirmation = false,
+                missingPeselRowLabel = "",
+                applyMissingPeselDecisionToAll = false,
             )
         }
+    }
 
+    fun updateMissingPeselApplyAll(value: Boolean) {
+        _uiState.value = _uiState.value.copy(applyMissingPeselDecisionToAll = value)
+    }
+
+    fun resolveMissingPeselConfirmation(approved: Boolean) {
+        val deferred = pendingMissingPeselDecision ?: return
+        if (deferred.isActive) {
+            deferred.complete(
+                MissingPeselDecision(
+                    approved = approved,
+                    applyToAll = _uiState.value.applyMissingPeselDecisionToAll,
+                ),
+            )
+        }
         _uiState.value = _uiState.value.copy(
-            isPreviewBulkSending = false,
-            progressLabel = "Masowa wysyłka zakończona",
-            actionMessage = "Wysłano: $sent, pominięto: $skipped, błędy: $errors",
+            isAwaitingMissingPeselConfirmation = false,
+            missingPeselRowLabel = "",
+            applyMissingPeselDecisionToAll = false,
         )
     }
 
@@ -820,6 +877,25 @@ class PayrollViewModel(private val repository: AdminRepository) : ViewModel() {
                 header.contains("numer pesel")
         }.takeIf { it >= 0 }
         return Triple(nameIdx, surnameIdx, peselIdx)
+    }
+
+    private suspend fun awaitMissingPeselConfirmation(rowLabel: String): MissingPeselDecision {
+        val deferred = CompletableDeferred<MissingPeselDecision>()
+        pendingMissingPeselDecision = deferred
+        _uiState.value = _uiState.value.copy(
+            isAwaitingMissingPeselConfirmation = true,
+            missingPeselRowLabel = rowLabel,
+            applyMissingPeselDecisionToAll = false,
+            progressLabel = "Wymagana decyzja: brak PESEL",
+            actionMessage = "Potwierdź wysyłkę dla rekordu bez PESEL",
+        )
+        return try {
+            deferred.await()
+        } finally {
+            if (pendingMissingPeselDecision === deferred) {
+                pendingMissingPeselDecision = null
+            }
+        }
     }
 
     private fun calculateCashReportTotal(headers: List<String>, rows: List<List<String>>): String {
@@ -1311,6 +1387,10 @@ class PayrollViewModel(private val repository: AdminRepository) : ViewModel() {
 
     private fun formatMoney(value: Double): String = String.format(java.util.Locale.US, "%.2f", value)
 
+    private data class MissingPeselDecision(
+        val approved: Boolean,
+        val applyToAll: Boolean,
+    )
 }
 
 class TableViewModel(private val repository: AdminRepository) : ViewModel() {
