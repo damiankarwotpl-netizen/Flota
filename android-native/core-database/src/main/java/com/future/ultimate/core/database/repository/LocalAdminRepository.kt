@@ -27,6 +27,7 @@ import com.future.ultimate.core.common.repository.ContactListItem
 import com.future.ultimate.core.common.repository.DatabaseWorkbookImportResult
 import com.future.ultimate.core.common.repository.DashboardStats
 import com.future.ultimate.core.common.repository.DriverAccountCredentials
+import com.future.ultimate.core.common.repository.DriverAccountListItem
 import com.future.ultimate.core.common.repository.DriverRemoteSettingsData
 import com.future.ultimate.core.common.repository.EmailTemplateData
 import com.future.ultimate.core.common.repository.MailApprovalRequest
@@ -198,7 +199,19 @@ class LocalAdminRepository(
                     val accountsForCar = accountsByRegistration[registrationKey].orEmpty()
                     val assignedDrivers = parseDriverNames(it.driver)
                     val primaryAssignedDriver = assignedDrivers.firstOrNull().orEmpty()
+                    val driverAccounts = accountsForCar.map { account ->
+                        DriverAccountListItem(
+                            driverName = account.driverName,
+                            login = account.login,
+                            password = account.password,
+                            changePasswordRequired = account.changePassword == 1,
+                            licenseType = account.licenseType,
+                            licenseValidUntil = account.licenseValidUntil,
+                        )
+                    }
                     val driverAccount = accountsForCar.firstOrNull { account ->
+                        account.driverName.equals(primaryAssignedDriver, ignoreCase = true)
+                    } ?: accountsForCar.firstOrNull { account ->
                         assignedDrivers.any { assignedDriver -> account.driverName.equals(assignedDriver, ignoreCase = true) }
                     } ?: accountsForCar.firstOrNull()
                     val driverPlant = plantByDriver[primaryAssignedDriver.lowercase()].orEmpty()
@@ -227,6 +240,7 @@ class LocalAdminRepository(
                         remoteDriverSyncAt = settings["driver_remote_sync_at_$registrationKey"].orEmpty(),
                         remoteDriverSyncStatus = settings["driver_remote_sync_status_$registrationKey"].orEmpty(),
                         remoteDriverSyncError = settings["driver_remote_sync_error_$registrationKey"].orEmpty(),
+                        driverAccounts = driverAccounts,
                     )
                 }
             }
