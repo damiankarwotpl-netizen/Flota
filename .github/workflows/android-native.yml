@@ -20,16 +20,27 @@ on:
           - "true"
           - "false"
   push:
+    branches:
+      - main
     paths:
       - 'android-native/**'
       - '.github/workflows/android-native.yml'
   pull_request:
+    types:
+      - opened
+      - reopened
+      - synchronize
+      - ready_for_review
     paths:
       - 'android-native/**'
       - '.github/workflows/android-native.yml'
 
 permissions:
   contents: write
+
+concurrency:
+  group: native-android-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 jobs:
   build-native:

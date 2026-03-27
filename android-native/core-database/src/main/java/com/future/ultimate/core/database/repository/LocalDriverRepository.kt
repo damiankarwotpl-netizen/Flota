@@ -106,13 +106,17 @@ class LocalDriverRepository(
             ?: primaryAccount
 
         val activeCar = dao.getCarByRegistration(activeRegistration)
+        val activeMileage = resolveMileageFromApi(
+            registration = activeRegistration,
+            fallbackMileage = activeCar?.mileage ?: 0,
+        )
         return DriverSession(
             login = activeAccount.login,
             password = activeAccount.password.ifBlank { normalizedPassword },
             driverName = activeAccount.driverName,
             carName = activeCar?.name.orEmpty(),
             registration = activeRegistration,
-            mileage = activeCar?.mileage ?: 0,
+            mileage = activeMileage,
             availableRegistrations = availableRegistrations.ifEmpty { listOf(activeRegistration).filter { it.isNotBlank() } },
             changePasswordRequired = matchingAccounts.any { it.changePassword == 1 },
         ).also {
@@ -172,10 +176,14 @@ class LocalDriverRepository(
             "Nie możesz wybrać rejestracji spoza przypisanych pojazdów"
         }
         val selectedCar = dao.getCarByRegistration(normalizedRegistration)
+        val selectedMileage = resolveMileageFromApi(
+            registration = normalizedRegistration,
+            fallbackMileage = selectedCar?.mileage ?: 0,
+        )
         session.value = current.copy(
             registration = normalizedRegistration,
             carName = selectedCar?.name.orEmpty(),
-            mileage = selectedCar?.mileage ?: 0,
+            mileage = selectedMileage,
         )
         persistSessionRegistration(normalizedRegistration)
     }
@@ -338,6 +346,23 @@ class LocalDriverRepository(
             }
             throw IllegalStateException("Inny kierowca już dzisiaj wpisał przebieg dla tego auta")
         }
+    }
+
+    private suspend fun resolveMileageFromApi(registration: String, fallbackMileage: Int): Int {
+        val normalizedRegistration = registration.normalizedRegistration()
+        if (normalizedRegistration.isBlank()) return fallbackMileage.coerceAtLeast(0)
+        val cachedMileage = dao.getSetting("driver_last_mileage_$normalizedRegistration")?.valText?.toIntOrNull() ?: 0
+        val remoteMileage = runCatching {
+            DriverRemoteSyncGateway.fetchRemoteLogs(dao)
+                .asSequence()
+                .filter { it.registration.normalizedRegistration() == normalizedRegistration }
+                .maxByOrNull { it.timestamp }
+                ?.mileage
+                ?: 0
+        }.getOrDefault(0)
+        val resolved = maxOf(fallbackMileage, cachedMileage, remoteMileage).coerceAtLeast(0)
+        dao.upsertSetting(SettingEntity(key = "driver_last_mileage_$normalizedRegistration", valText = resolved.toString()))
+        return resolved
     }
 
     private suspend fun validateDailyReportWrite(registration: String, driverLogin: String) {

@@ -263,9 +263,9 @@ class LocalAdminRepository(
         )
     }
 
-    override suspend fun updateCarDriverLicense(id: Long, licenseType: String, validUntil: String) {
+    override suspend fun updateCarDriverLicense(id: Long, driverName: String, licenseType: String, validUntil: String) {
         val car = dao.getCar(id) ?: return
-        val normalizedDriver = parseDriverNames(car.driver).firstOrNull().orEmpty()
+        val normalizedDriver = driverName.trim().ifBlank { parseDriverNames(car.driver).firstOrNull().orEmpty() }
         if (normalizedDriver.isBlank()) return
         val normalizedLicenseType = licenseType.trim().ifBlank { "PL" }
         val normalizedValidUntil = validUntil.trim()
@@ -286,9 +286,9 @@ class LocalAdminRepository(
         }
     }
 
-    override suspend fun resetCarDriverCredentials(id: Long): DriverAccountCredentials {
+    override suspend fun resetCarDriverCredentials(id: Long, driverName: String): DriverAccountCredentials {
         val car = dao.getCar(id) ?: return DriverAccountCredentials()
-        val normalizedDriver = parseDriverNames(car.driver).firstOrNull().orEmpty()
+        val normalizedDriver = driverName.trim().ifBlank { parseDriverNames(car.driver).firstOrNull().orEmpty() }
         if (normalizedDriver.isBlank()) {
             dao.deleteDriverAccountByRegistration(car.registration)
             syncRemoteDriverDeletion(car.registration)
@@ -2004,8 +2004,16 @@ class LocalAdminRepository(
         )
         val existingByLogin = dao.getDriverAccountsByLogin(generatedLogin).firstOrNull()
             ?: runCatching { DriverRemoteSyncGateway.findDriverAccount(dao, generatedLogin) }.getOrNull()
+        val loginBelongsToSameDriver = existingByLogin?.driverName?.equals(normalizedDriver, ignoreCase = true) == true
+        val resolvedLogin = when {
+            loginBelongsToSameDriver -> existingByLogin?.login ?: generatedLogin
+            else -> resolveUniqueLogin(normalizedDriver, generatedLogin)
+        }
+        val existingByResolvedLogin = dao.getDriverAccountsByLogin(resolvedLogin).firstOrNull()
+            ?: runCatching { DriverRemoteSyncGateway.findDriverAccount(dao, resolvedLogin) }.getOrNull()
         val authoritativeExisting = when {
-            existingByLogin != null && existingByLogin.login.equals(generatedLogin, ignoreCase = true) -> existingByLogin
+            existingByResolvedLogin != null &&
+                existingByResolvedLogin.driverName.equals(normalizedDriver, ignoreCase = true) -> existingByResolvedLogin
             existingByRegistration != null && existingByRegistration.driverName.equals(normalizedDriver, ignoreCase = true) -> existingByRegistration
             else -> null
         }
@@ -2013,7 +2021,7 @@ class LocalAdminRepository(
         val shouldRotateCredentials = forceReset || authoritativeExisting == null
         val account = DriverAccountEntity(
             registration = normalizedRegistration,
-            login = authoritativeExisting?.login ?: generatedLogin,
+            login = authoritativeExisting?.login ?: resolvedLogin,
             password = if (shouldRotateCredentials) generatePassword() else authoritativeExisting.password,
             driverName = normalizedDriver,
             changePassword = if (shouldRotateCredentials) 1 else authoritativeExisting.changePassword,
@@ -2036,6 +2044,25 @@ class LocalAdminRepository(
             .replace(Regex("\\.{2,}"), ".")
             .trim('.')
         return sanitized.ifBlank { "driver" }
+    }
+
+    private suspend fun resolveUniqueLogin(driverName: String, baseLogin: String): String {
+        val normalizedDriver = driverName.trim()
+        val normalizedBase = baseLogin.trim().ifBlank { "driver" }
+        val baseOwner = dao.getDriverAccountsByLogin(normalizedBase).firstOrNull()
+            ?: runCatching { DriverRemoteSyncGateway.findDriverAccount(dao, normalizedBase) }.getOrNull()
+        if (baseOwner == null || baseOwner.driverName.equals(normalizedDriver, ignoreCase = true)) {
+            return normalizedBase
+        }
+        for (index in 2..999) {
+            val candidate = "$normalizedBase.$index"
+            val owner = dao.getDriverAccountsByLogin(candidate).firstOrNull()
+                ?: runCatching { DriverRemoteSyncGateway.findDriverAccount(dao, candidate) }.getOrNull()
+            if (owner == null || owner.driverName.equals(normalizedDriver, ignoreCase = true)) {
+                return candidate
+            }
+        }
+        return "${normalizedBase}.${System.currentTimeMillis()}"
     }
 
     private fun parseDriverNames(value: String): List<String> = value
