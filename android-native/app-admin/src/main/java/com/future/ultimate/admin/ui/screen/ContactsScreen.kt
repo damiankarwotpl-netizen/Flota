@@ -3,6 +3,7 @@ package com.future.ultimate.admin.ui.screen
 import android.content.Intent
 import android.net.Uri
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -34,6 +35,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -431,15 +433,11 @@ private fun AddContactDialog(
                         label = { Text(if (mode == ContactDialogMode.Plant) "Nazwa zakładu *" else "Zakład") },
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clickable { isPlantPickerOpen = true },
+                            .pointerInput(Unit) {
+                                detectTapGestures(onTap = { isPlantPickerOpen = true })
+                            },
                         readOnly = true,
                     )
-                    TextButton(
-                        onClick = { isPlantPickerOpen = true },
-                        modifier = Modifier.fillMaxWidth(),
-                    ) {
-                        Text("Wybierz zakład z listy")
-                    }
                 }
                 if (mode == ContactDialogMode.Plant) {
                     val selectedPosition = extractPositionFromNotes(draft.notes)
@@ -449,15 +447,11 @@ private fun AddContactDialog(
                         label = { Text("Stanowisko *") },
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clickable { isPositionPickerOpen = true },
+                            .pointerInput(Unit) {
+                                detectTapGestures(onTap = { isPositionPickerOpen = true })
+                            },
                         readOnly = true,
                     )
-                    TextButton(
-                        onClick = { isPositionPickerOpen = true },
-                        modifier = Modifier.fillMaxWidth(),
-                    ) {
-                        Text("Wybierz stanowisko z listy")
-                    }
                 }
                 if (mode == ContactDialogMode.Employee) {
                     OutlinedTextField(

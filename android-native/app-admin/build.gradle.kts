@@ -27,6 +27,34 @@ fun Project.optionalConfig(name: String): String? =
     (findProperty(name) as String?)?.takeIf { it.isNotBlank() }
         ?: System.getenv(name)?.takeIf { it.isNotBlank() }
 
+val sanitizeAdminUiSources by tasks.registering {
+    doLast {
+        val forbiddenImports = listOf(
+            "import androidx.compose.foundation.layout.weight",
+            "import androidx.compose.foundation.layout.matchParentSize",
+        )
+        val targets = listOf(
+            file("src/main/java/com/future/ultimate/admin/ui/screen/ClothesScreen.kt"),
+            file("src/main/java/com/future/ultimate/admin/ui/screen/ContactsScreen.kt"),
+        )
+        targets.filter { it.exists() }.forEach { target ->
+            val original = target.readText()
+            val sanitized = original
+                .lineSequence()
+                .filterNot { line -> forbiddenImports.any { forbidden -> line.trim() == forbidden } }
+                .joinToString(separator = "\n")
+            if (sanitized != original) {
+                target.writeText("$sanitized\n")
+                logger.warn("Sanitized forbidden imports in ${target.path}")
+            }
+        }
+    }
+}
+
+tasks.named("preBuild") {
+    dependsOn(sanitizeAdminUiSources)
+}
+
 android {
     namespace = "com.future.ultimate.admin"
     compileSdk = 35
