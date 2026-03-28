@@ -43,6 +43,10 @@ import com.future.ultimate.core.common.model.ClothesSizeDraft
 fun ClothesScreen() {
     val selected = remember { mutableIntStateOf(0) }
     val ordersTab = remember { mutableIntStateOf(0) }
+    val clothingParts = remember { listOf("Koszulka", "Bluza", "Spodnie", "Kurtka", "Buty") }
+    var orderPlantPickerOpen by remember { mutableStateOf(false) }
+    var selectedPartsForAll by remember { mutableStateOf(clothingParts.toSet()) }
+    var workerPartSelections by remember { mutableStateOf<Map<Long, Set<String>>>(emptyMap()) }
     var isSizeDialogOpen by remember { mutableStateOf(false) }
     val tabs = listOf("Rozmiary", "Zamówienia", "Raporty")
     val app = LocalContext.current.applicationContext as AdminApp
@@ -90,7 +94,16 @@ fun ClothesScreen() {
                         if (ordersTab.intValue == 0) {
                             Text("Generator zamówienia startowego na bazie pracowników i zapisanych rozmiarów")
                             OutlinedTextField(ordersUiState.editor.date, { ordersViewModel.updateEditor(ordersUiState.editor.copy(date = it)) }, label = { Text("Data (YYYY-MM-DD)") }, modifier = Modifier.fillMaxWidth())
-                            OutlinedTextField(ordersUiState.editor.plant, { ordersViewModel.updateEditor(ordersUiState.editor.copy(plant = it)) }, label = { Text("Zakład") }, modifier = Modifier.fillMaxWidth())
+                            OutlinedTextField(
+                                value = ordersUiState.editor.plant,
+                                onValueChange = {},
+                                label = { Text("Zakład") },
+                                modifier = Modifier.fillMaxWidth().clickable { orderPlantPickerOpen = true },
+                                readOnly = true,
+                            )
+                            TextButton(onClick = { orderPlantPickerOpen = true }, modifier = Modifier.fillMaxWidth()) {
+                                Text("Wybierz zakład z listy")
+                            }
                             OutlinedTextField(ordersUiState.editor.status, { ordersViewModel.updateEditor(ordersUiState.editor.copy(status = it)) }, label = { Text("Status") }, modifier = Modifier.fillMaxWidth())
                             OutlinedTextField(ordersUiState.editor.orderDesc, { ordersViewModel.updateEditor(ordersUiState.editor.copy(orderDesc = it)) }, label = { Text("Opis zamówienia") }, modifier = Modifier.fillMaxWidth(), minLines = 3)
                             OutlinedTextField(
@@ -99,43 +112,38 @@ fun ClothesScreen() {
                                 label = { Text("Filtruj pracowników do zestawu startowego") },
                                 modifier = Modifier.fillMaxWidth(),
                             )
-                            Row(modifier = Modifier.fillMaxWidth()) {
-                                OutlinedTextField(
-                                    ordersUiState.shirtQty,
-                                    { ordersViewModel.updateStarterQuantities(shirtQty = it) },
-                                    label = { Text("Koszulka") },
-                                    modifier = Modifier.weight(1f),
-                                )
-                                OutlinedTextField(
-                                    ordersUiState.hoodieQty,
-                                    { ordersViewModel.updateStarterQuantities(hoodieQty = it) },
-                                    label = { Text("Bluza") },
-                                    modifier = Modifier.weight(1f),
-                                )
+                            Text("Wybierz części ubrania dla wszystkich lub indywidualnie dla pracownika.")
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                clothingParts.forEach { part ->
+                                    Button(
+                                        onClick = {
+                                            selectedPartsForAll = if (part in selectedPartsForAll) selectedPartsForAll - part else selectedPartsForAll + part
+                                        },
+                                        modifier = Modifier.weight(1f),
+                                    ) {
+                                        Text(if (part in selectedPartsForAll) "✓ $part" else part)
+                                    }
+                                }
                             }
-                            Row(modifier = Modifier.fillMaxWidth()) {
-                                OutlinedTextField(
-                                    ordersUiState.pantsQty,
-                                    { ordersViewModel.updateStarterQuantities(pantsQty = it) },
-                                    label = { Text("Spodnie") },
-                                    modifier = Modifier.weight(1f),
-                                )
-                                OutlinedTextField(
-                                    ordersUiState.jacketQty,
-                                    { ordersViewModel.updateStarterQuantities(jacketQty = it) },
-                                    label = { Text("Kurtka") },
-                                    modifier = Modifier.weight(1f),
-                                )
-                                OutlinedTextField(
-                                    ordersUiState.shoesQty,
-                                    { ordersViewModel.updateStarterQuantities(shoesQty = it) },
-                                    label = { Text("Buty") },
-                                    modifier = Modifier.weight(1f),
-                                )
+                            Button(
+                                onClick = {
+                                    val mapped = ordersUiState.selectedWorkerIds.associateWith { selectedPartsForAll }
+                                    workerPartSelections = workerPartSelections + mapped
+                                },
+                                modifier = Modifier.fillMaxWidth(),
+                                enabled = ordersUiState.selectedWorkerIds.isNotEmpty(),
+                            ) {
+                                Text("Ustaw wybrane części dla wszystkich zaznaczonych")
                             }
-                            Text("Wybierz pracowników, a aplikacja utworzy pozycje Koszulka/Bluza/Spodnie/Kurtka/Buty z ich zapisanymi rozmiarami.")
-                            Button(onClick = ordersViewModel::createStarterOrder, modifier = Modifier.fillMaxWidth()) {
-                                Text(if (ordersUiState.isCreatingStarterOrder) "Tworzenie zamówienia..." else "Utwórz zamówienie startowe")
+                            Button(
+                                onClick = {
+                                    val selections = ordersUiState.selectedWorkerIds.associateWith { workerPartSelections[it].orEmpty().ifEmpty { selectedPartsForAll } }
+                                    ordersViewModel.createOrderFromSelections(selections)
+                                    ordersTab.intValue = 1
+                                },
+                                modifier = Modifier.fillMaxWidth(),
+                            ) {
+                                Text(if (ordersUiState.isCreatingStarterOrder) "Generowanie zamówienia..." else "Generuj zamówienie")
                             }
                             Button(onClick = ordersViewModel::save, modifier = Modifier.fillMaxWidth()) {
                                 Text(if (ordersUiState.isSaving) "Zapisywanie..." else if (ordersUiState.editor.id == null) "Zapisz pusty nagłówek zamówienia" else "Zapisz zmiany zamówienia")
@@ -262,6 +270,23 @@ fun ClothesScreen() {
                                             "Koszulka ${worker.shirt.ifBlank { "-" }}, Bluza ${worker.hoodie.ifBlank { "-" }}, " +
                                                 "Spodnie ${worker.pants.ifBlank { "-" }}, Kurtka ${worker.jacket.ifBlank { "-" }}, Buty ${worker.shoes.ifBlank { "-" }}",
                                         )
+                                        if (worker.id in ordersUiState.selectedWorkerIds) {
+                                            val selectedParts = workerPartSelections[worker.id].orEmpty()
+                                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                                clothingParts.forEach { part ->
+                                                    Button(
+                                                        onClick = {
+                                                            val current = workerPartSelections[worker.id].orEmpty()
+                                                            val updated = if (part in current) current - part else current + part
+                                                            workerPartSelections = workerPartSelections + (worker.id to updated)
+                                                        },
+                                                        modifier = Modifier.weight(1f),
+                                                    ) {
+                                                        Text(if (part in selectedParts) "✓" else part.take(3))
+                                                    }
+                                                }
+                                            }
+                                        }
                                     }
                                 }
                             }
@@ -457,6 +482,29 @@ fun ClothesScreen() {
             onSave = {
                 sizesViewModel.save()
                 isSizeDialogOpen = false
+            },
+        )
+    }
+
+    if (orderPlantPickerOpen) {
+        AlertDialog(
+            onDismissRequest = { orderPlantPickerOpen = false },
+            title = { Text("Wybierz zakład dla zamówienia") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    ordersUiState.availableWorkers.map { it.plant.trim() }.filter { it.isNotBlank() }.distinct().sorted().forEach { plant ->
+                        Button(
+                            onClick = {
+                                ordersViewModel.updateEditor(ordersUiState.editor.copy(plant = plant))
+                                orderPlantPickerOpen = false
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                        ) { Text(plant) }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { orderPlantPickerOpen = false }) { Text("Zamknij") }
             },
         )
     }

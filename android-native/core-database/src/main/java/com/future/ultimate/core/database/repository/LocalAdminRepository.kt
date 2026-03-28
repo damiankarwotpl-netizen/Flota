@@ -746,6 +746,61 @@ class LocalAdminRepository(
         return orderId
     }
 
+    override suspend fun createClothesOrderFromSelections(
+        draft: ClothesOrderDraft,
+        workerParts: Map<Long, Set<String>>,
+    ): Long? {
+        val selectedWorkers = dao.observeWorkers().first().filter { it.id in workerParts.keys }
+        if (selectedWorkers.isEmpty()) return null
+
+        val sizeByWorker = dao.observeClothesSizes().first().associateBy {
+            "${it.name.trim().lowercase()}|${it.surname.trim().lowercase()}"
+        }
+        val inferredPlant = selectedWorkers.map { it.plant.trim() }.filter { it.isNotBlank() }.distinct().singleOrNull().orEmpty()
+
+        val orderId = dao.upsertClothesOrder(
+            ClothesOrderEntity(
+                id = 0,
+                date = draft.date.ifBlank { LocalDate.now().toString() },
+                plant = draft.plant.trim().ifBlank { inferredPlant },
+                status = draft.status.trim().ifBlank { "Zamówione" },
+                orderDesc = draft.orderDesc.trim(),
+            ),
+        )
+
+        val items = buildList {
+            selectedWorkers.forEach { worker ->
+                val selectedParts = workerParts[worker.id].orEmpty()
+                val size = sizeByWorker["${worker.name.trim().lowercase()}|${worker.surname.trim().lowercase()}"]
+                fun addItem(label: String, itemSize: String) {
+                    add(
+                        ClothesOrderItemEntity(
+                            orderId = orderId,
+                            workerId = worker.id,
+                            name = worker.name.trim(),
+                            surname = worker.surname.trim(),
+                            item = label,
+                            size = itemSize,
+                            qty = 1,
+                            issued = 0,
+                        ),
+                    )
+                }
+                if ("Koszulka" in selectedParts) addItem("Koszulka", size?.shirt.orEmpty())
+                if ("Bluza" in selectedParts) addItem("Bluza", size?.hoodie.orEmpty())
+                if ("Spodnie" in selectedParts) addItem("Spodnie", size?.pants.orEmpty())
+                if ("Kurtka" in selectedParts) addItem("Kurtka", size?.jacket.orEmpty())
+                if ("Buty" in selectedParts) addItem("Buty", size?.shoes.orEmpty())
+            }
+        }
+        if (items.isEmpty()) {
+            dao.deleteClothesOrder(orderId)
+            return null
+        }
+        dao.upsertClothesOrderItems(items)
+        return orderId
+    }
+
     override suspend fun deleteClothesOrderItem(id: Long) {
         val item = dao.getClothesOrderItem(id)
         dao.deleteClothesOrderItem(id)
