@@ -106,7 +106,10 @@ class CarsViewModel(private val repository: AdminRepository) : ViewModel() {
             refreshDriverSuggestions()
         }.launchIn(viewModelScope)
         repository.observeContacts().onEach { contacts ->
-            contactDriverSuggestions = contacts.map { "${it.name} ${it.surname}".trim() }.filter { it.isNotBlank() }
+            contactDriverSuggestions = contacts
+                .filter(::isEmployeeTabContact)
+                .map { "${it.name} ${it.surname}".trim() }
+                .filter { it.isNotBlank() }
             refreshDriverSuggestions()
         }.launchIn(viewModelScope)
         repository.observeKnownCarDrivers().onEach { knownDrivers ->
@@ -320,6 +323,9 @@ private fun String.assignedDrivers(): List<String> = split(",")
     .map { it.trim() }
     .filter { it.isNotBlank() }
 
+private fun isEmployeeTabContact(item: ContactListItem): Boolean =
+    "#TAB_PRACOWNICY" in item.notes || ("#TAB_FUTURE" !in item.notes && "#TAB_ZAKLADY" !in item.notes)
+
 class PayrollViewModel(private val repository: AdminRepository) : ViewModel() {
     private val _uiState = MutableStateFlow(PayrollUiState(operatorLabel = PatchLoader.fallbackUserLabel()))
     val uiState: StateFlow<PayrollUiState> = _uiState.asStateFlow()
@@ -342,12 +348,13 @@ class PayrollViewModel(private val repository: AdminRepository) : ViewModel() {
 
     init {
         repository.observeContacts().onEach { items ->
-            contactsCache = items
-            val knownKeys = items.map(::selectionKey).toSet()
+            val employeeContacts = items.filter(::isEmployeeTabContact)
+            contactsCache = employeeContacts
+            val knownKeys = employeeContacts.map(::selectionKey).toSet()
             _uiState.value = _uiState.value.copy(
-                contacts = items,
-                filteredRecipients = filterRecipients(items, _uiState.value.recipientQuery),
-                totalRecipients = items.size,
+                contacts = employeeContacts,
+                filteredRecipients = filterRecipients(employeeContacts, _uiState.value.recipientQuery),
+                totalRecipients = employeeContacts.size,
                 selectedRecipientKeys = _uiState.value.selectedRecipientKeys.intersect(knownKeys),
             )
         }.launchIn(viewModelScope)
@@ -1399,7 +1406,7 @@ class TableViewModel(private val repository: AdminRepository) : ViewModel() {
 
     init {
         repository.observeContacts().onEach { items ->
-            _uiState.value = _uiState.value.copy(items = items)
+            _uiState.value = _uiState.value.copy(items = items.filter(::isEmployeeTabContact))
         }.launchIn(viewModelScope)
     }
 
