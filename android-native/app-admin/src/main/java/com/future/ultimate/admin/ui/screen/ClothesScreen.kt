@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.matchParentSize
 import androidx.compose.foundation.layout.padding
@@ -118,7 +119,7 @@ fun ClothesScreen() {
                                 )
                                 Box(
                                     modifier = Modifier
-                                        .matchParentSize()
+                                        .fillMaxSize()
                                         .clickable { orderPlantPickerOpen = true },
                                 )
                             }
@@ -585,7 +586,7 @@ private fun SizeSelectField(
         )
         Box(
             modifier = Modifier
-                .matchParentSize()
+                .fillMaxSize()
                 .clickable { onOpenPicker() },
         )
     }
