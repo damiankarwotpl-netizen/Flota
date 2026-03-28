@@ -1523,15 +1523,11 @@ class WorkersViewModel(private val repository: AdminRepository) : ViewModel() {
 class PlantsViewModel(private val repository: AdminRepository) : ViewModel() {
     private val _uiState = MutableStateFlow(PlantsUiState())
     val uiState: StateFlow<PlantsUiState> = _uiState.asStateFlow()
-    private var employeePlants: Set<String> = emptySet()
 
     init {
-        repository.observeContacts().onEach { contacts ->
-            employeePlants = employeePlantNames(contacts)
-        }.launchIn(viewModelScope)
         repository.observePlants().onEach { items ->
             _uiState.value = _uiState.value.copy(
-                items = items.filter { it.name.trim() in employeePlants },
+                items = items,
             )
         }.launchIn(viewModelScope)
     }

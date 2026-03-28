@@ -2,6 +2,7 @@ package com.future.ultimate.admin.ui.screen
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -37,6 +38,7 @@ import androidx.compose.material.icons.rounded.Edit
 import com.future.ultimate.admin.AdminApp
 import com.future.ultimate.admin.ui.viewmodel.AdminViewModelFactory
 import com.future.ultimate.admin.ui.viewmodel.ClothesReportsViewModel
+import com.future.ultimate.admin.ui.viewmodel.ClothesOrdersViewModel
 import com.future.ultimate.admin.ui.viewmodel.ClothesSizesViewModel
 import com.future.ultimate.core.common.model.ClothesSizeDraft
 import java.time.LocalDate
@@ -55,6 +57,8 @@ fun ClothesScreen() {
     val app = LocalContext.current.applicationContext as AdminApp
     val sizesViewModel: ClothesSizesViewModel = viewModel(factory = AdminViewModelFactory(app.container.repository))
     val sizesUiState by sizesViewModel.uiState.collectAsStateWithLifecycle()
+    val ordersViewModel: ClothesOrdersViewModel = viewModel(factory = AdminViewModelFactory(app.container.repository))
+    val ordersUiState by ordersViewModel.uiState.collectAsStateWithLifecycle()
     val reportsViewModel: ClothesReportsViewModel = viewModel(factory = AdminViewModelFactory(app.container.repository))
     val reportsUiState by reportsViewModel.uiState.collectAsStateWithLifecycle()
 
@@ -102,17 +106,19 @@ fun ClothesScreen() {
                             }
                         }
                         if (ordersTab.intValue == 0) {
-                            OutlinedTextField(
-                                value = ordersUiState.editor.plant,
-                                onValueChange = {},
-                                label = { Text("Zakład") },
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clickable { orderPlantPickerOpen = true },
-                                readOnly = true,
-                            )
-                            TextButton(onClick = { orderPlantPickerOpen = true }, modifier = Modifier.fillMaxWidth()) {
-                                Text("Wybierz zakład z listy")
+                            Box(modifier = Modifier.fillMaxWidth()) {
+                                OutlinedTextField(
+                                    value = ordersUiState.editor.plant,
+                                    onValueChange = {},
+                                    label = { Text("Zakład") },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    readOnly = true,
+                                )
+                                Box(
+                                    modifier = Modifier
+                                        .matchParentSize()
+                                        .clickable { orderPlantPickerOpen = true },
+                                )
                             }
                             if (ordersUiState.editor.plant.isNotBlank()) {
                                 Text("Wybrany zakład: ${ordersUiState.editor.plant}")
@@ -201,8 +207,9 @@ fun ClothesScreen() {
                                             Checkbox(
                                                 checked = worker.id in ordersUiState.selectedWorkerIds,
                                                 onCheckedChange = { ordersViewModel.toggleWorkerSelection(worker.id) },
+                                                modifier = Modifier.padding(top = 10.dp),
                                             )
-                                            Column(modifier = Modifier.weight(1f).padding(top = 12.dp)) {
+                                            Column(modifier = Modifier.padding(top = 12.dp)) {
                                                 Text("${worker.name} ${worker.surname}")
                                                 Text(worker.plant.ifBlank { "Bez zakładu" })
                                             }
@@ -328,9 +335,6 @@ fun ClothesScreen() {
                                         Text("Status: ${order.status}")
                                     }
                                 }
-                                Text("Koszulka: ${itemData.shirt} • Bluza: ${itemData.hoodie}")
-                                Text("Spodnie: ${itemData.pants} • Kurtka: ${itemData.jacket} • Buty: ${itemData.shoes}")
-                                Button(onClick = { sizesViewModel.delete(itemData.id) }, modifier = Modifier.fillMaxWidth()) { Text("Usuń rozmiar") }
                             }
                         }
                     }
@@ -569,17 +573,19 @@ private fun SizeSelectField(
     value: String,
     onOpenPicker: () -> Unit,
 ) {
-    OutlinedTextField(
-        value = value,
-        onValueChange = {},
-        label = { Text(label) },
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable { onOpenPicker() },
-        readOnly = true,
-    )
-    TextButton(onClick = onOpenPicker, modifier = Modifier.fillMaxWidth()) {
-        Text("Wybierz z listy")
+    Box(modifier = Modifier.fillMaxWidth()) {
+        OutlinedTextField(
+            value = value,
+            onValueChange = {},
+            label = { Text(label) },
+            modifier = Modifier.fillMaxWidth(),
+            readOnly = true,
+        )
+        Box(
+            modifier = Modifier
+                .matchParentSize()
+                .clickable { onOpenPicker() },
+        )
     }
 }
 
