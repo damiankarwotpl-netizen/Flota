@@ -366,7 +366,7 @@ fun ClothesScreen() {
                     }
                 }
             }
-            else -> {
+            2 -> {
                 reportsUiState.yearlySummary.forEach { summary ->
                     item {
                         SectionCard {

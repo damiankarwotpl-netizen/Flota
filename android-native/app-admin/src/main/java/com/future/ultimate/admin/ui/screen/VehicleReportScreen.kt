@@ -122,8 +122,8 @@ fun VehicleReportScreen() {
 private fun VehicleField(
     label: String,
     value: String,
-    onChange: (String) -> Unit,
     singleLine: Boolean = true,
+    onChange: (String) -> Unit,
 ) {
     OutlinedTextField(
         value = value,
