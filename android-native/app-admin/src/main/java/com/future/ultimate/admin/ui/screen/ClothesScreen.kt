@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.weight
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
@@ -37,6 +38,7 @@ import androidx.compose.material.icons.rounded.Edit
 import com.future.ultimate.admin.AdminApp
 import com.future.ultimate.admin.ui.viewmodel.AdminViewModelFactory
 import com.future.ultimate.admin.ui.viewmodel.ClothesReportsViewModel
+import com.future.ultimate.admin.ui.viewmodel.ClothesOrdersViewModel
 import com.future.ultimate.admin.ui.viewmodel.ClothesSizesViewModel
 import com.future.ultimate.core.common.model.ClothesSizeDraft
 import java.time.LocalDate
@@ -55,6 +57,8 @@ fun ClothesScreen() {
     val app = LocalContext.current.applicationContext as AdminApp
     val sizesViewModel: ClothesSizesViewModel = viewModel(factory = AdminViewModelFactory(app.container.repository))
     val sizesUiState by sizesViewModel.uiState.collectAsStateWithLifecycle()
+    val ordersViewModel: ClothesOrdersViewModel = viewModel(factory = AdminViewModelFactory(app.container.repository))
+    val ordersUiState by ordersViewModel.uiState.collectAsStateWithLifecycle()
     val reportsViewModel: ClothesReportsViewModel = viewModel(factory = AdminViewModelFactory(app.container.repository))
     val reportsUiState by reportsViewModel.uiState.collectAsStateWithLifecycle()
 
@@ -328,9 +332,6 @@ fun ClothesScreen() {
                                         Text("Status: ${order.status}")
                                     }
                                 }
-                                Text("Koszulka: ${itemData.shirt} • Bluza: ${itemData.hoodie}")
-                                Text("Spodnie: ${itemData.pants} • Kurtka: ${itemData.jacket} • Buty: ${itemData.shoes}")
-                                Button(onClick = { sizesViewModel.delete(itemData.id) }, modifier = Modifier.fillMaxWidth()) { Text("Usuń rozmiar") }
                             }
                         }
                     }
