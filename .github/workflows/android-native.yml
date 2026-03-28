@@ -76,6 +76,15 @@ jobs:
         with:
           gradle-version: 8.14.3
 
+      - name: Guard against forbidden weight import in ClothesScreen
+        run: |
+          set -euo pipefail
+          TARGET="app-admin/src/main/java/com/future/ultimate/admin/ui/screen/ClothesScreen.kt"
+          if grep -n "import androidx.compose.foundation.layout.weight" "$TARGET"; then
+            echo "Forbidden import detected in $TARGET"
+            exit 1
+          fi
+
       - name: Build debug APKs
         if: ${{ github.event.inputs.build_type != 'release' }}
         run: |
