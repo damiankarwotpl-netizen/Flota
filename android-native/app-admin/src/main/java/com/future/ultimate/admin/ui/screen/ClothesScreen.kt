@@ -1,5 +1,6 @@
 package com.future.ultimate.admin.ui.screen
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -462,6 +463,10 @@ private fun ClothesSizeDialog(
     onSave: () -> Unit,
 ) {
     val isSaveEnabled = draft.name.isNotBlank() && draft.surname.isNotBlank()
+    var sizePickerLabel by remember { mutableStateOf<String?>(null) }
+    var sizePickerOptions by remember { mutableStateOf<List<String>>(emptyList()) }
+    var sizePickerValue by remember { mutableStateOf("") }
+    var sizePickerOnSelect by remember { mutableStateOf<(String) -> Unit>({}) }
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(if (isEditing) "Edytuj rozmiar pracownika" else "Dodaj rozmiar pracownika") },
@@ -488,35 +493,55 @@ private fun ClothesSizeDialog(
                     label = { Text("Zakład") },
                     modifier = Modifier.fillMaxWidth(),
                 )
-                OutlinedTextField(
+                SizeSelectField(
+                    label = "Koszulka",
                     value = draft.shirt,
-                    onValueChange = { onDraftChange(draft.copy(shirt = it)) },
-                    label = { Text("Koszulka") },
-                    modifier = Modifier.fillMaxWidth(),
+                    onOpenPicker = {
+                        sizePickerLabel = "Koszulka"
+                        sizePickerOptions = CLOTH_PART_SIZE_OPTIONS
+                        sizePickerValue = draft.shirt
+                        sizePickerOnSelect = { onDraftChange(draft.copy(shirt = it)) }
+                    },
                 )
-                OutlinedTextField(
+                SizeSelectField(
+                    label = "Bluza",
                     value = draft.hoodie,
-                    onValueChange = { onDraftChange(draft.copy(hoodie = it)) },
-                    label = { Text("Bluza") },
-                    modifier = Modifier.fillMaxWidth(),
+                    onOpenPicker = {
+                        sizePickerLabel = "Bluza"
+                        sizePickerOptions = CLOTH_PART_SIZE_OPTIONS
+                        sizePickerValue = draft.hoodie
+                        sizePickerOnSelect = { onDraftChange(draft.copy(hoodie = it)) }
+                    },
                 )
-                OutlinedTextField(
+                SizeSelectField(
+                    label = "Spodnie",
                     value = draft.pants,
-                    onValueChange = { onDraftChange(draft.copy(pants = it)) },
-                    label = { Text("Spodnie") },
-                    modifier = Modifier.fillMaxWidth(),
+                    onOpenPicker = {
+                        sizePickerLabel = "Spodnie"
+                        sizePickerOptions = PANTS_SIZE_OPTIONS
+                        sizePickerValue = draft.pants
+                        sizePickerOnSelect = { onDraftChange(draft.copy(pants = it)) }
+                    },
                 )
-                OutlinedTextField(
+                SizeSelectField(
+                    label = "Kurtka",
                     value = draft.jacket,
-                    onValueChange = { onDraftChange(draft.copy(jacket = it)) },
-                    label = { Text("Kurtka") },
-                    modifier = Modifier.fillMaxWidth(),
+                    onOpenPicker = {
+                        sizePickerLabel = "Kurtka"
+                        sizePickerOptions = CLOTH_PART_SIZE_OPTIONS
+                        sizePickerValue = draft.jacket
+                        sizePickerOnSelect = { onDraftChange(draft.copy(jacket = it)) }
+                    },
                 )
-                OutlinedTextField(
+                SizeSelectField(
+                    label = "Buty",
                     value = draft.shoes,
-                    onValueChange = { onDraftChange(draft.copy(shoes = it)) },
-                    label = { Text("Buty") },
-                    modifier = Modifier.fillMaxWidth(),
+                    onOpenPicker = {
+                        sizePickerLabel = "Buty"
+                        sizePickerOptions = SHOES_SIZE_OPTIONS
+                        sizePickerValue = draft.shoes
+                        sizePickerOnSelect = { onDraftChange(draft.copy(shoes = it)) }
+                    },
                 )
             }
         },
@@ -534,7 +559,65 @@ private fun ClothesSizeDialog(
             }
         },
     )
+
+    if (sizePickerLabel != null) {
+        AlertDialog(
+            onDismissRequest = { sizePickerLabel = null },
+            title = { Text("Wybierz rozmiar • ${sizePickerLabel.orEmpty()}") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    sizePickerOptions.forEach { option ->
+                        Button(
+                            onClick = {
+                                sizePickerOnSelect(option)
+                                sizePickerLabel = null
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            Text(if (sizePickerValue == option) "✓ $option" else option)
+                        }
+                    }
+                    TextButton(
+                        onClick = {
+                            sizePickerOnSelect("")
+                            sizePickerLabel = null
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text("Wyczyść rozmiar")
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { sizePickerLabel = null }) { Text("Zamknij") }
+            },
+        )
+    }
 }
+
+@Composable
+private fun SizeSelectField(
+    label: String,
+    value: String,
+    onOpenPicker: () -> Unit,
+) {
+    OutlinedTextField(
+        value = value,
+        onValueChange = {},
+        label = { Text(label) },
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onOpenPicker() },
+        readOnly = true,
+    )
+    TextButton(onClick = onOpenPicker, modifier = Modifier.fillMaxWidth()) {
+        Text("Wybierz z listy")
+    }
+}
+
+private val CLOTH_PART_SIZE_OPTIONS = listOf("XS", "S", "M", "L", "XL", "2XL", "3XL", "4XL", "5XL")
+private val PANTS_SIZE_OPTIONS = (46..62 step 2).map(Int::toString)
+private val SHOES_SIZE_OPTIONS = (36..50).map(Int::toString)
 
 private fun canIssueClothesOrder(status: String): Boolean {
     val normalized = status.trim().lowercase()
