@@ -2,9 +2,11 @@ package com.future.ultimate.admin.ui.screen
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.matchParentSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.weight
 import androidx.compose.foundation.rememberScrollState
@@ -106,15 +108,20 @@ fun ClothesScreen() {
                             }
                         }
                         if (ordersTab.intValue == 0) {
-                            OutlinedTextField(
-                                value = ordersUiState.editor.plant,
-                                onValueChange = {},
-                                label = { Text("Zakład") },
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clickable { orderPlantPickerOpen = true },
-                                readOnly = true,
-                            )
+                            Box(modifier = Modifier.fillMaxWidth()) {
+                                OutlinedTextField(
+                                    value = ordersUiState.editor.plant,
+                                    onValueChange = {},
+                                    label = { Text("Zakład") },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    readOnly = true,
+                                )
+                                Box(
+                                    modifier = Modifier
+                                        .matchParentSize()
+                                        .clickable { orderPlantPickerOpen = true },
+                                )
+                            }
                             if (ordersUiState.editor.plant.isNotBlank()) {
                                 Text("Wybrany zakład: ${ordersUiState.editor.plant}")
                             }
@@ -568,15 +575,20 @@ private fun SizeSelectField(
     value: String,
     onOpenPicker: () -> Unit,
 ) {
-    OutlinedTextField(
-        value = value,
-        onValueChange = {},
-        label = { Text(label) },
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable { onOpenPicker() },
-        readOnly = true,
-    )
+    Box(modifier = Modifier.fillMaxWidth()) {
+        OutlinedTextField(
+            value = value,
+            onValueChange = {},
+            label = { Text(label) },
+            modifier = Modifier.fillMaxWidth(),
+            readOnly = true,
+        )
+        Box(
+            modifier = Modifier
+                .matchParentSize()
+                .clickable { onOpenPicker() },
+        )
+    }
 }
 
 private val CLOTH_PART_SIZE_OPTIONS = listOf("XS", "S", "M", "L", "XL", "2XL", "3XL", "4XL", "5XL")
