@@ -366,7 +366,6 @@ fun ClothesScreen() {
                     }
                 }
             }
-        }
         if (selected.intValue == 2) {
             reportsUiState.yearlySummary.forEach { summary ->
                 item {
