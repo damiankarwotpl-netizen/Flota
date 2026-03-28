@@ -518,7 +518,7 @@ private fun ClothesSizeDialog(
                     value = draft.pants,
                     onOpenPicker = {
                         sizePickerLabel = "Spodnie"
-                        sizePickerOptions = CLOTH_PART_SIZE_OPTIONS
+                        sizePickerOptions = PANTS_SIZE_OPTIONS
                         sizePickerValue = draft.pants
                         sizePickerOnSelect = { onDraftChange(draft.copy(pants = it)) }
                     },
@@ -616,6 +616,7 @@ private fun SizeSelectField(
 }
 
 private val CLOTH_PART_SIZE_OPTIONS = listOf("XS", "S", "M", "L", "XL", "2XL", "3XL", "4XL", "5XL")
+private val PANTS_SIZE_OPTIONS = (46..62 step 2).map(Int::toString)
 private val SHOES_SIZE_OPTIONS = (36..50).map(Int::toString)
 
 private fun canIssueClothesOrder(status: String): Boolean {
