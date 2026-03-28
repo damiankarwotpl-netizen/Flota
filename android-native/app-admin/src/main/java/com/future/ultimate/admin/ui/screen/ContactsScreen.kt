@@ -190,6 +190,8 @@ fun ContactsScreen() {
                                 SectionCard(title = workplace) {
                                     contacts.forEach { contact ->
                                         Text("${contact.name} ${contact.surname}".trim())
+                                        val position = extractPositionFromNotes(contact.notes)
+                                        if (position.isNotBlank()) Text("Stanowisko: $position")
                                         if (contact.phone.isNotBlank()) Text("Telefon: ${contact.phone}")
                                         if (contact.email.isNotBlank()) Text("Email: ${contact.email}")
                                     }
@@ -327,7 +329,12 @@ private fun AddContactDialog(
 ) {
     val isSaveEnabled = when (mode) {
         ContactDialogMode.Future -> draft.name.isNotBlank() && draft.surname.isNotBlank() && draft.phone.isNotBlank() && draft.email.isNotBlank()
-        ContactDialogMode.Plant -> draft.workplace.isNotBlank() && draft.name.isNotBlank() && draft.surname.isNotBlank() && draft.phone.isNotBlank() && draft.email.isNotBlank()
+        ContactDialogMode.Plant -> draft.workplace.isNotBlank() &&
+            draft.name.isNotBlank() &&
+            draft.surname.isNotBlank() &&
+            draft.phone.isNotBlank() &&
+            draft.email.isNotBlank() &&
+            extractPositionFromNotes(draft.notes).isNotBlank()
         ContactDialogMode.Employee -> draft.name.isNotBlank() && draft.surname.isNotBlank() && draft.phone.isNotBlank()
     }
     var isPlantPickerOpen by remember { mutableStateOf(false) }
@@ -384,6 +391,23 @@ private fun AddContactDialog(
                         modifier = Modifier.fillMaxWidth(),
                     ) {
                         Text("Wybierz zakład z listy")
+                    }
+                }
+                if (mode == ContactDialogMode.Plant) {
+                    val selectedPosition = extractPositionFromNotes(draft.notes)
+                    Text("Stanowisko *")
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        listOf("zarząd", "kadry", "brygadzista").forEach { position ->
+                            Button(
+                                onClick = { onDraftChange(draft.copy(notes = updatePositionInNotes(draft.notes, position))) },
+                                modifier = Modifier.weight(1f),
+                            ) {
+                                Text(if (selectedPosition == position) "✓ $position" else position)
+                            }
+                        }
                     }
                 }
                 if (mode == ContactDialogMode.Employee) {
@@ -533,6 +557,20 @@ private fun isEmployeeContact(contact: ContactListItem): Boolean {
     return !isFutureContact(contact) && !isPlantContact(contact)
 }
 
+private fun extractPositionFromNotes(notes: String): String = notes.split(" ")
+    .firstOrNull { it.startsWith(POSITION_PREFIX) }
+    ?.removePrefix(POSITION_PREFIX)
+    ?.trim()
+    .orEmpty()
+
+private fun updatePositionInNotes(notes: String, position: String): String {
+    val cleanNotes = notes.split(" ")
+        .filterNot { it.startsWith(POSITION_PREFIX) }
+        .joinToString(" ")
+        .trim()
+    return listOf("$POSITION_PREFIX$position", cleanNotes).filter { it.isNotBlank() }.joinToString(" ")
+}
+
 private fun assignTabTag(draft: ContactDraft, mode: ContactDialogMode): ContactDraft {
     val cleanNotes = draft.notes
         .replace(TAB_TAG_EMPLOYEE, "")
@@ -551,3 +589,4 @@ private fun assignTabTag(draft: ContactDraft, mode: ContactDialogMode): ContactD
 private const val TAB_TAG_EMPLOYEE = "#TAB_PRACOWNICY"
 private const val TAB_TAG_FUTURE = "#TAB_FUTURE"
 private const val TAB_TAG_PLANT = "#TAB_ZAKLADY"
+private const val POSITION_PREFIX = "STANOWISKO:"
