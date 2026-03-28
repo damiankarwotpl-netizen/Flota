@@ -4,8 +4,10 @@ import android.content.Intent
 import android.net.Uri
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.matchParentSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
@@ -425,38 +427,36 @@ private fun AddContactDialog(
                     modifier = Modifier.fillMaxWidth(),
                 )
                 if (mode == ContactDialogMode.Plant || mode == ContactDialogMode.Employee) {
-                    OutlinedTextField(
-                        value = draft.workplace,
-                        onValueChange = {},
-                        label = { Text(if (mode == ContactDialogMode.Plant) "Nazwa zakładu *" else "Zakład") },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { isPlantPickerOpen = true },
-                        readOnly = true,
-                    )
-                    TextButton(
-                        onClick = { isPlantPickerOpen = true },
-                        modifier = Modifier.fillMaxWidth(),
-                    ) {
-                        Text("Wybierz zakład z listy")
+                    Box(modifier = Modifier.fillMaxWidth()) {
+                        OutlinedTextField(
+                            value = draft.workplace,
+                            onValueChange = {},
+                            label = { Text(if (mode == ContactDialogMode.Plant) "Nazwa zakładu *" else "Zakład") },
+                            modifier = Modifier.fillMaxWidth(),
+                            readOnly = true,
+                        )
+                        Box(
+                            modifier = Modifier
+                                .matchParentSize()
+                                .clickable { isPlantPickerOpen = true },
+                        )
                     }
                 }
                 if (mode == ContactDialogMode.Plant) {
                     val selectedPosition = extractPositionFromNotes(draft.notes)
-                    OutlinedTextField(
-                        value = selectedPosition,
-                        onValueChange = {},
-                        label = { Text("Stanowisko *") },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { isPositionPickerOpen = true },
-                        readOnly = true,
-                    )
-                    TextButton(
-                        onClick = { isPositionPickerOpen = true },
-                        modifier = Modifier.fillMaxWidth(),
-                    ) {
-                        Text("Wybierz stanowisko z listy")
+                    Box(modifier = Modifier.fillMaxWidth()) {
+                        OutlinedTextField(
+                            value = selectedPosition,
+                            onValueChange = {},
+                            label = { Text("Stanowisko *") },
+                            modifier = Modifier.fillMaxWidth(),
+                            readOnly = true,
+                        )
+                        Box(
+                            modifier = Modifier
+                                .matchParentSize()
+                                .clickable { isPositionPickerOpen = true },
+                        )
                     }
                 }
                 if (mode == ContactDialogMode.Employee) {
