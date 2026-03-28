@@ -746,6 +746,65 @@ class LocalAdminRepository(
         return orderId
     }
 
+    override suspend fun createClothesOrderFromSelections(
+        draft: ClothesOrderDraft,
+        workerPartQuantities: Map<Long, Map<String, Int>>,
+    ): Long? {
+        val selectedWorkers = dao.observeWorkers().first().filter { it.id in workerPartQuantities.keys }
+        if (selectedWorkers.isEmpty()) return null
+
+        val sizeByWorker = dao.observeClothesSizes().first().associateBy {
+            "${it.name.trim().lowercase()}|${it.surname.trim().lowercase()}"
+        }
+        val inferredPlant = selectedWorkers.map { it.plant.trim() }.filter { it.isNotBlank() }.distinct().singleOrNull().orEmpty()
+        val date = draft.date.ifBlank { LocalDate.now().toString() }
+        val plant = draft.plant.trim().ifBlank { inferredPlant }
+        val description = draft.orderDesc.trim().ifBlank { "$plant • $date" }
+
+        val orderId = dao.upsertClothesOrder(
+            ClothesOrderEntity(
+                id = 0,
+                date = date,
+                plant = plant,
+                status = draft.status.trim().ifBlank { "Zamówione" },
+                orderDesc = description,
+            ),
+        )
+
+        val items = buildList {
+            selectedWorkers.forEach { worker ->
+                val quantities = workerPartQuantities[worker.id].orEmpty()
+                val size = sizeByWorker["${worker.name.trim().lowercase()}|${worker.surname.trim().lowercase()}"]
+                fun addItem(label: String, itemSize: String, qty: Int) {
+                    if (qty <= 0) return
+                    add(
+                        ClothesOrderItemEntity(
+                            orderId = orderId,
+                            workerId = worker.id,
+                            name = worker.name.trim(),
+                            surname = worker.surname.trim(),
+                            item = label,
+                            size = itemSize,
+                            qty = qty,
+                            issued = 0,
+                        ),
+                    )
+                }
+                addItem("Koszulka", size?.shirt.orEmpty(), quantities["Koszulka"] ?: 0)
+                addItem("Bluza", size?.hoodie.orEmpty(), quantities["Bluza"] ?: 0)
+                addItem("Spodnie", size?.pants.orEmpty(), quantities["Spodnie"] ?: 0)
+                addItem("Kurtka", size?.jacket.orEmpty(), quantities["Kurtka"] ?: 0)
+                addItem("Buty", size?.shoes.orEmpty(), quantities["Buty"] ?: 0)
+            }
+        }
+        if (items.isEmpty()) {
+            dao.deleteClothesOrder(orderId)
+            return null
+        }
+        dao.upsertClothesOrderItems(items)
+        return orderId
+    }
+
     override suspend fun deleteClothesOrderItem(id: Long) {
         val item = dao.getClothesOrderItem(id)
         dao.deleteClothesOrderItem(id)
