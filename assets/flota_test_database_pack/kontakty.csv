@@ -1,0 +1,5 @@
+Imię,Nazwisko,Email,PESEL,Telefon,Zakład,Mieszkanie,Notatki
+Jan,Kowalski,jan.kowalski@test.local,90010112345,600100200,Zakład Północ,A1/2,kierowca testowy
+Anna,Nowak,anna.nowak@test.local,92020254321,600200300,Zakład Południe,B3/1,kadry
+Piotr,Zieliński,piotr.zielinski@test.local,85050567890,600300400,Zakład Północ,C2/7,magazyn
+Maria,Wiśniewska,maria.wisniewska@test.local,87070711223,600400500,Zakład Zachód,D5/4,brygadzistka

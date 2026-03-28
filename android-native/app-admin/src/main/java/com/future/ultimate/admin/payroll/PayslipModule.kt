@@ -76,11 +76,19 @@ class PayslipMapper {
     }
 
     private fun mapColumns(headers: List<String>): ColumnIndex {
-        val normalized = headers.map { it.trim().lowercase() }
-        val nameIdx = normalized.indexOfFirst { it.contains("imi") || it == "name" }.takeIf { it >= 0 } ?: 0
-        val surnameIdx = normalized.indexOfFirst { it.contains("nazw") || it == "surname" || it == "last name" }.takeIf { it >= 0 } ?: 1
-        val peselIdx = normalized.indexOfFirst { it.contains("pesel") }.takeIf { it >= 0 }
-        val emailIdx = normalized.indexOfFirst { it.contains("mail") || it.contains("e-mail") }.takeIf { it >= 0 }
+        val normalized = headers.map(::normalizeHeader)
+        val nameIdx = normalized.indexOfFirst {
+            it.contains("imie") || it.contains("name") || it.contains("firstname") || it.contains("first")
+        }.takeIf { it >= 0 } ?: 0
+        val surnameIdx = normalized.indexOfFirst {
+            it.contains("nazwisko") || it.contains("surname") || it.contains("lastname") || it.contains("last")
+        }.takeIf { it >= 0 } ?: 1
+        val peselIdx = normalized.indexOfFirst {
+            it.contains("pesel") || it.contains("nrpesel") || it.contains("numerpesel")
+        }.takeIf { it >= 0 }
+        val emailIdx = normalized.indexOfFirst {
+            it.contains("email") || it.contains("mail")
+        }.takeIf { it >= 0 }
         return ColumnIndex(
             nameIdx = nameIdx,
             surnameIdx = surnameIdx,
@@ -88,6 +96,20 @@ class PayslipMapper {
             emailIdx = emailIdx,
         )
     }
+
+    private fun normalizeHeader(value: String): String = value
+        .trim()
+        .lowercase()
+        .replace("ą", "a")
+        .replace("ć", "c")
+        .replace("ę", "e")
+        .replace("ł", "l")
+        .replace("ń", "n")
+        .replace("ó", "o")
+        .replace("ś", "s")
+        .replace("ż", "z")
+        .replace("ź", "z")
+        .replace(Regex("[^a-z0-9]"), "")
 }
 
 class PayslipFilter {
@@ -120,7 +142,9 @@ class EmailResolver {
     fun resolve(row: PayslipRow, contacts: List<ContactListItem>): String? {
         val normalizedPesel = row.pesel.orEmpty().trim()
         if (normalizedPesel.isNotBlank()) {
-            val byPesel = contacts.firstOrNull { it.notes.contains(normalizedPesel, ignoreCase = true) }?.email?.trim()
+            val byPesel = contacts.firstOrNull { contact ->
+                contact.pesel.filter(Char::isDigit) == normalizedPesel.filter(Char::isDigit)
+            }?.email?.trim()
             if (!byPesel.isNullOrBlank()) return byPesel
         }
         val byName = contacts.firstOrNull {

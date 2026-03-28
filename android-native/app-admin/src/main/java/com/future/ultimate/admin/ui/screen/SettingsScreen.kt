@@ -71,7 +71,7 @@ fun SettingsScreen(
         item {
             SectionCard(
                 title = "Stan danych lokalnych",
-                subtitle = "Szybki przegląd rekordów zapisanych w bazie urządzenia.",
+                subtitle = "Szybki przegląd rekordów zapisanych lokalnie. Dane admin nie synchronizują się automatycznie między urządzeniami.",
             ) {
                 Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     Text("Kontakty: ${uiState.stats.contactCount} • Pracownicy: ${uiState.stats.workerCount}")
@@ -84,7 +84,7 @@ fun SettingsScreen(
         item {
             SectionCard(
                 title = "Integracja kierowców",
-                subtitle = "APK admin działa domyślnie na stałym endpointcie. Edycja jest ukryta za hasłem serwisowym.",
+                subtitle = "Sekcja dotyczy endpointu kierowców (logi/przebiegi), a nie pełnej synchronizacji danych admin między urządzeniami.",
             ) {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Text("Aktywny endpoint APK admin: ${uiState.remoteSettings.apiUrl}")

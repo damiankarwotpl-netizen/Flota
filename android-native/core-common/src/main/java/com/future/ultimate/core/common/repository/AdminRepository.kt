@@ -44,6 +44,7 @@ data class CarListItem(
     val remoteDriverSyncAt: String = "",
     val remoteDriverSyncStatus: String = "",
     val remoteDriverSyncError: String = "",
+    val driverAccounts: List<DriverAccountListItem> = emptyList(),
 ) {
     val remainingToService: Int
         get() = serviceInterval - (mileage - lastService)
@@ -51,6 +52,15 @@ data class CarListItem(
     val nextInspectionDate: String
         get() = lastInspectionDate.toLocalDateOrNull()?.plusYears(1)?.toString().orEmpty()
 }
+
+data class DriverAccountListItem(
+    val driverName: String = "",
+    val login: String = "",
+    val password: String = "",
+    val changePasswordRequired: Boolean = false,
+    val licenseType: String = "",
+    val licenseValidUntil: String = "",
+)
 
 private fun String.toLocalDateOrNull(): LocalDate? = runCatching { LocalDate.parse(this) }.getOrNull()
 
