@@ -1761,21 +1761,35 @@ class ClothesOrdersViewModel(private val repository: AdminRepository) : ViewMode
         }.launchIn(viewModelScope)
     }
 
-    fun createOrderFromSelections(partsByWorker: Map<Long, Set<String>>) = viewModelScope.launch {
+    fun createOrderFromSelections(
+        workerPartQuantities: Map<Long, Map<String, Int>>,
+        plant: String,
+    ) = viewModelScope.launch {
         val state = _uiState.value
+        if (plant.isBlank()) {
+            _uiState.value = state.copy(actionMessage = "Wybierz zakład")
+            return@launch
+        }
         if (state.selectedWorkerIds.isEmpty()) {
             _uiState.value = state.copy(actionMessage = "Wybierz co najmniej jednego pracownika")
             return@launch
         }
-        val scopedSelections = state.selectedWorkerIds.associateWith { partsByWorker[it].orEmpty() }
-        if (scopedSelections.values.all { it.isEmpty() }) {
-            _uiState.value = state.copy(actionMessage = "Wybierz przynajmniej jedną część ubrania")
+        val scopedQuantities = state.selectedWorkerIds.associateWith { workerPartQuantities[it].orEmpty() }
+        val hasAnyQuantity = scopedQuantities.values.any { quantities -> quantities.values.any { it > 0 } }
+        if (!hasAnyQuantity) {
+            _uiState.value = state.copy(actionMessage = "Podaj ilość większą od zera dla przynajmniej jednej części")
             return@launch
         }
+        val date = LocalDate.now().toString()
         _uiState.value = state.copy(isCreatingStarterOrder = true, actionMessage = null)
         val orderId = repository.createClothesOrderFromSelections(
-            draft = state.editor.copy(status = "Zamówione"),
-            workerParts = scopedSelections,
+            draft = state.editor.copy(
+                date = date,
+                plant = plant,
+                status = "Zamówione",
+                orderDesc = "$plant • $date",
+            ),
+            workerPartQuantities = scopedQuantities,
         )
         if (orderId == null) {
             _uiState.value = _uiState.value.copy(
@@ -1789,11 +1803,6 @@ class ClothesOrdersViewModel(private val repository: AdminRepository) : ViewMode
             editor = ClothesOrderDraft(),
             workerQuery = "",
             selectedWorkerIds = emptySet(),
-            shirtQty = "1",
-            hoodieQty = "1",
-            pantsQty = "1",
-            jacketQty = "1",
-            shoesQty = "1",
             actionMessage = "Utworzono zamówienie #$orderId",
             selectedOrderId = orderId,
             selectedOrderItems = emptyList(),
@@ -1803,13 +1812,6 @@ class ClothesOrdersViewModel(private val repository: AdminRepository) : ViewMode
             importPreview = emptyList(),
             itemEditor = ClothesOrderItemDraft(),
         )
-        orderItemsJob?.cancel()
-        orderItemsJob = repository.observeClothesOrderItems(orderId).onEach { items ->
-            _uiState.value = _uiState.value.copy(
-                selectedOrderItems = items,
-                selectedOrderSummary = buildOrderSummary(items),
-            )
-        }.launchIn(viewModelScope)
     }
 
     fun toggleOrderSelection(orderId: Long) {

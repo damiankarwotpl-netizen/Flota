@@ -10,6 +10,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedTextField
@@ -25,6 +26,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.input.KeyboardOptions
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -36,11 +39,17 @@ import com.future.ultimate.admin.ui.viewmodel.AdminViewModelFactory
 import com.future.ultimate.admin.ui.viewmodel.ClothesReportsViewModel
 import com.future.ultimate.admin.ui.viewmodel.ClothesSizesViewModel
 import com.future.ultimate.core.common.model.ClothesSizeDraft
+import java.time.LocalDate
 
 @Composable
 fun ClothesScreen() {
     val selected = remember { mutableIntStateOf(0) }
     val ordersTab = remember { mutableIntStateOf(0) }
+    val clothingParts = remember { listOf("Koszulka", "Bluza", "Spodnie", "Kurtka", "Buty") }
+    var orderPlantPickerOpen by remember { mutableStateOf(false) }
+    var orderFlowStep by remember { mutableIntStateOf(0) }
+    var globalPartQuantities by remember { mutableStateOf(clothingParts.associateWith { "1" }) }
+    var workerPartQuantities by remember { mutableStateOf<Map<Long, Map<String, String>>>(emptyMap()) }
     var isSizeDialogOpen by remember { mutableStateOf(false) }
     val tabs = listOf("Rozmiary", "Zamówienia", "Raporty")
     val app = LocalContext.current.applicationContext as AdminApp
@@ -80,10 +89,36 @@ fun ClothesScreen() {
                     1 -> {
                         TabRow(selectedTabIndex = ordersTab.intValue) {
                             listOf("Nowe zamówienie", "Oczekujące", "Do wydania").forEachIndexed { index, title ->
-                                Tab(selected = ordersTab.intValue == index, onClick = { ordersTab.intValue = index }, text = { Text(title) })
+                                Tab(
+                                    selected = ordersTab.intValue == index,
+                                    onClick = {
+                                        ordersTab.intValue = index
+                                        if (index == 0) {
+                                            orderFlowStep = 0
+                                        }
+                                    },
+                                    text = { Text(title) },
+                                )
                             }
                         }
-                        Text("Logika zamówień została wyłączona. Zostawiono tylko układ zakładek.")
+                        if (ordersTab.intValue == 0) {
+                            OutlinedTextField(
+                                value = ordersUiState.editor.plant,
+                                onValueChange = {},
+                                label = { Text("Zakład") },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable { orderPlantPickerOpen = true },
+                                readOnly = true,
+                            )
+                            TextButton(onClick = { orderPlantPickerOpen = true }, modifier = Modifier.fillMaxWidth()) {
+                                Text("Wybierz zakład z listy")
+                            }
+                            if (ordersUiState.editor.plant.isNotBlank()) {
+                                Text("Wybrany zakład: ${ordersUiState.editor.plant}")
+                            }
+                            ordersUiState.actionMessage?.let { Text(it) }
+                        }
                     }
                     else -> {
                         Button(onClick = reportsViewModel::exportCsv, modifier = Modifier.fillMaxWidth()) {
@@ -137,23 +172,6 @@ fun ClothesScreen() {
                                             imageVector = Icons.Rounded.Edit,
                                             contentDescription = "Edytuj rozmiar",
                                         )
-                                        if (worker.id in ordersUiState.selectedWorkerIds) {
-                                            val selectedParts = workerPartSelections[worker.id].orEmpty()
-                                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                                clothingParts.forEach { part ->
-                                                    Button(
-                                                        onClick = {
-                                                            val current = workerPartSelections[worker.id].orEmpty()
-                                                            val updated = if (part in current) current - part else current + part
-                                                            workerPartSelections = workerPartSelections + (worker.id to updated)
-                                                        },
-                                                        modifier = Modifier.weight(1f),
-                                                    ) {
-                                                        Text(if (part in selectedParts) "✓" else part.take(3))
-                                                    }
-                                                }
-                                            }
-                                        }
                                     }
                                 }
                                 Text("Koszulka: ${itemData.shirt} • Bluza: ${itemData.hoodie}")
@@ -165,12 +183,155 @@ fun ClothesScreen() {
                 }
             }
             1 -> {
-                item {
-                    SectionCard(title = "Zamówienia") {
-                        when (ordersTab.intValue) {
-                            0 -> Text("Nowe zamówienie — w przygotowaniu.")
-                            1 -> Text("Oczekujące — w przygotowaniu.")
-                            else -> Text("Do wydania — w przygotowaniu.")
+                when (ordersTab.intValue) {
+                    0 -> {
+                        val selectedPlant = ordersUiState.editor.plant.trim()
+                        val plantWorkers = ordersUiState.availableWorkers.filter { worker ->
+                            selectedPlant.isNotBlank() && worker.plant.trim().equals(selectedPlant, ignoreCase = true)
+                        }
+                        item {
+                            SectionCard(title = "Krok 1 • Wybór pracowników") {
+                                if (selectedPlant.isBlank()) {
+                                    Text("Najpierw wybierz zakład.")
+                                } else if (plantWorkers.isEmpty()) {
+                                    Text("Brak pracowników przypisanych do zakładu: $selectedPlant")
+                                } else {
+                                    plantWorkers.forEach { worker ->
+                                        Row(modifier = Modifier.fillMaxWidth()) {
+                                            Checkbox(
+                                                checked = worker.id in ordersUiState.selectedWorkerIds,
+                                                onCheckedChange = { ordersViewModel.toggleWorkerSelection(worker.id) },
+                                            )
+                                            Column(modifier = Modifier.weight(1f).padding(top = 12.dp)) {
+                                                Text("${worker.name} ${worker.surname}")
+                                                Text(worker.plant.ifBlank { "Bez zakładu" })
+                                            }
+                                        }
+                                    }
+                                    Button(
+                                        onClick = { orderFlowStep = 1 },
+                                        enabled = ordersUiState.selectedWorkerIds.isNotEmpty(),
+                                        modifier = Modifier.fillMaxWidth(),
+                                    ) {
+                                        Text("Dalej")
+                                    }
+                                }
+                            }
+                        }
+
+                        if (orderFlowStep == 1 && ordersUiState.selectedWorkerIds.isNotEmpty()) {
+                            item {
+                                SectionCard(title = "Krok 2 • Co i ile zamówić") {
+                                    Text("Ilości dla wszystkich wybranych pracowników")
+                                    clothingParts.forEach { part ->
+                                        OutlinedTextField(
+                                            value = globalPartQuantities[part].orEmpty(),
+                                            onValueChange = { value ->
+                                                globalPartQuantities = globalPartQuantities + (part to value.filter(Char::isDigit))
+                                            },
+                                            label = { Text("$part (globalnie)") },
+                                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                            modifier = Modifier.fillMaxWidth(),
+                                        )
+                                    }
+                                    Button(
+                                        onClick = {
+                                            val selected = ordersUiState.selectedWorkerIds
+                                            workerPartQuantities = selected.associateWith { workerId ->
+                                                val existing = workerPartQuantities[workerId].orEmpty()
+                                                clothingParts.associateWith { part ->
+                                                    existing[part] ?: globalPartQuantities[part].orEmpty()
+                                                }
+                                            }
+                                        },
+                                        modifier = Modifier.fillMaxWidth(),
+                                    ) {
+                                        Text("Ustaw ilości globalne dla zaznaczonych")
+                                    }
+                                }
+                            }
+                            val selectedWorkers = plantWorkers.filter { it.id in ordersUiState.selectedWorkerIds }
+                            selectedWorkers.forEach { worker ->
+                                item {
+                                    SectionCard(title = "${worker.name} ${worker.surname}") {
+                                        clothingParts.forEach { part ->
+                                            OutlinedTextField(
+                                                value = workerPartQuantities[worker.id]?.get(part) ?: globalPartQuantities[part].orEmpty(),
+                                                onValueChange = { value ->
+                                                    val digits = value.filter(Char::isDigit)
+                                                    val current = workerPartQuantities[worker.id].orEmpty()
+                                                    workerPartQuantities = workerPartQuantities + (worker.id to (current + (part to digits)))
+                                                },
+                                                label = { Text("$part (ilość)") },
+                                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                                modifier = Modifier.fillMaxWidth(),
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                            item {
+                                SectionCard {
+                                    Button(
+                                        onClick = {
+                                            val payload = ordersUiState.selectedWorkerIds.associateWith { workerId ->
+                                                clothingParts.associateWith { part ->
+                                                    workerPartQuantities[workerId]?.get(part)?.toIntOrNull()
+                                                        ?: globalPartQuantities[part].orEmpty().toIntOrNull()
+                                                        ?: 0
+                                                }
+                                            }
+                                            ordersViewModel.createOrderFromSelections(payload, selectedPlant)
+                                            ordersTab.intValue = 1
+                                            orderFlowStep = 0
+                                            workerPartQuantities = emptyMap()
+                                            globalPartQuantities = clothingParts.associateWith { "1" }
+                                        },
+                                        enabled = !ordersUiState.isCreatingStarterOrder,
+                                        modifier = Modifier.fillMaxWidth(),
+                                    ) {
+                                        Text(if (ordersUiState.isCreatingStarterOrder) "Generowanie..." else "Generuj zamówienie")
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    1 -> {
+                        val waitingOrders = ordersUiState.items.filter { it.status.trim().lowercase() == "zamówione" }
+                        if (waitingOrders.isEmpty()) {
+                            item { SectionCard { Text("Brak zamówień oczekujących.") } }
+                        } else {
+                            waitingOrders.forEach { order ->
+                                item {
+                                    SectionCard(title = order.orderDesc.ifBlank { "${order.plant} • ${order.date}" }) {
+                                        Text("Zakład: ${order.plant.ifBlank { "-" }}")
+                                        Text("Data: ${order.date}")
+                                        Text("Status: ${order.status}")
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    else -> {
+                        val issueOrders = ordersUiState.items.filter { order ->
+                            val normalized = order.status.trim().lowercase()
+                            normalized == "częściowo wydane" || normalized == "wydane"
+                        }
+                        if (issueOrders.isEmpty()) {
+                            item { SectionCard { Text("Brak zamówień do wydania.") } }
+                        } else {
+                            issueOrders.forEach { order ->
+                                item {
+                                    SectionCard(title = order.orderDesc.ifBlank { "${order.plant} • ${order.date}" }) {
+                                        Text("Zakład: ${order.plant.ifBlank { "-" }}")
+                                        Text("Data: ${order.date}")
+                                        Text("Status: ${order.status}")
+                                    }
+                                }
+                                Text("Koszulka: ${itemData.shirt} • Bluza: ${itemData.hoodie}")
+                                Text("Spodnie: ${itemData.pants} • Kurtka: ${itemData.jacket} • Buty: ${itemData.shoes}")
+                                Button(onClick = { sizesViewModel.delete(itemData.id) }, modifier = Modifier.fillMaxWidth()) { Text("Usuń rozmiar") }
+                            }
                         }
                     }
                 }
@@ -215,6 +376,44 @@ fun ClothesScreen() {
             onSave = {
                 sizesViewModel.save()
                 isSizeDialogOpen = false
+            },
+        )
+    }
+
+    if (orderPlantPickerOpen) {
+        AlertDialog(
+            onDismissRequest = { orderPlantPickerOpen = false },
+            title = { Text("Wybierz zakład") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    ordersUiState.availableWorkers
+                        .map { it.plant.trim() }
+                        .filter { it.isNotBlank() }
+                        .distinct()
+                        .sorted()
+                        .forEach { plant ->
+                            Button(
+                                onClick = {
+                                    ordersViewModel.updateEditor(
+                                        ordersUiState.editor.copy(
+                                            plant = plant,
+                                            date = LocalDate.now().toString(),
+                                        ),
+                                    )
+                                    ordersViewModel.clearStarterSelection()
+                                    orderFlowStep = 0
+                                    workerPartQuantities = emptyMap()
+                                    orderPlantPickerOpen = false
+                                },
+                                modifier = Modifier.fillMaxWidth(),
+                            ) {
+                                Text(plant)
+                            }
+                        }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { orderPlantPickerOpen = false }) { Text("Zamknij") }
             },
         )
     }
