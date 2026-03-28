@@ -136,6 +136,7 @@ fun ContactsScreen() {
                         item {
                             ContactCard(
                                 contact = contact,
+                                showWorkplace = true,
                                 onCall = { openDialer(context, contact.phone) },
                                 onWhatsApp = { openWhatsApp(context, contact.phone) },
                                 onEmail = { openEmail(context, contact.email) },
@@ -162,6 +163,7 @@ fun ContactsScreen() {
                         item {
                             ContactCard(
                                 contact = contact,
+                                showWorkplace = false,
                                 onCall = { openDialer(context, contact.phone) },
                                 onWhatsApp = { openWhatsApp(context, contact.phone) },
                                 onEmail = { openEmail(context, contact.email) },
@@ -279,6 +281,7 @@ private enum class ContactDialogMode {
 @Composable
 private fun ContactCard(
     contact: ContactListItem,
+    showWorkplace: Boolean = true,
     onCall: () -> Unit,
     onWhatsApp: () -> Unit,
     onEmail: () -> Unit,
@@ -301,7 +304,9 @@ private fun ContactCard(
                 )
             }
         }
-        Text("Zakład: ${contact.workplace.ifBlank { "Brak przypisanego zakładu" }}")
+        if (showWorkplace) {
+            Text("Zakład: ${contact.workplace.ifBlank { "Brak przypisanego zakładu" }}")
+        }
         if (contact.pesel.isNotBlank()) {
             Text("PESEL: ${contact.pesel}")
         }
