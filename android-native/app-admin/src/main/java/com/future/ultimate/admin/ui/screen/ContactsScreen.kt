@@ -38,7 +38,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -390,6 +391,7 @@ private fun AddContactDialog(
     }
     var isPlantPickerOpen by remember { mutableStateOf(false) }
     var isPositionPickerOpen by remember { mutableStateOf(false) }
+    val focusManager = LocalFocusManager.current
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -436,8 +438,11 @@ private fun AddContactDialog(
                         label = { Text(if (mode == ContactDialogMode.Plant) "Nazwa zakładu *" else "Zakład") },
                         modifier = Modifier
                             .fillMaxWidth()
-                            .pointerInput(Unit) {
-                                detectTapGestures(onTap = { isPlantPickerOpen = true })
+                            .onFocusChanged { state ->
+                                if (state.isFocused) {
+                                    isPlantPickerOpen = true
+                                    focusManager.clearFocus(force = true)
+                                }
                             },
                         readOnly = true,
                     )
@@ -450,8 +455,11 @@ private fun AddContactDialog(
                         label = { Text("Stanowisko *") },
                         modifier = Modifier
                             .fillMaxWidth()
-                            .pointerInput(Unit) {
-                                detectTapGestures(onTap = { isPositionPickerOpen = true })
+                            .onFocusChanged { state ->
+                                if (state.isFocused) {
+                                    isPositionPickerOpen = true
+                                    focusManager.clearFocus(force = true)
+                                }
                             },
                         readOnly = true,
                     )

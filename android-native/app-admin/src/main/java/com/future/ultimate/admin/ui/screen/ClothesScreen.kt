@@ -31,7 +31,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -60,6 +61,7 @@ fun ClothesScreen() {
     var isSizeDialogOpen by remember { mutableStateOf(false) }
     val tabs = listOf("Rozmiary", "Zamówienia", "Raporty")
     val app = LocalContext.current.applicationContext as AdminApp
+    val focusManager = LocalFocusManager.current
     val sizesViewModel: ClothesSizesViewModel = viewModel(factory = AdminViewModelFactory(app.container.repository))
     val sizesUiState by sizesViewModel.uiState.collectAsStateWithLifecycle()
     val ordersViewModel: ClothesOrdersViewModel = viewModel(factory = AdminViewModelFactory(app.container.repository))
@@ -117,8 +119,11 @@ fun ClothesScreen() {
                                 label = { Text("Zakład") },
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .pointerInput(Unit) {
-                                        detectTapGestures(onTap = { orderPlantPickerOpen = true })
+                                    .onFocusChanged { state ->
+                                        if (state.isFocused) {
+                                            orderPlantPickerOpen = true
+                                            focusManager.clearFocus(force = true)
+                                        }
                                     },
                                 readOnly = true,
                             )
@@ -575,14 +580,18 @@ private fun SizeSelectField(
     value: String,
     onOpenPicker: () -> Unit,
 ) {
+    val focusManager = LocalFocusManager.current
     OutlinedTextField(
         value = value,
         onValueChange = {},
         label = { Text(label) },
         modifier = Modifier
             .fillMaxWidth()
-            .pointerInput(Unit) {
-                detectTapGestures(onTap = { onOpenPicker() })
+            .onFocusChanged { state ->
+                if (state.isFocused) {
+                    onOpenPicker()
+                    focusManager.clearFocus(force = true)
+                }
             },
         readOnly = true,
     )
