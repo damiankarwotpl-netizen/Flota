@@ -53,8 +53,8 @@ fun ContactsScreen() {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     var isDialogOpen by remember { mutableStateOf(false) }
     var editedContact by remember { mutableStateOf<ContactListItem?>(null) }
+    var dialogMode by remember { mutableStateOf(ContactDialogMode.Employee) }
     val selectedTab = remember { mutableIntStateOf(0) }
-    val selectedFutureSubTab = remember { mutableIntStateOf(0) }
 
     val searchableContacts = remember(uiState.items, uiState.query) {
         uiState.items.filter {
@@ -64,12 +64,6 @@ fun ContactsScreen() {
     }
     val employeeContacts = remember(searchableContacts) { searchableContacts.filter(::isEmployeeContact) }
     val futureContacts = remember(searchableContacts) { searchableContacts.filter(::isFutureContact) }
-    val futureFiltered = remember(futureContacts, selectedFutureSubTab.intValue) {
-        when (selectedFutureSubTab.intValue) {
-            0 -> futureContacts.filter(::isKadryContact)
-            else -> futureContacts.filter(::isBrygadzistaContact)
-        }
-    }
     val plantContacts = remember(searchableContacts) { searchableContacts.filter { it.workplace.isNotBlank() } }
 
     ScreenColumn("Kontakty", "Szukaj kontaktów i wykonuj szybkie akcje bez opuszczania listy.") {
@@ -106,6 +100,11 @@ fun ContactsScreen() {
                         onClick = {
                             viewModel.updateEditor(ContactDraft())
                             editedContact = null
+                            dialogMode = when (selectedTab.intValue) {
+                                1 -> ContactDialogMode.Future
+                                2 -> ContactDialogMode.Plant
+                                else -> ContactDialogMode.Employee
+                            }
                             isDialogOpen = true
                         },
                         modifier = Modifier.size(42.dp),
@@ -140,6 +139,7 @@ fun ContactsScreen() {
                                 onEmail = { openEmail(context, contact.email) },
                                 onEdit = {
                                     editedContact = contact
+                                    dialogMode = ContactDialogMode.Employee
                                     viewModel.updateEditor(contact.toDraft())
                                     isDialogOpen = true
                                 },
@@ -149,25 +149,14 @@ fun ContactsScreen() {
                 }
             }
             1 -> {
-                item {
-                    TabRow(selectedTabIndex = selectedFutureSubTab.intValue) {
-                        listOf("Kadry", "Brygadziści").forEachIndexed { index, title ->
-                            Tab(
-                                selected = selectedFutureSubTab.intValue == index,
-                                onClick = { selectedFutureSubTab.intValue = index },
-                                text = { Text(title) },
-                            )
-                        }
-                    }
-                }
-                if (futureFiltered.isEmpty()) {
+                if (futureContacts.isEmpty()) {
                     item {
                         SectionCard {
-                            Text("Brak kontaktów Future w wybranej zakładce.")
+                            Text("Brak kontaktów Future.")
                         }
                     }
                 } else {
-                    futureFiltered.forEach { contact ->
+                    futureContacts.forEach { contact ->
                         item {
                             ContactCard(
                                 contact = contact,
@@ -176,6 +165,7 @@ fun ContactsScreen() {
                                 onEmail = { openEmail(context, contact.email) },
                                 onEdit = {
                                     editedContact = contact
+                                    dialogMode = ContactDialogMode.Future
                                     viewModel.updateEditor(contact.toDraft())
                                     isDialogOpen = true
                                 },
@@ -216,6 +206,7 @@ fun ContactsScreen() {
             draft = uiState.editor,
             isSaving = uiState.isSaving,
             isEditing = editedContact != null,
+            mode = dialogMode,
             plantSuggestions = uiState.plantSuggestions,
             onDraftChange = viewModel::updateEditor,
             onDismiss = {
@@ -230,6 +221,12 @@ fun ContactsScreen() {
             },
         )
     }
+}
+
+private enum class ContactDialogMode {
+    Employee,
+    Future,
+    Plant,
 }
 
 @Composable
@@ -321,12 +318,17 @@ private fun AddContactDialog(
     draft: ContactDraft,
     isSaving: Boolean,
     isEditing: Boolean,
+    mode: ContactDialogMode,
     plantSuggestions: List<String>,
     onDraftChange: (ContactDraft) -> Unit,
     onDismiss: () -> Unit,
     onSave: () -> Unit,
 ) {
-    val isSaveEnabled = draft.name.isNotBlank() && draft.surname.isNotBlank() && draft.phone.isNotBlank()
+    val isSaveEnabled = when (mode) {
+        ContactDialogMode.Future -> draft.name.isNotBlank() && draft.surname.isNotBlank() && draft.phone.isNotBlank() && draft.email.isNotBlank()
+        ContactDialogMode.Plant -> draft.workplace.isNotBlank() && draft.name.isNotBlank() && draft.surname.isNotBlank() && draft.phone.isNotBlank() && draft.email.isNotBlank()
+        ContactDialogMode.Employee -> draft.name.isNotBlank() && draft.surname.isNotBlank() && draft.phone.isNotBlank()
+    }
     var isPlantPickerOpen by remember { mutableStateOf(false) }
 
     AlertDialog(
@@ -357,48 +359,52 @@ private fun AddContactDialog(
                 OutlinedTextField(
                     value = draft.phone,
                     onValueChange = { onDraftChange(draft.copy(phone = it)) },
-                    label = { Text("Telefon *") },
+                    label = { Text(if (mode == ContactDialogMode.Employee) "Telefon *" else "Telefon") },
                     modifier = Modifier.fillMaxWidth(),
                 )
                 OutlinedTextField(
                     value = draft.email,
                     onValueChange = { onDraftChange(draft.copy(email = it)) },
-                    label = { Text("Email") },
+                    label = { Text(if (mode == ContactDialogMode.Employee) "Email" else "Email *") },
                     modifier = Modifier.fillMaxWidth(),
                 )
-                OutlinedTextField(
-                    value = draft.pesel,
-                    onValueChange = { onDraftChange(draft.copy(pesel = it)) },
-                    label = { Text("PESEL") },
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                OutlinedTextField(
-                    value = draft.workplace,
-                    onValueChange = {},
-                    label = { Text("Zakład") },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { isPlantPickerOpen = true },
-                    readOnly = true,
-                )
-                TextButton(
-                    onClick = { isPlantPickerOpen = true },
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Text("Wybierz zakład z listy")
+                if (mode == ContactDialogMode.Plant || mode == ContactDialogMode.Employee) {
+                    OutlinedTextField(
+                        value = draft.workplace,
+                        onValueChange = {},
+                        label = { Text(if (mode == ContactDialogMode.Plant) "Nazwa zakładu *" else "Zakład") },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { isPlantPickerOpen = true },
+                        readOnly = true,
+                    )
+                    TextButton(
+                        onClick = { isPlantPickerOpen = true },
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text("Wybierz zakład z listy")
+                    }
                 }
-                OutlinedTextField(
-                    value = draft.apartment,
-                    onValueChange = { onDraftChange(draft.copy(apartment = it)) },
-                    label = { Text("Mieszkanie") },
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                OutlinedTextField(
-                    value = draft.notes,
-                    onValueChange = { onDraftChange(draft.copy(notes = it)) },
-                    label = { Text("Uwagi") },
-                    modifier = Modifier.fillMaxWidth(),
-                )
+                if (mode == ContactDialogMode.Employee) {
+                    OutlinedTextField(
+                        value = draft.pesel,
+                        onValueChange = { onDraftChange(draft.copy(pesel = it)) },
+                        label = { Text("PESEL") },
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    OutlinedTextField(
+                        value = draft.apartment,
+                        onValueChange = { onDraftChange(draft.copy(apartment = it)) },
+                        label = { Text("Mieszkanie") },
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    OutlinedTextField(
+                        value = draft.notes,
+                        onValueChange = { onDraftChange(draft.copy(notes = it)) },
+                        label = { Text("Uwagi") },
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
             }
         },
         confirmButton = {
@@ -422,7 +428,7 @@ private fun AddContactDialog(
         },
     )
 
-    if (isPlantPickerOpen) {
+    if (isPlantPickerOpen && (mode == ContactDialogMode.Plant || mode == ContactDialogMode.Employee)) {
         AlertDialog(
             onDismissRequest = { isPlantPickerOpen = false },
             title = { Text("Wybierz zakład", fontWeight = FontWeight.Bold) },
@@ -513,13 +519,3 @@ private fun isFutureContact(contact: ContactListItem): Boolean {
 }
 
 private fun isEmployeeContact(contact: ContactListItem): Boolean = !isFutureContact(contact)
-
-private fun isKadryContact(contact: ContactListItem): Boolean {
-    val blob = "${contact.workplace} ${contact.notes}".lowercase()
-    return "kadry" in blob || "hr" in blob
-}
-
-private fun isBrygadzistaContact(contact: ContactListItem): Boolean {
-    val blob = "${contact.workplace} ${contact.notes}".lowercase()
-    return "bryg" in blob || !isKadryContact(contact)
-}
