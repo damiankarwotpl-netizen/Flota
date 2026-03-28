@@ -12,12 +12,12 @@ Daemon will be stopped at the end of the build
 > Task :core-common:preDebugBuild UP-TO-DATE
 > Task :core-database:preBuild UP-TO-DATE
 > Task :core-database:preDebugBuild UP-TO-DATE
+> Task :app-admin:generateDebugResValues
 > Task :core-common:writeDebugAarMetadata
 > Task :core-database:writeDebugAarMetadata
-> Task :app-admin:generateDebugResValues
 > Task :core-common:generateDebugResValues
-> Task :app-admin:checkDebugAarMetadata
 > Task :core-common:generateDebugResources
+> Task :app-admin:checkDebugAarMetadata
 > Task :core-common:packageDebugResources
 > Task :core-database:generateDebugResValues
 > Task :core-database:generateDebugResources
@@ -32,21 +32,21 @@ Daemon will be stopped at the end of the build
 > Task :core-database:extractDeepLinksDebug
 > Task :app-admin:parseDebugLocalResources
 > Task :core-common:compileDebugLibraryResources
-> Task :core-common:parseDebugLocalResources
 > Task :core-database:compileDebugLibraryResources
+> Task :core-common:parseDebugLocalResources
+> Task :core-database:parseDebugLocalResources
 > Task :core-database:processDebugManifest
 > Task :core-common:processDebugManifest
 > Task :core-common:generateDebugRFile
 > Task :app-admin:processDebugMainManifest
 > Task :app-admin:processDebugManifest
 > Task :core-common:checkKotlinGradlePluginConfigurationErrors SKIPPED
-> Task :core-database:parseDebugLocalResources
-> Task :app-admin:processDebugManifestForPackage
-> Task :core-database:checkKotlinGradlePluginConfigurationErrors SKIPPED
 > Task :core-database:generateDebugRFile
+> Task :core-database:checkKotlinGradlePluginConfigurationErrors SKIPPED
 > Task :core-common:javaPreCompileDebug
 > Task :core-database:javaPreCompileDebug
 > Task :app-admin:javaPreCompileDebug
+> Task :app-admin:processDebugManifestForPackage
 > Task :app-admin:mergeDebugShaders
 > Task :app-admin:compileDebugShaders NO-SOURCE
 > Task :app-admin:generateDebugAssets UP-TO-DATE
@@ -61,15 +61,15 @@ Daemon will be stopped at the end of the build
 > Task :app-admin:mergeDebugAssets
 > Task :app-admin:compressDebugAssets
 > Task :app-admin:desugarDebugFileDependencies
+> Task :app-admin:processDebugResources
 > Task :app-admin:mergeDebugJniLibFolders
 > Task :core-common:mergeDebugJniLibFolders
 > Task :core-common:mergeDebugNativeLibs NO-SOURCE
-> Task :app-admin:checkDebugDuplicateClasses
 > Task :core-common:copyDebugJniLibsProjectOnly
 > Task :core-database:mergeDebugJniLibFolders
-> Task :app-admin:processDebugResources
 > Task :core-database:mergeDebugNativeLibs NO-SOURCE
 > Task :core-database:copyDebugJniLibsProjectOnly
+> Task :app-admin:checkDebugDuplicateClasses
 > Task :app-admin:validateSigningDebug
 > Task :app-admin:writeDebugAppMetadata
 > Task :app-admin:mergeDebugNativeLibs
@@ -93,20 +93,15 @@ Unable to strip the following libraries, packaging them as they are: libandroidx
 > Task :app-driver:mergeDebugResources
 > Task :app-driver:processDebugMainManifest
 > Task :app-driver:processDebugManifest
-> Task :app-driver:processDebugManifestForPackage
-
-> Task :core-common:compileDebugKotlin
-e: The daemon has terminated unexpectedly on startup attempt #1 with error code: 0. The daemon process output:
-    1. Kotlin compile daemon is ready
-
 > Task :app-driver:javaPreCompileDebug
-> Task :app-driver:processDebugResources
+> Task :app-driver:processDebugManifestForPackage
 > Task :app-driver:mergeDebugShaders
 > Task :app-driver:compileDebugShaders NO-SOURCE
 > Task :app-driver:generateDebugAssets UP-TO-DATE
 > Task :app-driver:mergeDebugAssets
 > Task :app-driver:compressDebugAssets
 > Task :app-driver:desugarDebugFileDependencies
+> Task :app-driver:processDebugResources
 > Task :app-driver:mergeDebugJniLibFolders
 > Task :app-driver:checkDebugDuplicateClasses
 > Task :app-driver:mergeDebugNativeLibs
@@ -118,31 +113,80 @@ Unable to strip the following libraries, packaging them as they are: libandroidx
 > Task :app-driver:writeDebugAppMetadata
 > Task :app-driver:writeDebugSigningConfigVersions
 > Task :app-driver:mergeExtDexDebug
+> Task :core-common:compileDebugKotlin
 > Task :app-admin:mergeExtDexDebug
 > Task :core-common:compileDebugJavaWithJavac NO-SOURCE
-> Task :core-common:processDebugJavaRes
 > Task :core-common:bundleLibRuntimeToJarDebug
+> Task :core-common:processDebugJavaRes
 > Task :core-common:bundleLibCompileToJarDebug
 > Task :core-common:bundleLibRuntimeToDirDebug
 > Task :core-database:kspDebugKotlin
 > Task :core-database:compileDebugKotlin
 > Task :core-database:compileDebugJavaWithJavac
 > Task :core-database:processDebugJavaRes
-> Task :core-database:bundleLibCompileToJarDebug
 > Task :core-database:bundleLibRuntimeToJarDebug
+> Task :core-database:bundleLibCompileToJarDebug
 > Task :core-database:bundleLibRuntimeToDirDebug
 > Task :app-admin:mergeLibDexDebug
 > Task :app-driver:mergeLibDexDebug
 
 > Task :app-admin:compileDebugKotlin FAILED
-e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/ClothesScreen.kt:372:17 Unresolved reference 'item'.
-e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/ClothesScreen.kt:373:21 @Composable invocations can only happen from the context of a @Composable function
-e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/ClothesScreen.kt:388:17 Unresolved reference 'item'.
-e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/ClothesScreen.kt:389:21 @Composable invocations can only happen from the context of a @Composable function
-e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/ClothesScreen.kt:396:1 Syntax error: Expecting a top level declaration.
+e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/ClothesScreen.kt:140:45 Unresolved reference 'worker'.
+e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/ClothesScreen.kt:140:58 Unresolved reference 'ordersUiState'.
+e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/ClothesScreen.kt:141:65 Unresolved reference 'workerPartSelections'.
+e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/ClothesScreen.kt:141:86 Unresolved reference 'worker'.
+e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/ClothesScreen.kt:141:97 Unresolved reference 'orEmpty'.
+e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/ClothesScreen.kt:143:49 Unresolved reference 'clothingParts'.
+e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/ClothesScreen.kt:143:73 Cannot infer type for this parameter. Please specify it explicitly.
+e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/ClothesScreen.kt:144:53 @Composable invocations can only happen from the context of a @Composable function
+e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/ClothesScreen.kt:146:75 Unresolved reference 'workerPartSelections'.
+e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/ClothesScreen.kt:146:96 Unresolved reference 'worker'.
+e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/ClothesScreen.kt:146:107 Unresolved reference 'orEmpty'.
+e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/ClothesScreen.kt:148:61 Unresolved reference 'workerPartSelections'.
+e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/ClothesScreen.kt:148:84 Unresolved reference 'workerPartSelections'.
+e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/ClothesScreen.kt:148:108 Unresolved reference 'worker'.
+e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/ClothesScreen.kt:148:118 Cannot infer type for this parameter. Please specify it explicitly.
+e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/ClothesScreen.kt:152:103 Overload resolution ambiguity between candidates:
+fun <T> Array<out T>.take(n: Int): List<T>
+fun BooleanArray.take(n: Int): List<Boolean>
+fun ByteArray.take(n: Int): List<Byte>
+fun CharArray.take(n: Int): List<Char>
+fun DoubleArray.take(n: Int): List<Double>
+fun FloatArray.take(n: Int): List<Float>
+fun IntArray.take(n: Int): List<Int>
+fun LongArray.take(n: Int): List<Long>
+fun ShortArray.take(n: Int): List<Short>
+fun <T> Iterable<T>.take(n: Int): List<T>
+fun UByteArray.take(n: Int): List<UByte>
+fun UIntArray.take(n: Int): List<UInt>
+fun ULongArray.take(n: Int): List<ULong>
+fun UShortArray.take(n: Int): List<UShort>
+fun <T> Sequence<T>.take(n: Int): Sequence<T>
+fun CharSequence.take(n: Int): CharSequence
+fun String.take(n: Int): String
+e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/ClothesScreen.kt:178:9 'if' must have both main and 'else' branches when used as an expression.
+e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/ClothesScreen.kt:178:9 Incompatible types 'kotlin.Int' and 'kotlin.Unit'.
+e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/ClothesScreen.kt:202:10 Syntax error: Expecting '->'.
+e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/ClothesScreen.kt:206:9 Unresolved reference 'ClothesSizeDialog'.
+e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/ClothesScreen.kt:225:1 Modifier 'private' is not applicable to 'local function'.
+e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/ClothesScreen.kt:264:17 Unresolved reference 'SizeSelectField'.
+e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/ClothesScreen.kt:269:45 Unresolved reference 'CLOTH_PART_SIZE_OPTIONS'.
+e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/ClothesScreen.kt:274:17 Unresolved reference 'SizeSelectField'.
+e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/ClothesScreen.kt:279:45 Unresolved reference 'CLOTH_PART_SIZE_OPTIONS'.
+e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/ClothesScreen.kt:284:17 Unresolved reference 'SizeSelectField'.
+e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/ClothesScreen.kt:289:45 Unresolved reference 'PANTS_SIZE_OPTIONS'.
+e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/ClothesScreen.kt:294:17 Unresolved reference 'SizeSelectField'.
+e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/ClothesScreen.kt:299:45 Unresolved reference 'CLOTH_PART_SIZE_OPTIONS'.
+e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/ClothesScreen.kt:304:17 Unresolved reference 'SizeSelectField'.
+e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/ClothesScreen.kt:309:45 Unresolved reference 'SHOES_SIZE_OPTIONS'.
+e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/ClothesScreen.kt:367:1 Modifier 'private' is not applicable to 'local function'.
+e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/ClothesScreen.kt:386:1 Modifier 'private' is not applicable to 'local variable'.
+e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/ClothesScreen.kt:387:1 Modifier 'private' is not applicable to 'local variable'.
+e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/ClothesScreen.kt:388:1 Modifier 'private' is not applicable to 'local variable'.
+e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/ClothesScreen.kt:388:61 Syntax error: Expecting '}'.
 
 > Task :app-driver:compileDebugKotlin
-gradle/actions: Writing build results to /home/runner/work/_temp/.gradle-actions/build-results/__run_2-1774685527887.json
+gradle/actions: Writing build results to /home/runner/work/_temp/.gradle-actions/build-results/__run_2-1774725803027.json
 
 [Incubating] Problems report is available at: file:///home/runner/work/Flota/Flota/android-native/build/reports/problems/problems-report.html
 
@@ -356,5 +400,5 @@ You can use '--warning-mode all' to show the individual deprecation warnings and
 
 For more on this, please refer to https://docs.gradle.org/8.14.3/userguide/command_line_interface.html#sec:command_line_warnings in the Gradle documentation.
 
-BUILD FAILED in 1m 17s
+BUILD FAILED in 1m 24s
 100 actionable tasks: 96 executed, 4 up-to-date
