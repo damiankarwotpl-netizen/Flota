@@ -7,16 +7,23 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -299,19 +306,46 @@ private fun VehicleTireStateSelector(
     value: String,
     onValueChange: (String) -> Unit,
 ) {
+    var isPickerOpen by remember { mutableStateOf(false) }
+    val focusManager = LocalFocusManager.current
+    val options = listOf("OK", "Średni", "Do wymiany")
     Text(label)
-    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        listOf("OK", "Średni", "Do wymiany").forEach { option ->
-            Button(
-                onClick = { onValueChange(option) },
-                modifier = Modifier.weight(1f),
-            ) {
-                Text(
-                    text = if (value == option) "✓ $option" else option,
-                    fontSize = 13.sp,
-                    maxLines = 1,
-                )
+    OutlinedTextField(
+        value = value,
+        onValueChange = {},
+        label = { Text("Stan opony") },
+        modifier = Modifier
+            .fillMaxWidth()
+            .onFocusChanged { state ->
+                if (state.isFocused) {
+                    isPickerOpen = true
+                    focusManager.clearFocus(force = true)
+                }
+            },
+        readOnly = true,
+    )
+    if (isPickerOpen) {
+        AlertDialog(
+            onDismissRequest = { isPickerOpen = false },
+            title = { Text("Wybierz stan opony • $label") },
+            text = {
+                androidx.compose.foundation.layout.Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    options.forEach { option ->
+                        Button(
+                            onClick = {
+                                onValueChange(option)
+                                isPickerOpen = false
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            Text(if (value == option) "✓ $option" else option, fontSize = 13.sp, maxLines = 1)
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { isPickerOpen = false }) { Text("Zamknij") }
             }
-        }
+        )
     }
 }
