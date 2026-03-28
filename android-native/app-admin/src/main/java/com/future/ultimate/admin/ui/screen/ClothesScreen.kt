@@ -10,7 +10,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
-import androidx.compose.material3.Checkbox
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedTextField
@@ -34,7 +33,6 @@ import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Edit
 import com.future.ultimate.admin.AdminApp
 import com.future.ultimate.admin.ui.viewmodel.AdminViewModelFactory
-import com.future.ultimate.admin.ui.viewmodel.ClothesOrdersViewModel
 import com.future.ultimate.admin.ui.viewmodel.ClothesReportsViewModel
 import com.future.ultimate.admin.ui.viewmodel.ClothesSizesViewModel
 import com.future.ultimate.core.common.model.ClothesSizeDraft
@@ -43,17 +41,11 @@ import com.future.ultimate.core.common.model.ClothesSizeDraft
 fun ClothesScreen() {
     val selected = remember { mutableIntStateOf(0) }
     val ordersTab = remember { mutableIntStateOf(0) }
-    val clothingParts = remember { listOf("Koszulka", "Bluza", "Spodnie", "Kurtka", "Buty") }
-    var orderPlantPickerOpen by remember { mutableStateOf(false) }
-    var selectedPartsForAll by remember { mutableStateOf(clothingParts.toSet()) }
-    var workerPartSelections by remember { mutableStateOf<Map<Long, Set<String>>>(emptyMap()) }
     var isSizeDialogOpen by remember { mutableStateOf(false) }
     val tabs = listOf("Rozmiary", "Zamówienia", "Raporty")
     val app = LocalContext.current.applicationContext as AdminApp
     val sizesViewModel: ClothesSizesViewModel = viewModel(factory = AdminViewModelFactory(app.container.repository))
     val sizesUiState by sizesViewModel.uiState.collectAsStateWithLifecycle()
-    val ordersViewModel: ClothesOrdersViewModel = viewModel(factory = AdminViewModelFactory(app.container.repository))
-    val ordersUiState by ordersViewModel.uiState.collectAsStateWithLifecycle()
     val reportsViewModel: ClothesReportsViewModel = viewModel(factory = AdminViewModelFactory(app.container.repository))
     val reportsUiState by reportsViewModel.uiState.collectAsStateWithLifecycle()
 
@@ -91,72 +83,7 @@ fun ClothesScreen() {
                                 Tab(selected = ordersTab.intValue == index, onClick = { ordersTab.intValue = index }, text = { Text(title) })
                             }
                         }
-                        if (ordersTab.intValue == 0) {
-                            Text("Generator zamówienia startowego na bazie pracowników i zapisanych rozmiarów")
-                            OutlinedTextField(ordersUiState.editor.date, { ordersViewModel.updateEditor(ordersUiState.editor.copy(date = it)) }, label = { Text("Data (YYYY-MM-DD)") }, modifier = Modifier.fillMaxWidth())
-                            OutlinedTextField(
-                                value = ordersUiState.editor.plant,
-                                onValueChange = {},
-                                label = { Text("Zakład") },
-                                modifier = Modifier.fillMaxWidth().clickable { orderPlantPickerOpen = true },
-                                readOnly = true,
-                            )
-                            TextButton(onClick = { orderPlantPickerOpen = true }, modifier = Modifier.fillMaxWidth()) {
-                                Text("Wybierz zakład z listy")
-                            }
-                            OutlinedTextField(ordersUiState.editor.status, { ordersViewModel.updateEditor(ordersUiState.editor.copy(status = it)) }, label = { Text("Status") }, modifier = Modifier.fillMaxWidth())
-                            OutlinedTextField(ordersUiState.editor.orderDesc, { ordersViewModel.updateEditor(ordersUiState.editor.copy(orderDesc = it)) }, label = { Text("Opis zamówienia") }, modifier = Modifier.fillMaxWidth(), minLines = 3)
-                            OutlinedTextField(
-                                ordersUiState.workerQuery,
-                                ordersViewModel::updateWorkerQuery,
-                                label = { Text("Filtruj pracowników do zestawu startowego") },
-                                modifier = Modifier.fillMaxWidth(),
-                            )
-                            Text("Wybierz części ubrania dla wszystkich lub indywidualnie dla pracownika.")
-                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                clothingParts.forEach { part ->
-                                    Button(
-                                        onClick = {
-                                            selectedPartsForAll = if (part in selectedPartsForAll) selectedPartsForAll - part else selectedPartsForAll + part
-                                        },
-                                        modifier = Modifier.weight(1f),
-                                    ) {
-                                        Text(if (part in selectedPartsForAll) "✓ $part" else part)
-                                    }
-                                }
-                            }
-                            Button(
-                                onClick = {
-                                    val mapped = ordersUiState.selectedWorkerIds.associateWith { selectedPartsForAll }
-                                    workerPartSelections = workerPartSelections + mapped
-                                },
-                                modifier = Modifier.fillMaxWidth(),
-                                enabled = ordersUiState.selectedWorkerIds.isNotEmpty(),
-                            ) {
-                                Text("Ustaw wybrane części dla wszystkich zaznaczonych")
-                            }
-                            Button(
-                                onClick = {
-                                    val selections = ordersUiState.selectedWorkerIds.associateWith { workerPartSelections[it].orEmpty().ifEmpty { selectedPartsForAll } }
-                                    ordersViewModel.createOrderFromSelections(selections)
-                                    ordersTab.intValue = 1
-                                },
-                                modifier = Modifier.fillMaxWidth(),
-                            ) {
-                                Text(if (ordersUiState.isCreatingStarterOrder) "Generowanie zamówienia..." else "Generuj zamówienie")
-                            }
-                            Button(onClick = ordersViewModel::save, modifier = Modifier.fillMaxWidth()) {
-                                Text(if (ordersUiState.isSaving) "Zapisywanie..." else if (ordersUiState.editor.id == null) "Zapisz pusty nagłówek zamówienia" else "Zapisz zmiany zamówienia")
-                            }
-                            if (ordersUiState.editor.id != null) {
-                                Button(onClick = ordersViewModel::clearOrderEditor, modifier = Modifier.fillMaxWidth()) { Text("Anuluj edycję zamówienia") }
-                            }
-                            if (ordersUiState.selectedWorkerIds.isNotEmpty()) {
-                                Button(onClick = ordersViewModel::clearStarterSelection, modifier = Modifier.fillMaxWidth()) { Text("Wyczyść wybór pracowników") }
-                            }
-                            ordersUiState.actionMessage?.let { Text(it) }
-                            Text("Po zapisaniu lub wygenerowaniu zamówienia rozwiń kartę poniżej, aby dodać pozycje ręcznie i oznaczyć status.")
-                        }
+                        Text("Logika zamówień została wyłączona. Zostawiono tylko układ zakładek.")
                     }
                     else -> {
                         Button(onClick = reportsViewModel::exportCsv, modifier = Modifier.fillMaxWidth()) {
@@ -210,66 +137,6 @@ fun ClothesScreen() {
                                             imageVector = Icons.Rounded.Edit,
                                             contentDescription = "Edytuj rozmiar",
                                         )
-                                    }
-                                }
-                                Text("Koszulka: ${itemData.shirt} • Bluza: ${itemData.hoodie}")
-                                Text("Spodnie: ${itemData.pants} • Kurtka: ${itemData.jacket} • Buty: ${itemData.shoes}")
-                                Button(onClick = { sizesViewModel.delete(itemData.id) }, modifier = Modifier.fillMaxWidth()) { Text("Usuń rozmiar") }
-                            }
-                        }
-                    }
-                }
-            }
-            1 -> {
-                val workerFilter = ordersUiState.workerQuery.trim().lowercase()
-                val visibleWorkers = ordersUiState.availableWorkers.filter { worker ->
-                    workerFilter.isBlank() || listOf(worker.name, worker.surname, worker.plant).joinToString(" ").lowercase().contains(workerFilter)
-                }
-                val visibleWorkerIds = visibleWorkers.map { it.id }.toSet()
-                val selectedVisibleCount = visibleWorkers.count { it.id in ordersUiState.selectedWorkerIds }
-                val starterItemTemplates = listOf(
-                    ordersUiState.shirtQty.toIntOrNull()?.coerceAtLeast(0) ?: 0,
-                    ordersUiState.hoodieQty.toIntOrNull()?.coerceAtLeast(0) ?: 0,
-                    ordersUiState.pantsQty.toIntOrNull()?.coerceAtLeast(0) ?: 0,
-                    ordersUiState.jacketQty.toIntOrNull()?.coerceAtLeast(0) ?: 0,
-                    ordersUiState.shoesQty.toIntOrNull()?.coerceAtLeast(0) ?: 0,
-                ).count { it > 0 }
-                val estimatedItemCount = ordersUiState.selectedWorkerIds.size * starterItemTemplates
-                item {
-                    SectionCard(title = "Pracownicy do zestawu startowego") {
-                        Text("Pracownicy: ${ordersUiState.selectedWorkerIds.size} / ${visibleWorkers.size}")
-                        Text("Zaznaczeni w bieżącym filtrze: $selectedVisibleCount • Szacowane pozycje: $estimatedItemCount")
-                        Row(modifier = Modifier.fillMaxWidth()) {
-                            Button(
-                                onClick = { ordersViewModel.selectWorkers(visibleWorkerIds) },
-                                modifier = Modifier.weight(1f),
-                                enabled = visibleWorkerIds.isNotEmpty(),
-                            ) {
-                                Text("Zaznacz filtr")
-                            }
-                            Button(
-                                onClick = { ordersViewModel.unselectWorkers(visibleWorkerIds) },
-                                modifier = Modifier.weight(1f),
-                                enabled = visibleWorkerIds.isNotEmpty(),
-                            ) {
-                                Text("Odznacz filtr")
-                            }
-                        }
-                        if (visibleWorkers.isEmpty()) {
-                            Text("Brak pracowników pasujących do filtra.")
-                        } else {
-                            visibleWorkers.forEach { worker ->
-                                Row(modifier = Modifier.fillMaxWidth()) {
-                                    Checkbox(
-                                        checked = worker.id in ordersUiState.selectedWorkerIds,
-                                        onCheckedChange = { ordersViewModel.toggleWorkerSelection(worker.id) },
-                                    )
-                                    Column(modifier = Modifier.weight(1f).padding(top = 12.dp)) {
-                                        Text("${worker.name} ${worker.surname} • ${worker.plant.ifBlank { "Bez zakładu" }}")
-                                        Text(
-                                            "Koszulka ${worker.shirt.ifBlank { "-" }}, Bluza ${worker.hoodie.ifBlank { "-" }}, " +
-                                                "Spodnie ${worker.pants.ifBlank { "-" }}, Kurtka ${worker.jacket.ifBlank { "-" }}, Buty ${worker.shoes.ifBlank { "-" }}",
-                                        )
                                         if (worker.id in ordersUiState.selectedWorkerIds) {
                                             val selectedParts = workerPartSelections[worker.id].orEmpty()
                                             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -289,155 +156,21 @@ fun ClothesScreen() {
                                         }
                                     }
                                 }
+                                Text("Koszulka: ${itemData.shirt} • Bluza: ${itemData.hoodie}")
+                                Text("Spodnie: ${itemData.pants} • Kurtka: ${itemData.jacket} • Buty: ${itemData.shoes}")
+                                Button(onClick = { sizesViewModel.delete(itemData.id) }, modifier = Modifier.fillMaxWidth()) { Text("Usuń rozmiar") }
                             }
                         }
                     }
                 }
-                val visibleOrders = ordersUiState.items.filter { orderMatchesOrdersTab(it.status, ordersTab.intValue) }
-                visibleOrders.forEach { itemData ->
-                    item {
-                        SectionCard(
-                            title = "${itemData.date} • ${itemData.plant.ifBlank { "Bez zakładu" }}",
-                            subtitle = "Status: ${itemData.status}",
-                        ) {
-                            Text(if (itemData.orderDesc.isBlank()) "Brak opisu" else itemData.orderDesc)
-                            Button(onClick = { ordersViewModel.editOrder(itemData) }, modifier = Modifier.fillMaxWidth()) {
-                                Text("Edytuj nagłówek zamówienia")
-                            }
-                            Button(onClick = { ordersViewModel.toggleOrderSelection(itemData.id) }, modifier = Modifier.fillMaxWidth()) {
-                                Text(if (ordersUiState.selectedOrderId == itemData.id) "Ukryj pozycje" else "Pokaż pozycje")
-                            }
-                                Button(
-                                    onClick = { ordersViewModel.markOrdered(itemData.id) },
-                                    modifier = Modifier.fillMaxWidth(),
-                                    enabled = canMarkClothesOrderOrdered(itemData.status),
-                                ) {
-                                    Text("Oznacz jako zamówione")
-                                }
-                                Button(
-                                    onClick = { ordersViewModel.issueAll(itemData.id) },
-                                    modifier = Modifier.fillMaxWidth(),
-                                    enabled = canIssueClothesOrder(itemData.status),
-                                ) {
-                                    Text("Wydaj wszystkie pozycje")
-                                }
-                                Button(onClick = { ordersViewModel.exportOrderCsv(itemData.id) }, modifier = Modifier.fillMaxWidth()) {
-                                    Text("Eksport CSV zamówienia")
-                                }
-                                Button(
-                                    onClick = { ordersViewModel.exportOrderPdf(itemData.id) },
-                                    modifier = Modifier.fillMaxWidth(),
-                                ) {
-                                    Text(if (ordersUiState.isExportingPdf) "Eksportowanie PDF..." else "Eksport PDF zamówienia")
-                                }
-                                Button(
-                                    onClick = { ordersViewModel.exportIssuePdf(itemData.id) },
-                                    modifier = Modifier.fillMaxWidth(),
-                                ) {
-                                    Text(if (ordersUiState.isExportingIssuePdf) "Eksportowanie PDF wydania..." else "Eksport PDF wydania")
-                                }
-                                Button(
-                                    onClick = { ordersViewModel.exportOrderXlsx(itemData.id) },
-                                    modifier = Modifier.fillMaxWidth(),
-                                ) {
-                                    Text(if (ordersUiState.isExportingXlsx) "Eksportowanie XLSX..." else "Eksport XLSX zamówienia")
-                                }
-                                Button(onClick = { ordersViewModel.deleteOrder(itemData.id) }, modifier = Modifier.fillMaxWidth()) {
-                                    Text("Usuń zamówienie")
-                                }
-                                if (ordersUiState.selectedOrderId == itemData.id) {
-                                    if (ordersUiState.selectedOrderSummary.isNotEmpty()) {
-                                        SectionCard(title = "Podsumowanie zamówienia") {
-                                            ordersUiState.selectedOrderSummary.forEach { summary ->
-                                                Text(summary)
-                                            }
-                                        }
-                                    }
-                                    Button(onClick = ordersViewModel::togglePendingItemsFilter, modifier = Modifier.fillMaxWidth()) {
-                                        Text(if (ordersUiState.showOnlyPendingItems) "Pokaż wszystkie pozycje" else "Pokaż tylko niewydane")
-                                    }
-                                    OutlinedTextField(
-                                        ordersUiState.importText,
-                                        ordersViewModel::updateImportText,
-                                        label = { Text("Wklej import CSV/TSV pozycji") },
-                                        modifier = Modifier.fillMaxWidth(),
-                                        minLines = 4,
-                                    )
-                                    Button(onClick = ordersViewModel::stageImportRows, modifier = Modifier.fillMaxWidth()) {
-                                        Text("Parsuj pozycje importu")
-                                    }
-                                    Button(onClick = ordersViewModel::applyImportedRows, modifier = Modifier.fillMaxWidth()) {
-                                        Text("Importuj pozycje do zamówienia")
-                                    }
-                                    if (ordersUiState.importPreview.isNotEmpty()) {
-                                        Text("Podgląd importu: ${ordersUiState.importPreview.size} pozycji")
-                                        ordersUiState.importPreview.take(5).forEach { row ->
-                                            Text("${row.name} ${row.surname} • ${row.item} • ${row.size.ifBlank { "-" }} • qty ${row.qty}")
-                                        }
-                                        Button(onClick = ordersViewModel::clearImport, modifier = Modifier.fillMaxWidth()) {
-                                            Text("Wyczyść import")
-                                        }
-                                    }
-                                    OutlinedTextField(
-                                        ordersUiState.itemEditor.name,
-                                        { ordersViewModel.updateItemEditor(ordersUiState.itemEditor.copy(name = it)) },
-                                        label = { Text("Imię pracownika") },
-                                        modifier = Modifier.fillMaxWidth(),
-                                    )
-                                    OutlinedTextField(
-                                        ordersUiState.itemEditor.surname,
-                                        { ordersViewModel.updateItemEditor(ordersUiState.itemEditor.copy(surname = it)) },
-                                        label = { Text("Nazwisko pracownika") },
-                                        modifier = Modifier.fillMaxWidth(),
-                                    )
-                                    OutlinedTextField(
-                                        ordersUiState.itemEditor.item,
-                                        { ordersViewModel.updateItemEditor(ordersUiState.itemEditor.copy(item = it)) },
-                                        label = { Text("Pozycja") },
-                                        modifier = Modifier.fillMaxWidth(),
-                                    )
-                                    OutlinedTextField(
-                                        ordersUiState.itemEditor.size,
-                                        { ordersViewModel.updateItemEditor(ordersUiState.itemEditor.copy(size = it)) },
-                                        label = { Text("Rozmiar (opcjonalnie)") },
-                                        modifier = Modifier.fillMaxWidth(),
-                                    )
-                                    OutlinedTextField(
-                                        ordersUiState.itemEditor.qty,
-                                        { ordersViewModel.updateItemEditor(ordersUiState.itemEditor.copy(qty = it)) },
-                                        label = { Text("Ilość") },
-                                        modifier = Modifier.fillMaxWidth(),
-                                    )
-                                    Text("Gdy rozmiar zostanie pusty, aplikacja spróbuje pobrać go z zapisanych rozmiarów pracownika.")
-                                    Button(onClick = ordersViewModel::saveItem, modifier = Modifier.fillMaxWidth()) {
-                                        Text(if (ordersUiState.isSavingItem) "Zapisywanie pozycji..." else if (ordersUiState.itemEditor.id == null) "Dodaj pozycję" else "Zapisz zmiany pozycji")
-                                    }
-                                    if (ordersUiState.itemEditor.id != null) {
-                                        Button(onClick = ordersViewModel::clearItemEditor, modifier = Modifier.fillMaxWidth()) { Text("Anuluj edycję pozycji") }
-                                    }
-                                    ordersUiState.selectedOrderItems
-                                        .filter { !ordersUiState.showOnlyPendingItems || !it.issued }
-                                        .forEach { orderItem ->
-                                        SectionCard(title = "${orderItem.name} ${orderItem.surname}".trim().ifBlank { "Pracownik nieuzupełniony" }) {
-                                            Text("${orderItem.item} • rozmiar: ${orderItem.size.ifBlank { "-" }} • ilość: ${orderItem.qty}")
-                                            Text(if (orderItem.issued) "Status pozycji: wydane" else "Status pozycji: niewydane")
-                                            Button(onClick = { ordersViewModel.editItem(orderItem) }, modifier = Modifier.fillMaxWidth()) {
-                                                Text("Edytuj pozycję")
-                                            }
-                                            Button(
-                                                onClick = { ordersViewModel.issueItem(orderItem.id) },
-                                                modifier = Modifier.fillMaxWidth(),
-                                                enabled = !orderItem.issued && canIssueClothesOrder(itemData.status),
-                                            ) {
-                                                Text(if (orderItem.issued) "Pozycja wydana" else "Wydaj pozycję")
-                                            }
-                                            Button(onClick = { ordersViewModel.deleteItem(orderItem.id) }, modifier = Modifier.fillMaxWidth()) {
-                                                Text("Usuń pozycję")
-                                            }
-                                        }
-                                    }
-                                }
-                            }
+            }
+            1 -> {
+                item {
+                    SectionCard(title = "Zamówienia") {
+                        when (ordersTab.intValue) {
+                            0 -> Text("Nowe zamówienie — w przygotowaniu.")
+                            1 -> Text("Oczekujące — w przygotowaniu.")
+                            else -> Text("Do wydania — w przygotowaniu.")
                         }
                     }
                 }
@@ -486,28 +219,6 @@ fun ClothesScreen() {
         )
     }
 
-    if (orderPlantPickerOpen) {
-        AlertDialog(
-            onDismissRequest = { orderPlantPickerOpen = false },
-            title = { Text("Wybierz zakład dla zamówienia") },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    ordersUiState.availableWorkers.map { it.plant.trim() }.filter { it.isNotBlank() }.distinct().sorted().forEach { plant ->
-                        Button(
-                            onClick = {
-                                ordersViewModel.updateEditor(ordersUiState.editor.copy(plant = plant))
-                                orderPlantPickerOpen = false
-                            },
-                            modifier = Modifier.fillMaxWidth(),
-                        ) { Text(plant) }
-                    }
-                }
-            },
-            confirmButton = {
-                TextButton(onClick = { orderPlantPickerOpen = false }) { Text("Zamknij") }
-            },
-        )
-    }
 }
 
 @Composable
@@ -675,22 +386,3 @@ private fun SizeSelectField(
 private val CLOTH_PART_SIZE_OPTIONS = listOf("XS", "S", "M", "L", "XL", "2XL", "3XL", "4XL", "5XL")
 private val PANTS_SIZE_OPTIONS = (46..62 step 2).map(Int::toString)
 private val SHOES_SIZE_OPTIONS = (36..50).map(Int::toString)
-
-private fun canIssueClothesOrder(status: String): Boolean {
-    val normalized = status.trim().lowercase()
-    return normalized == "zamówione" || normalized == "częściowo wydane"
-}
-
-private fun canMarkClothesOrderOrdered(status: String): Boolean {
-    val normalized = status.trim().lowercase()
-    return normalized != "częściowo wydane" && normalized != "wydane"
-}
-
-private fun orderMatchesOrdersTab(status: String, tab: Int): Boolean {
-    val normalized = status.trim().lowercase()
-    return when (tab) {
-        0 -> normalized == "nowe"
-        1 -> normalized == "zamówione"
-        else -> normalized == "zamówione" || normalized == "częściowo wydane"
-    }
-}
