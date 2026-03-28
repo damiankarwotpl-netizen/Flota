@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -26,7 +27,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.input.KeyboardOptions
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -336,27 +336,28 @@ fun ClothesScreen() {
                     }
                 }
             }
-        if (selected.intValue == 2) {
-            reportsUiState.yearlySummary.forEach { summary ->
-                item {
-                    SectionCard {
-                        Text(summary)
+            else -> {
+                reportsUiState.yearlySummary.forEach { summary ->
+                    item {
+                        SectionCard {
+                            Text(summary)
+                        }
                     }
                 }
-            }
-            reportsUiState.history.filter { historyItem ->
-                val matchesYear = reportsUiState.year.isBlank() || historyItem.date.startsWith(reportsUiState.year.trim())
-                val matchesQuery = reportsUiState.workerQuery.isBlank() || listOf(
-                    historyItem.name,
-                    historyItem.surname,
-                    historyItem.item,
-                    historyItem.size,
-                ).joinToString(" ").lowercase().contains(reportsUiState.workerQuery.trim().lowercase())
-                matchesYear && matchesQuery
-            }.forEach { historyItem ->
-                item {
-                    SectionCard(title = "${historyItem.date} • ${historyItem.name} ${historyItem.surname}".trim()) {
-                        Text("${historyItem.item} • rozmiar: ${historyItem.size.ifBlank { "-" }}")
+                reportsUiState.history.filter { historyItem ->
+                    val matchesYear = reportsUiState.year.isBlank() || historyItem.date.startsWith(reportsUiState.year.trim())
+                    val matchesQuery = reportsUiState.workerQuery.isBlank() || listOf(
+                        historyItem.name,
+                        historyItem.surname,
+                        historyItem.item,
+                        historyItem.size,
+                    ).joinToString(" ").lowercase().contains(reportsUiState.workerQuery.trim().lowercase())
+                    matchesYear && matchesQuery
+                }.forEach { historyItem ->
+                    item {
+                        SectionCard(title = "${historyItem.date} • ${historyItem.name} ${historyItem.surname}".trim()) {
+                            Text("${historyItem.item} • rozmiar: ${historyItem.size.ifBlank { "-" }}")
+                        }
                     }
                 }
             }
