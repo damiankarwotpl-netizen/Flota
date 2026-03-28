@@ -206,7 +206,7 @@ fun ClothesScreen() {
                                                 checked = worker.id in ordersUiState.selectedWorkerIds,
                                                 onCheckedChange = { ordersViewModel.toggleWorkerSelection(worker.id) },
                                             )
-                                            Column(modifier = Modifier.weight(1f).padding(top = 12.dp)) {
+                                            Column(modifier = Modifier.fillMaxWidth().padding(top = 12.dp)) {
                                                 Text("${worker.name} ${worker.surname}")
                                                 Text(worker.plant.ifBlank { "Bez zakładu" })
                                             }
