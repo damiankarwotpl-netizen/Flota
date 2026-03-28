@@ -5,6 +5,9 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.FilledIconButton
@@ -13,6 +16,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -457,62 +461,79 @@ private fun ClothesSizeDialog(
     onDismiss: () -> Unit,
     onSave: () -> Unit,
 ) {
-    FormDialog(
-        title = if (isEditing) "Edytuj rozmiar pracownika" else "Dodaj rozmiar pracownika",
-        onDismiss = onDismiss,
-        onConfirm = onSave,
-        confirmText = if (isSaving) "Zapisywanie..." else if (isEditing) "Zapisz zmiany" else "Dodaj",
-        confirmEnabled = !isSaving,
-    ) {
-        OutlinedTextField(
-            value = draft.name,
-            onValueChange = { onDraftChange(draft.copy(name = it)) },
-            label = { Text("Imię") },
-            modifier = Modifier.fillMaxWidth(),
-        )
-        OutlinedTextField(
-            value = draft.surname,
-            onValueChange = { onDraftChange(draft.copy(surname = it)) },
-            label = { Text("Nazwisko") },
-            modifier = Modifier.fillMaxWidth(),
-        )
-        OutlinedTextField(
-            value = draft.plant,
-            onValueChange = { onDraftChange(draft.copy(plant = it)) },
-            label = { Text("Zakład") },
-            modifier = Modifier.fillMaxWidth(),
-        )
-        OutlinedTextField(
-            value = draft.shirt,
-            onValueChange = { onDraftChange(draft.copy(shirt = it)) },
-            label = { Text("Koszulka") },
-            modifier = Modifier.fillMaxWidth(),
-        )
-        OutlinedTextField(
-            value = draft.hoodie,
-            onValueChange = { onDraftChange(draft.copy(hoodie = it)) },
-            label = { Text("Bluza") },
-            modifier = Modifier.fillMaxWidth(),
-        )
-        OutlinedTextField(
-            value = draft.pants,
-            onValueChange = { onDraftChange(draft.copy(pants = it)) },
-            label = { Text("Spodnie") },
-            modifier = Modifier.fillMaxWidth(),
-        )
-        OutlinedTextField(
-            value = draft.jacket,
-            onValueChange = { onDraftChange(draft.copy(jacket = it)) },
-            label = { Text("Kurtka") },
-            modifier = Modifier.fillMaxWidth(),
-        )
-        OutlinedTextField(
-            value = draft.shoes,
-            onValueChange = { onDraftChange(draft.copy(shoes = it)) },
-            label = { Text("Buty") },
-            modifier = Modifier.fillMaxWidth(),
-        )
-    }
+    val isSaveEnabled = draft.name.isNotBlank() && draft.surname.isNotBlank()
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(if (isEditing) "Edytuj rozmiar pracownika" else "Dodaj rozmiar pracownika") },
+        text = {
+            Column(
+                modifier = Modifier.verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                OutlinedTextField(
+                    value = draft.name,
+                    onValueChange = { onDraftChange(draft.copy(name = it)) },
+                    label = { Text("Imię") },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                OutlinedTextField(
+                    value = draft.surname,
+                    onValueChange = { onDraftChange(draft.copy(surname = it)) },
+                    label = { Text("Nazwisko") },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                OutlinedTextField(
+                    value = draft.plant,
+                    onValueChange = { onDraftChange(draft.copy(plant = it)) },
+                    label = { Text("Zakład") },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                OutlinedTextField(
+                    value = draft.shirt,
+                    onValueChange = { onDraftChange(draft.copy(shirt = it)) },
+                    label = { Text("Koszulka") },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                OutlinedTextField(
+                    value = draft.hoodie,
+                    onValueChange = { onDraftChange(draft.copy(hoodie = it)) },
+                    label = { Text("Bluza") },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                OutlinedTextField(
+                    value = draft.pants,
+                    onValueChange = { onDraftChange(draft.copy(pants = it)) },
+                    label = { Text("Spodnie") },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                OutlinedTextField(
+                    value = draft.jacket,
+                    onValueChange = { onDraftChange(draft.copy(jacket = it)) },
+                    label = { Text("Kurtka") },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                OutlinedTextField(
+                    value = draft.shoes,
+                    onValueChange = { onDraftChange(draft.copy(shoes = it)) },
+                    label = { Text("Buty") },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = onSave,
+                enabled = isSaveEnabled && !isSaving,
+            ) {
+                Text(if (isSaving) "Zapisywanie..." else if (isEditing) "Zapisz zmiany" else "Dodaj")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Anuluj")
+            }
+        },
+    )
 }
 
 private fun canIssueClothesOrder(status: String): Boolean {
