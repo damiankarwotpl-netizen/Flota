@@ -39,8 +39,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -862,29 +864,51 @@ private fun tireStateSelector(
     value: String,
     onValueChange: (String) -> Unit,
 ) {
+    var isPickerOpen by remember { mutableStateOf(false) }
+    val focusManager = LocalFocusManager.current
+    val options = listOf(
+        tr("OK", "OK"),
+        tr("Średni", "Medio"),
+        tr("Do wymiany", "Para cambiar"),
+    )
     Text(label)
-    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        listOf(
-            tr("OK", "OK"),
-            tr("Średni", "Medio"),
-            tr("Do wymiany", "Para cambiar"),
-        ).forEach { option ->
-            val displayLabel = if (option == tr("Do wymiany", "Para cambiar")) {
-                tr("Do\nwymiany", "Para\ncambiar")
-            } else {
-                option
-            }
-            Button(
-                onClick = { onValueChange(option) },
-                modifier = Modifier.weight(1f),
-            ) {
-                Text(
-                    text = if (value == option) "✓ $option" else option,
-                    fontSize = 13.sp,
-                    maxLines = 1,
-                )
-            }
-        }
+    OutlinedTextField(
+        value = value,
+        onValueChange = {},
+        label = { Text(tr("Stan opony", "Estado del neumático")) },
+        modifier = Modifier
+            .fillMaxWidth()
+            .onFocusChanged { state ->
+                if (state.isFocused) {
+                    isPickerOpen = true
+                    focusManager.clearFocus(force = true)
+                }
+            },
+        readOnly = true,
+    )
+    if (isPickerOpen) {
+        AlertDialog(
+            onDismissRequest = { isPickerOpen = false },
+            title = { Text("${tr("Wybierz stan opony", "Selecciona estado del neumático")} • $label") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    options.forEach { option ->
+                        Button(
+                            onClick = {
+                                onValueChange(option)
+                                isPickerOpen = false
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            Text(if (value == option) "✓ $option" else option, fontSize = 13.sp, maxLines = 1)
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { isPickerOpen = false }) { Text(tr("Zamknij", "Cerrar")) }
+            },
+        )
     }
 }
 
