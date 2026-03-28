@@ -274,6 +274,10 @@ interface AdminRepository {
         jacketQty: Int,
         shoesQty: Int,
     ): Long?
+    suspend fun createClothesOrderFromSelections(
+        draft: ClothesOrderDraft,
+        workerParts: Map<Long, Set<String>>,
+    ): Long?
     suspend fun deleteClothesOrderItem(id: Long)
     suspend fun markClothesOrderOrdered(orderId: Long)
     suspend fun issueClothesOrderItem(id: Long)

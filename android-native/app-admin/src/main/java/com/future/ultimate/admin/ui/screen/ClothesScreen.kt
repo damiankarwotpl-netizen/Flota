@@ -1,5 +1,6 @@
 package com.future.ultimate.admin.ui.screen
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -136,6 +137,23 @@ fun ClothesScreen() {
                                             imageVector = Icons.Rounded.Edit,
                                             contentDescription = "Edytuj rozmiar",
                                         )
+                                        if (worker.id in ordersUiState.selectedWorkerIds) {
+                                            val selectedParts = workerPartSelections[worker.id].orEmpty()
+                                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                                clothingParts.forEach { part ->
+                                                    Button(
+                                                        onClick = {
+                                                            val current = workerPartSelections[worker.id].orEmpty()
+                                                            val updated = if (part in current) current - part else current + part
+                                                            workerPartSelections = workerPartSelections + (worker.id to updated)
+                                                        },
+                                                        modifier = Modifier.weight(1f),
+                                                    ) {
+                                                        Text(if (part in selectedParts) "✓" else part.take(3))
+                                                    }
+                                                }
+                                            }
+                                        }
                                     }
                                 }
                                 Text("Koszulka: ${itemData.shirt} • Bluza: ${itemData.hoodie}")

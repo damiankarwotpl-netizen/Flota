@@ -1761,6 +1761,57 @@ class ClothesOrdersViewModel(private val repository: AdminRepository) : ViewMode
         }.launchIn(viewModelScope)
     }
 
+    fun createOrderFromSelections(partsByWorker: Map<Long, Set<String>>) = viewModelScope.launch {
+        val state = _uiState.value
+        if (state.selectedWorkerIds.isEmpty()) {
+            _uiState.value = state.copy(actionMessage = "Wybierz co najmniej jednego pracownika")
+            return@launch
+        }
+        val scopedSelections = state.selectedWorkerIds.associateWith { partsByWorker[it].orEmpty() }
+        if (scopedSelections.values.all { it.isEmpty() }) {
+            _uiState.value = state.copy(actionMessage = "Wybierz przynajmniej jedną część ubrania")
+            return@launch
+        }
+        _uiState.value = state.copy(isCreatingStarterOrder = true, actionMessage = null)
+        val orderId = repository.createClothesOrderFromSelections(
+            draft = state.editor.copy(status = "Zamówione"),
+            workerParts = scopedSelections,
+        )
+        if (orderId == null) {
+            _uiState.value = _uiState.value.copy(
+                isCreatingStarterOrder = false,
+                actionMessage = "Nie udało się wygenerować zamówienia",
+            )
+            return@launch
+        }
+        _uiState.value = _uiState.value.copy(
+            isCreatingStarterOrder = false,
+            editor = ClothesOrderDraft(),
+            workerQuery = "",
+            selectedWorkerIds = emptySet(),
+            shirtQty = "1",
+            hoodieQty = "1",
+            pantsQty = "1",
+            jacketQty = "1",
+            shoesQty = "1",
+            actionMessage = "Utworzono zamówienie #$orderId",
+            selectedOrderId = orderId,
+            selectedOrderItems = emptyList(),
+            selectedOrderSummary = emptyList(),
+            showOnlyPendingItems = false,
+            importText = "",
+            importPreview = emptyList(),
+            itemEditor = ClothesOrderItemDraft(),
+        )
+        orderItemsJob?.cancel()
+        orderItemsJob = repository.observeClothesOrderItems(orderId).onEach { items ->
+            _uiState.value = _uiState.value.copy(
+                selectedOrderItems = items,
+                selectedOrderSummary = buildOrderSummary(items),
+            )
+        }.launchIn(viewModelScope)
+    }
+
     fun toggleOrderSelection(orderId: Long) {
         val current = _uiState.value.selectedOrderId
         if (current == orderId) {
