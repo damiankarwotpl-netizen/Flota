@@ -76,14 +76,16 @@ jobs:
         with:
           gradle-version: 8.14.3
 
-      - name: Normalize forbidden weight import in ClothesScreen
+      - name: Guard against unsupported matchParentSize imports
         run: |
           set -euo pipefail
-          TARGET="app-admin/src/main/java/com/future/ultimate/admin/ui/screen/ClothesScreen.kt"
-          if grep -n "import androidx.compose.foundation.layout.weight" "$TARGET"; then
-            echo "Forbidden import detected in $TARGET; removing it before build."
-            sed -i '/import androidx\.compose\.foundation\.layout\.weight/d' "$TARGET"
-            echo "Removed forbidden import."
+          TARGETS=(
+            "app-admin/src/main/java/com/future/ultimate/admin/ui/screen/ClothesScreen.kt"
+            "app-admin/src/main/java/com/future/ultimate/admin/ui/screen/ContactsScreen.kt"
+          )
+          if rg -n "import .*matchParentSize|\\.matchParentSize\\(" "${TARGETS[@]}"; then
+            echo "Unsupported matchParentSize usage/import found. Use fillMaxSize() overlays instead."
+            exit 1
           fi
 
       - name: Build debug APKs
