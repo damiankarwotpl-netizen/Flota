@@ -6,7 +6,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Tab
@@ -155,14 +154,11 @@ fun ClothesScreen() {
                 sizesUiState.query.isBlank() || sizesUiState.query.lowercase() in blob
             }.forEach { itemData ->
                 item {
-                    Card(modifier = Modifier.fillMaxWidth()) {
-                        Column(modifier = Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                            Text("${itemData.name} ${itemData.surname} • ${itemData.plant}")
-                            Text("Koszulka: ${itemData.shirt} • Bluza: ${itemData.hoodie}")
-                            Text("Spodnie: ${itemData.pants} • Kurtka: ${itemData.jacket} • Buty: ${itemData.shoes}")
-                            Button(onClick = { sizesViewModel.edit(itemData) }, modifier = Modifier.fillMaxWidth()) { Text("Edytuj rozmiar") }
-                            Button(onClick = { sizesViewModel.delete(itemData.id) }, modifier = Modifier.fillMaxWidth()) { Text("Usuń rozmiar") }
-                        }
+                    SectionCard(title = "${itemData.name} ${itemData.surname}", subtitle = itemData.plant.ifBlank { "Bez zakładu" }) {
+                        Text("Koszulka: ${itemData.shirt} • Bluza: ${itemData.hoodie}")
+                        Text("Spodnie: ${itemData.pants} • Kurtka: ${itemData.jacket} • Buty: ${itemData.shoes}")
+                        Button(onClick = { sizesViewModel.edit(itemData) }, modifier = Modifier.fillMaxWidth()) { Text("Edytuj rozmiar") }
+                        Button(onClick = { sizesViewModel.delete(itemData.id) }, modifier = Modifier.fillMaxWidth()) { Text("Usuń rozmiar") }
                     }
                 }
             }
@@ -182,42 +178,40 @@ fun ClothesScreen() {
                 ).count { it > 0 }
                 val estimatedItemCount = ordersUiState.selectedWorkerIds.size * starterItemTemplates
                 item {
-                    Card(modifier = Modifier.fillMaxWidth()) {
-                        Column(modifier = Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                            Text("Pracownicy do zestawu startowego: ${ordersUiState.selectedWorkerIds.size} / ${visibleWorkers.size}")
-                            Text("Zaznaczeni w bieżącym filtrze: $selectedVisibleCount • Szacowane pozycje: $estimatedItemCount")
-                            Row(modifier = Modifier.fillMaxWidth()) {
-                                Button(
-                                    onClick = { ordersViewModel.selectWorkers(visibleWorkerIds) },
-                                    modifier = Modifier.weight(1f),
-                                    enabled = visibleWorkerIds.isNotEmpty(),
-                                ) {
-                                    Text("Zaznacz filtr")
-                                }
-                                Button(
-                                    onClick = { ordersViewModel.unselectWorkers(visibleWorkerIds) },
-                                    modifier = Modifier.weight(1f),
-                                    enabled = visibleWorkerIds.isNotEmpty(),
-                                ) {
-                                    Text("Odznacz filtr")
-                                }
+                    SectionCard(title = "Pracownicy do zestawu startowego") {
+                        Text("Pracownicy: ${ordersUiState.selectedWorkerIds.size} / ${visibleWorkers.size}")
+                        Text("Zaznaczeni w bieżącym filtrze: $selectedVisibleCount • Szacowane pozycje: $estimatedItemCount")
+                        Row(modifier = Modifier.fillMaxWidth()) {
+                            Button(
+                                onClick = { ordersViewModel.selectWorkers(visibleWorkerIds) },
+                                modifier = Modifier.weight(1f),
+                                enabled = visibleWorkerIds.isNotEmpty(),
+                            ) {
+                                Text("Zaznacz filtr")
                             }
-                            if (visibleWorkers.isEmpty()) {
-                                Text("Brak pracowników pasujących do filtra.")
-                            } else {
-                                visibleWorkers.forEach { worker ->
-                                    Row(modifier = Modifier.fillMaxWidth()) {
-                                        Checkbox(
-                                            checked = worker.id in ordersUiState.selectedWorkerIds,
-                                            onCheckedChange = { ordersViewModel.toggleWorkerSelection(worker.id) },
+                            Button(
+                                onClick = { ordersViewModel.unselectWorkers(visibleWorkerIds) },
+                                modifier = Modifier.weight(1f),
+                                enabled = visibleWorkerIds.isNotEmpty(),
+                            ) {
+                                Text("Odznacz filtr")
+                            }
+                        }
+                        if (visibleWorkers.isEmpty()) {
+                            Text("Brak pracowników pasujących do filtra.")
+                        } else {
+                            visibleWorkers.forEach { worker ->
+                                Row(modifier = Modifier.fillMaxWidth()) {
+                                    Checkbox(
+                                        checked = worker.id in ordersUiState.selectedWorkerIds,
+                                        onCheckedChange = { ordersViewModel.toggleWorkerSelection(worker.id) },
+                                    )
+                                    Column(modifier = Modifier.weight(1f).padding(top = 12.dp)) {
+                                        Text("${worker.name} ${worker.surname} • ${worker.plant.ifBlank { "Bez zakładu" }}")
+                                        Text(
+                                            "Koszulka ${worker.shirt.ifBlank { "-" }}, Bluza ${worker.hoodie.ifBlank { "-" }}, " +
+                                                "Spodnie ${worker.pants.ifBlank { "-" }}, Kurtka ${worker.jacket.ifBlank { "-" }}, Buty ${worker.shoes.ifBlank { "-" }}",
                                         )
-                                        Column(modifier = Modifier.weight(1f).padding(top = 12.dp)) {
-                                            Text("${worker.name} ${worker.surname} • ${worker.plant.ifBlank { "Bez zakładu" }}")
-                                            Text(
-                                                "Koszulka ${worker.shirt.ifBlank { "-" }}, Bluza ${worker.hoodie.ifBlank { "-" }}, " +
-                                                    "Spodnie ${worker.pants.ifBlank { "-" }}, Kurtka ${worker.jacket.ifBlank { "-" }}, Buty ${worker.shoes.ifBlank { "-" }}",
-                                            )
-                                        }
                                     }
                                 }
                             }
@@ -226,17 +220,17 @@ fun ClothesScreen() {
                 }
                 ordersUiState.items.forEach { itemData ->
                     item {
-                        Card(modifier = Modifier.fillMaxWidth()) {
-                            Column(modifier = Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                                Text("${itemData.date} • ${itemData.plant.ifBlank { "Bez zakładu" }}")
-                                Text("Status: ${itemData.status}")
-                                Text(if (itemData.orderDesc.isBlank()) "Brak opisu" else itemData.orderDesc)
-                                Button(onClick = { ordersViewModel.editOrder(itemData) }, modifier = Modifier.fillMaxWidth()) {
-                                    Text("Edytuj nagłówek zamówienia")
-                                }
-                                Button(onClick = { ordersViewModel.toggleOrderSelection(itemData.id) }, modifier = Modifier.fillMaxWidth()) {
-                                    Text(if (ordersUiState.selectedOrderId == itemData.id) "Ukryj pozycje" else "Pokaż pozycje")
-                                }
+                        SectionCard(
+                            title = "${itemData.date} • ${itemData.plant.ifBlank { "Bez zakładu" }}",
+                            subtitle = "Status: ${itemData.status}",
+                        ) {
+                            Text(if (itemData.orderDesc.isBlank()) "Brak opisu" else itemData.orderDesc)
+                            Button(onClick = { ordersViewModel.editOrder(itemData) }, modifier = Modifier.fillMaxWidth()) {
+                                Text("Edytuj nagłówek zamówienia")
+                            }
+                            Button(onClick = { ordersViewModel.toggleOrderSelection(itemData.id) }, modifier = Modifier.fillMaxWidth()) {
+                                Text(if (ordersUiState.selectedOrderId == itemData.id) "Ukryj pozycje" else "Pokaż pozycje")
+                            }
                                 Button(
                                     onClick = { ordersViewModel.markOrdered(itemData.id) },
                                     modifier = Modifier.fillMaxWidth(),
@@ -277,12 +271,9 @@ fun ClothesScreen() {
                                 }
                                 if (ordersUiState.selectedOrderId == itemData.id) {
                                     if (ordersUiState.selectedOrderSummary.isNotEmpty()) {
-                                        Card(modifier = Modifier.fillMaxWidth()) {
-                                            Column(modifier = Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                                Text("Podsumowanie zamówienia")
-                                                ordersUiState.selectedOrderSummary.forEach { summary ->
-                                                    Text(summary)
-                                                }
+                                        SectionCard(title = "Podsumowanie zamówienia") {
+                                            ordersUiState.selectedOrderSummary.forEach { summary ->
+                                                Text(summary)
                                             }
                                         }
                                     }
@@ -351,24 +342,21 @@ fun ClothesScreen() {
                                     ordersUiState.selectedOrderItems
                                         .filter { !ordersUiState.showOnlyPendingItems || !it.issued }
                                         .forEach { orderItem ->
-                                        Card(modifier = Modifier.fillMaxWidth()) {
-                                            Column(modifier = Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                                Text("${orderItem.name} ${orderItem.surname}".trim().ifBlank { "Pracownik nieuzupełniony" })
-                                                Text("${orderItem.item} • rozmiar: ${orderItem.size.ifBlank { "-" }} • ilość: ${orderItem.qty}")
-                                                Text(if (orderItem.issued) "Status pozycji: wydane" else "Status pozycji: niewydane")
-                                                Button(onClick = { ordersViewModel.editItem(orderItem) }, modifier = Modifier.fillMaxWidth()) {
-                                                    Text("Edytuj pozycję")
-                                                }
-                                                Button(
-                                                    onClick = { ordersViewModel.issueItem(orderItem.id) },
-                                                    modifier = Modifier.fillMaxWidth(),
-                                                    enabled = !orderItem.issued && canIssueClothesOrder(itemData.status),
-                                                ) {
-                                                    Text(if (orderItem.issued) "Pozycja wydana" else "Wydaj pozycję")
-                                                }
-                                                Button(onClick = { ordersViewModel.deleteItem(orderItem.id) }, modifier = Modifier.fillMaxWidth()) {
-                                                    Text("Usuń pozycję")
-                                                }
+                                        SectionCard(title = "${orderItem.name} ${orderItem.surname}".trim().ifBlank { "Pracownik nieuzupełniony" }) {
+                                            Text("${orderItem.item} • rozmiar: ${orderItem.size.ifBlank { "-" }} • ilość: ${orderItem.qty}")
+                                            Text(if (orderItem.issued) "Status pozycji: wydane" else "Status pozycji: niewydane")
+                                            Button(onClick = { ordersViewModel.editItem(orderItem) }, modifier = Modifier.fillMaxWidth()) {
+                                                Text("Edytuj pozycję")
+                                            }
+                                            Button(
+                                                onClick = { ordersViewModel.issueItem(orderItem.id) },
+                                                modifier = Modifier.fillMaxWidth(),
+                                                enabled = !orderItem.issued && canIssueClothesOrder(itemData.status),
+                                            ) {
+                                                Text(if (orderItem.issued) "Pozycja wydana" else "Wydaj pozycję")
+                                            }
+                                            Button(onClick = { ordersViewModel.deleteItem(orderItem.id) }, modifier = Modifier.fillMaxWidth()) {
+                                                Text("Usuń pozycję")
                                             }
                                         }
                                     }
@@ -378,33 +366,28 @@ fun ClothesScreen() {
                     }
                 }
             }
-            else -> {
-                reportsUiState.yearlySummary.forEach { summary ->
-                    item {
-                        Card(modifier = Modifier.fillMaxWidth()) {
-                            Column(modifier = Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                Text(summary)
-                            }
-                        }
+        }
+        if (selected.intValue == 2) {
+            reportsUiState.yearlySummary.forEach { summary ->
+                item {
+                    SectionCard {
+                        Text(summary)
                     }
                 }
-                reportsUiState.history.filter { historyItem ->
-                    val matchesYear = reportsUiState.year.isBlank() || historyItem.date.startsWith(reportsUiState.year.trim())
-                    val matchesQuery = reportsUiState.workerQuery.isBlank() || listOf(
-                        historyItem.name,
-                        historyItem.surname,
-                        historyItem.item,
-                        historyItem.size,
-                    ).joinToString(" ").lowercase().contains(reportsUiState.workerQuery.trim().lowercase())
-                    matchesYear && matchesQuery
-                }.forEach { historyItem ->
-                    item {
-                        Card(modifier = Modifier.fillMaxWidth()) {
-                            Column(modifier = Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                Text("${historyItem.date} • ${historyItem.name} ${historyItem.surname}".trim())
-                                Text("${historyItem.item} • rozmiar: ${historyItem.size.ifBlank { "-" }}")
-                            }
-                        }
+            }
+            reportsUiState.history.filter { historyItem ->
+                val matchesYear = reportsUiState.year.isBlank() || historyItem.date.startsWith(reportsUiState.year.trim())
+                val matchesQuery = reportsUiState.workerQuery.isBlank() || listOf(
+                    historyItem.name,
+                    historyItem.surname,
+                    historyItem.item,
+                    historyItem.size,
+                ).joinToString(" ").lowercase().contains(reportsUiState.workerQuery.trim().lowercase())
+                matchesYear && matchesQuery
+            }.forEach { historyItem ->
+                item {
+                    SectionCard(title = "${historyItem.date} • ${historyItem.name} ${historyItem.surname}".trim()) {
+                        Text("${historyItem.item} • rozmiar: ${historyItem.size.ifBlank { "-" }}")
                     }
                 }
             }
