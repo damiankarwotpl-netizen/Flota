@@ -36,9 +36,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.compose.foundation.text.KeyboardOptions
 import com.future.ultimate.admin.AdminApp
 import com.future.ultimate.admin.ui.viewmodel.AdminViewModelFactory
 import com.future.ultimate.admin.ui.viewmodel.ContactsViewModel
@@ -369,6 +371,7 @@ private fun AddContactDialog(
                     onValueChange = { onDraftChange(draft.copy(phone = it)) },
                     label = { Text(if (mode == ContactDialogMode.Employee) "Telefon *" else "Telefon") },
                     modifier = Modifier.fillMaxWidth(),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                 )
                 OutlinedTextField(
                     value = draft.email,
@@ -416,6 +419,7 @@ private fun AddContactDialog(
                         onValueChange = { onDraftChange(draft.copy(pesel = it)) },
                         label = { Text("PESEL") },
                         modifier = Modifier.fillMaxWidth(),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     )
                     OutlinedTextField(
                         value = draft.apartment,
