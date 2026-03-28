@@ -366,28 +366,28 @@ fun ClothesScreen() {
                     }
                 }
             }
-            2 -> {
-                reportsUiState.yearlySummary.forEach { summary ->
-                    item {
-                        SectionCard {
-                            Text(summary)
-                        }
+        }
+        if (selected.intValue == 2) {
+            reportsUiState.yearlySummary.forEach { summary ->
+                item {
+                    SectionCard {
+                        Text(summary)
                     }
                 }
-                reportsUiState.history.filter { historyItem ->
-                    val matchesYear = reportsUiState.year.isBlank() || historyItem.date.startsWith(reportsUiState.year.trim())
-                    val matchesQuery = reportsUiState.workerQuery.isBlank() || listOf(
-                        historyItem.name,
-                        historyItem.surname,
-                        historyItem.item,
-                        historyItem.size,
-                    ).joinToString(" ").lowercase().contains(reportsUiState.workerQuery.trim().lowercase())
-                    matchesYear && matchesQuery
-                }.forEach { historyItem ->
-                    item {
-                        SectionCard(title = "${historyItem.date} • ${historyItem.name} ${historyItem.surname}".trim()) {
-                            Text("${historyItem.item} • rozmiar: ${historyItem.size.ifBlank { "-" }}")
-                        }
+            }
+            reportsUiState.history.filter { historyItem ->
+                val matchesYear = reportsUiState.year.isBlank() || historyItem.date.startsWith(reportsUiState.year.trim())
+                val matchesQuery = reportsUiState.workerQuery.isBlank() || listOf(
+                    historyItem.name,
+                    historyItem.surname,
+                    historyItem.item,
+                    historyItem.size,
+                ).joinToString(" ").lowercase().contains(reportsUiState.workerQuery.trim().lowercase())
+                matchesYear && matchesQuery
+            }.forEach { historyItem ->
+                item {
+                    SectionCard(title = "${historyItem.date} • ${historyItem.name} ${historyItem.surname}".trim()) {
+                        Text("${historyItem.item} • rozmiar: ${historyItem.size.ifBlank { "-" }}")
                     }
                 }
             }
