@@ -6,15 +6,15 @@ Daemon will be stopped at the end of the build
 > Task :core-database:clean UP-TO-DATE
 > Task :app-admin:preBuild UP-TO-DATE
 > Task :app-admin:preDebugBuild UP-TO-DATE
-> Task :app-admin:mergeDebugNativeDebugMetadata NO-SOURCE
 > Task :app-admin:checkKotlinGradlePluginConfigurationErrors SKIPPED
 > Task :core-common:preBuild UP-TO-DATE
+> Task :app-admin:mergeDebugNativeDebugMetadata NO-SOURCE
 > Task :core-common:preDebugBuild UP-TO-DATE
 > Task :core-database:preBuild UP-TO-DATE
 > Task :core-database:preDebugBuild UP-TO-DATE
+> Task :app-admin:generateDebugResValues
 > Task :core-database:writeDebugAarMetadata
 > Task :core-common:writeDebugAarMetadata
-> Task :app-admin:generateDebugResValues
 > Task :core-common:generateDebugResValues
 > Task :app-admin:checkDebugAarMetadata
 > Task :core-common:generateDebugResources
@@ -32,19 +32,19 @@ Daemon will be stopped at the end of the build
 > Task :core-database:extractDeepLinksDebug
 > Task :app-admin:parseDebugLocalResources
 > Task :core-common:compileDebugLibraryResources
-> Task :core-common:parseDebugLocalResources
 > Task :core-database:compileDebugLibraryResources
-> Task :core-common:processDebugManifest
+> Task :core-common:parseDebugLocalResources
+> Task :core-database:parseDebugLocalResources
 > Task :core-database:processDebugManifest
+> Task :core-common:processDebugManifest
+> Task :core-database:generateDebugRFile
 > Task :core-common:generateDebugRFile
 > Task :app-admin:processDebugMainManifest
 > Task :app-admin:processDebugManifest
-> Task :app-admin:processDebugManifestForPackage
 > Task :core-common:checkKotlinGradlePluginConfigurationErrors SKIPPED
-> Task :core-database:parseDebugLocalResources
-> Task :core-database:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :app-admin:processDebugManifestForPackage
 > Task :core-common:javaPreCompileDebug
-> Task :core-database:generateDebugRFile
+> Task :core-database:checkKotlinGradlePluginConfigurationErrors SKIPPED
 > Task :core-database:javaPreCompileDebug
 > Task :app-admin:javaPreCompileDebug
 > Task :app-admin:mergeDebugShaders
@@ -61,27 +61,27 @@ Daemon will be stopped at the end of the build
 > Task :app-admin:mergeDebugAssets
 > Task :app-admin:compressDebugAssets
 > Task :app-admin:desugarDebugFileDependencies
+> Task :app-admin:processDebugResources
 > Task :app-admin:mergeDebugJniLibFolders
 > Task :core-common:mergeDebugJniLibFolders
 > Task :core-common:mergeDebugNativeLibs NO-SOURCE
 > Task :core-common:copyDebugJniLibsProjectOnly
+> Task :app-admin:checkDebugDuplicateClasses
 > Task :core-database:mergeDebugJniLibFolders
 > Task :core-database:mergeDebugNativeLibs NO-SOURCE
 > Task :core-database:copyDebugJniLibsProjectOnly
-> Task :app-admin:checkDebugDuplicateClasses
-> Task :app-admin:processDebugResources
-> Task :app-admin:mergeDebugNativeLibs
-
-> Task :app-admin:stripDebugDebugSymbols
-Unable to strip the following libraries, packaging them as they are: libandroidx.graphics.path.so.
-
 > Task :app-admin:validateSigningDebug
 > Task :app-admin:writeDebugAppMetadata
+> Task :app-admin:mergeDebugNativeLibs
 > Task :app-admin:writeDebugSigningConfigVersions
 > Task :app-driver:preBuild UP-TO-DATE
 > Task :app-driver:preDebugBuild UP-TO-DATE
 > Task :app-driver:mergeDebugNativeDebugMetadata NO-SOURCE
 > Task :app-driver:checkKotlinGradlePluginConfigurationErrors SKIPPED
+
+> Task :app-admin:stripDebugDebugSymbols
+Unable to strip the following libraries, packaging them as they are: libandroidx.graphics.path.so.
+
 > Task :app-driver:generateDebugResValues
 > Task :app-driver:checkDebugAarMetadata
 > Task :app-driver:mapDebugSourceSetPaths
@@ -93,8 +93,8 @@ Unable to strip the following libraries, packaging them as they are: libandroidx
 > Task :app-driver:mergeDebugResources
 > Task :app-driver:processDebugMainManifest
 > Task :app-driver:processDebugManifest
-> Task :app-driver:javaPreCompileDebug
 > Task :app-driver:processDebugManifestForPackage
+> Task :app-driver:javaPreCompileDebug
 > Task :app-driver:mergeDebugShaders
 > Task :app-driver:compileDebugShaders NO-SOURCE
 > Task :app-driver:generateDebugAssets UP-TO-DATE
@@ -113,230 +113,30 @@ Unable to strip the following libraries, packaging them as they are: libandroidx
 > Task :app-driver:writeDebugAppMetadata
 > Task :app-driver:writeDebugSigningConfigVersions
 > Task :app-driver:mergeExtDexDebug
-> Task :app-admin:mergeExtDexDebug
 > Task :core-common:compileDebugKotlin
 > Task :core-common:compileDebugJavaWithJavac NO-SOURCE
 > Task :core-common:bundleLibRuntimeToJarDebug
-> Task :core-common:processDebugJavaRes
 > Task :core-common:bundleLibCompileToJarDebug
+> Task :core-common:processDebugJavaRes
+> Task :app-admin:mergeExtDexDebug
 > Task :core-common:bundleLibRuntimeToDirDebug
 > Task :core-database:kspDebugKotlin
 > Task :core-database:compileDebugKotlin
 > Task :core-database:compileDebugJavaWithJavac
 > Task :core-database:bundleLibCompileToJarDebug
-> Task :core-database:processDebugJavaRes
 > Task :core-database:bundleLibRuntimeToJarDebug
+> Task :core-database:processDebugJavaRes
 > Task :core-database:bundleLibRuntimeToDirDebug
-> Task :app-driver:mergeLibDexDebug
 > Task :app-admin:mergeLibDexDebug
+> Task :app-driver:mergeLibDexDebug
 
 > Task :app-admin:compileDebugKotlin FAILED
-e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/ClothesScreen.kt:106:41 Unresolved reference 'ordersUiState'.
-e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/ClothesScreen.kt:108:43 @Composable invocations can only happen from the context of a @Composable function
-e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/ClothesScreen.kt:117:33 Unresolved reference 'ordersUiState'.
-e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/ClothesScreen.kt:118:57 Unresolved reference 'ordersUiState'.
-e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/ClothesScreen.kt:120:29 Unresolved reference 'ordersUiState'.
-e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/ClothesScreen.kt:120:29 Argument type mismatch: actual type is 'R?', but 'K' was expected.
-e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/ClothesScreen.kt:120:58 Cannot infer type for this parameter. Please specify it explicitly.
-e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/ClothesScreen.kt:120:62 Cannot infer type for this parameter. Please specify it explicitly.
-e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/ClothesScreen.kt:188:45 Unresolved reference 'ordersUiState'.
-e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/ClothesScreen.kt:189:44 Unresolved reference 'ordersUiState'.
-e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/ClothesScreen.kt:189:84 Cannot infer type for this parameter. Please specify it explicitly.
-e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/ClothesScreen.kt:190:66 Unresolved reference 'plant'.
-e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/ClothesScreen.kt:196:57 Overload resolution ambiguity between candidates:
-fun <T> Array<out T>.isEmpty(): Boolean
-fun BooleanArray.isEmpty(): Boolean
-fun ByteArray.isEmpty(): Boolean
-fun CharArray.isEmpty(): Boolean
-fun DoubleArray.isEmpty(): Boolean
-fun FloatArray.isEmpty(): Boolean
-fun IntArray.isEmpty(): Boolean
-fun LongArray.isEmpty(): Boolean
-fun ShortArray.isEmpty(): Boolean
-fun CharSequence.isEmpty(): Boolean
-e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/ClothesScreen.kt:199:50 Overload resolution ambiguity between candidates:
-fun <T> Iterable<T>.forEach(action: (T) -> Unit): Unit
-fun <K, V> Map<out K, V>.forEach(action: (Map.Entry<K, V>) -> Unit): Unit
-e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/ClothesScreen.kt:199:60 Cannot infer type for this parameter. Please specify it explicitly.
-e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/ClothesScreen.kt:200:41 @Composable invocations can only happen from the context of a @Composable function
-e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/ClothesScreen.kt:202:66 Unresolved reference 'id'.
-e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/ClothesScreen.kt:202:72 Unresolved reference 'ordersUiState'.
-e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/ClothesScreen.kt:203:69 Unresolved reference 'ordersViewModel'.
-e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/ClothesScreen.kt:203:114 Unresolved reference 'id'.
-e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/ClothesScreen.kt:206:64 Unresolved reference 'name'.
-e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/ClothesScreen.kt:206:79 Unresolved reference 'surname'.
-e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/ClothesScreen.kt:207:61 Unresolved reference 'plant'.
-e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/ClothesScreen.kt:207:67 Cannot infer type for this parameter. Please specify it explicitly.
-e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/ClothesScreen.kt:213:51 Unresolved reference 'ordersUiState'.
-e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/ClothesScreen.kt:222:51 Unresolved reference 'ordersUiState'.
-e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/ClothesScreen.kt:239:60 Unresolved reference 'ordersUiState'.
-e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/ClothesScreen.kt:240:93 Cannot infer type for this parameter. Please specify it explicitly.
-e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/ClothesScreen.kt:253:64 Overload resolution ambiguity between candidates:
-fun <T> Array<out T>.filter(predicate: (T) -> Boolean): List<T>
-fun BooleanArray.filter(predicate: (Boolean) -> Boolean): List<Boolean>
-fun ByteArray.filter(predicate: (Byte) -> Boolean): List<Byte>
-fun CharArray.filter(predicate: (Char) -> Boolean): List<Char>
-fun DoubleArray.filter(predicate: (Double) -> Boolean): List<Double>
-fun FloatArray.filter(predicate: (Float) -> Boolean): List<Float>
-fun IntArray.filter(predicate: (Int) -> Boolean): List<Int>
-fun LongArray.filter(predicate: (Long) -> Boolean): List<Long>
-fun ShortArray.filter(predicate: (Short) -> Boolean): List<Short>
-fun <T> Iterable<T>.filter(predicate: (T) -> Boolean): List<T>
-fun <K, V> Map<out K, V>.filter(predicate: (Map.Entry<K, V>) -> Boolean): Map<K, V>
-fun UByteArray.filter(predicate: (UByte) -> Boolean): List<UByte>
-fun UIntArray.filter(predicate: (UInt) -> Boolean): List<UInt>
-fun ULongArray.filter(predicate: (ULong) -> Boolean): List<ULong>
-fun UShortArray.filter(predicate: (UShort) -> Boolean): List<UShort>
-fun <T> Sequence<T>.filter(predicate: (T) -> Boolean): Sequence<T>
-fun CharSequence.filter(predicate: (Char) -> Boolean): CharSequence
-fun String.filter(predicate: (Char) -> Boolean): String
-e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/ClothesScreen.kt:253:73 Unresolved reference 'it'.
-e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/ClothesScreen.kt:253:82 Unresolved reference 'ordersUiState'.
-e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/ClothesScreen.kt:254:45 Overload resolution ambiguity between candidates:
-fun <T> Iterable<T>.forEach(action: (T) -> Unit): Unit
-fun <K, V> Map<out K, V>.forEach(action: (Map.Entry<K, V>) -> Unit): Unit
-e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/ClothesScreen.kt:254:55 Cannot infer type for this parameter. Please specify it explicitly.
-e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/ClothesScreen.kt:256:67 Unresolved reference 'name'.
-e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/ClothesScreen.kt:256:82 Unresolved reference 'surname'.
-e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/ClothesScreen.kt:259:85 Unresolved reference 'id'.
-e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/ClothesScreen.kt:262:95 Unresolved reference 'id'.
-e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/ClothesScreen.kt:263:107 Unresolved reference 'id'.
-e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/ClothesScreen.kt:263:110 Cannot infer type for this parameter. Please specify it explicitly.
-e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/ClothesScreen.kt:277:59 Unresolved reference 'ordersUiState'.
-e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/ClothesScreen.kt:277:107 Cannot infer type for this parameter. Please specify it explicitly.
-e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/ClothesScreen.kt:284:45 Unresolved reference 'ordersViewModel'.
-e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/ClothesScreen.kt:290:52 Unresolved reference 'ordersUiState'.
-e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/ClothesScreen.kt:293:50 Unresolved reference 'ordersUiState'.
-e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/ClothesScreen.kt:300:45 Unresolved reference 'ordersUiState'.
-e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/ClothesScreen.kt:300:74 Unresolved reference 'it'.
-e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/ClothesScreen.kt:301:43 Overload resolution ambiguity between candidates:
-fun <T> Array<out T>.isEmpty(): Boolean
-fun BooleanArray.isEmpty(): Boolean
-fun ByteArray.isEmpty(): Boolean
-fun CharArray.isEmpty(): Boolean
-fun DoubleArray.isEmpty(): Boolean
-fun FloatArray.isEmpty(): Boolean
-fun IntArray.isEmpty(): Boolean
-fun LongArray.isEmpty(): Boolean
-fun ShortArray.isEmpty(): Boolean
-fun CharSequence.isEmpty(): Boolean
-e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/ClothesScreen.kt:304:43 Overload resolution ambiguity between candidates:
-fun <T> Iterable<T>.forEach(action: (T) -> Unit): Unit
-fun <K, V> Map<out K, V>.forEach(action: (Map.Entry<K, V>) -> Unit): Unit
-e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/ClothesScreen.kt:304:53 Cannot infer type for this parameter. Please specify it explicitly.
-e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/ClothesScreen.kt:306:57 Argument type mismatch: actual type is 'C', but 'kotlin.String?' was expected.
-e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/ClothesScreen.kt:306:63 Unresolved reference 'orderDesc'.
-e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/ClothesScreen.kt:306:73 Cannot infer type for this parameter. Please specify it explicitly.
-e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/ClothesScreen.kt:306:92 Unresolved reference 'plant'.
-e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/ClothesScreen.kt:306:109 Unresolved reference 'date'.
-e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/ClothesScreen.kt:306:119 Argument type mismatch: actual type is 'kotlin.Function0<kotlin.Unit>', but '@Composable() androidx.compose.runtime.internal.ComposableFunction0<kotlin.Unit>' was expected.
-e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/ClothesScreen.kt:307:41 @Composable invocations can only happen from the context of a @Composable function
-e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/ClothesScreen.kt:307:63 Unresolved reference 'plant'.
-e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/ClothesScreen.kt:307:69 Cannot infer type for this parameter. Please specify it explicitly.
-e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/ClothesScreen.kt:308:41 @Composable invocations can only happen from the context of a @Composable function
-e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/ClothesScreen.kt:308:61 Unresolved reference 'date'.
-e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/ClothesScreen.kt:309:41 @Composable invocations can only happen from the context of a @Composable function
-e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/ClothesScreen.kt:309:63 Unresolved reference 'status'.
-e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/ClothesScreen.kt:316:43 Unresolved reference 'ordersUiState'.
-e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/ClothesScreen.kt:316:72 Cannot infer type for this parameter. Please specify it explicitly.
-e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/ClothesScreen.kt:317:52 Unresolved reference 'status'.
-e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/ClothesScreen.kt:320:41 Overload resolution ambiguity between candidates:
-fun <T> Array<out T>.isEmpty(): Boolean
-fun BooleanArray.isEmpty(): Boolean
-fun ByteArray.isEmpty(): Boolean
-fun CharArray.isEmpty(): Boolean
-fun DoubleArray.isEmpty(): Boolean
-fun FloatArray.isEmpty(): Boolean
-fun IntArray.isEmpty(): Boolean
-fun LongArray.isEmpty(): Boolean
-fun ShortArray.isEmpty(): Boolean
-fun CharSequence.isEmpty(): Boolean
-e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/ClothesScreen.kt:323:41 Overload resolution ambiguity between candidates:
-fun <T> Iterable<T>.forEach(action: (T) -> Unit): Unit
-fun <K, V> Map<out K, V>.forEach(action: (Map.Entry<K, V>) -> Unit): Unit
-e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/ClothesScreen.kt:323:51 Cannot infer type for this parameter. Please specify it explicitly.
-e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/ClothesScreen.kt:325:57 Argument type mismatch: actual type is 'C', but 'kotlin.String?' was expected.
-e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/ClothesScreen.kt:325:63 Unresolved reference 'orderDesc'.
-e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/ClothesScreen.kt:325:73 Cannot infer type for this parameter. Please specify it explicitly.
-e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/ClothesScreen.kt:325:92 Unresolved reference 'plant'.
-e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/ClothesScreen.kt:325:109 Unresolved reference 'date'.
-e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/ClothesScreen.kt:325:119 Argument type mismatch: actual type is 'kotlin.Function0<kotlin.Unit>', but '@Composable() androidx.compose.runtime.internal.ComposableFunction0<kotlin.Unit>' was expected.
-e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/ClothesScreen.kt:326:41 @Composable invocations can only happen from the context of a @Composable function
-e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/ClothesScreen.kt:326:63 Unresolved reference 'plant'.
-e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/ClothesScreen.kt:326:69 Cannot infer type for this parameter. Please specify it explicitly.
-e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/ClothesScreen.kt:327:41 @Composable invocations can only happen from the context of a @Composable function
-e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/ClothesScreen.kt:327:61 Unresolved reference 'date'.
-e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/ClothesScreen.kt:328:41 @Composable invocations can only happen from the context of a @Composable function
-e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/ClothesScreen.kt:328:63 Unresolved reference 'status'.
-e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/ClothesScreen.kt:331:33 @Composable invocations can only happen from the context of a @Composable function
-e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/ClothesScreen.kt:331:51 Unresolved reference 'itemData'.
-e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/ClothesScreen.kt:331:78 Unresolved reference 'itemData'.
-e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/ClothesScreen.kt:332:33 @Composable invocations can only happen from the context of a @Composable function
-e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/ClothesScreen.kt:332:50 Unresolved reference 'itemData'.
-e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/ClothesScreen.kt:332:78 Unresolved reference 'itemData'.
-e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/ClothesScreen.kt:332:105 Unresolved reference 'itemData'.
-e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/ClothesScreen.kt:333:33 @Composable invocations can only happen from the context of a @Composable function
-e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/ClothesScreen.kt:333:74 Unresolved reference 'itemData'.
-e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/ClothesScreen.kt:390:21 Unresolved reference 'ordersUiState'.
-e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/ClothesScreen.kt:391:32 Unresolved reference 'it'.
-e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/ClothesScreen.kt:392:26 Overload resolution ambiguity between candidates:
-fun <T> Array<out T>.filter(predicate: (T) -> Boolean): List<T>
-fun BooleanArray.filter(predicate: (Boolean) -> Boolean): List<Boolean>
-fun ByteArray.filter(predicate: (Byte) -> Boolean): List<Byte>
-fun CharArray.filter(predicate: (Char) -> Boolean): List<Char>
-fun DoubleArray.filter(predicate: (Double) -> Boolean): List<Double>
-fun FloatArray.filter(predicate: (Float) -> Boolean): List<Float>
-fun IntArray.filter(predicate: (Int) -> Boolean): List<Int>
-fun LongArray.filter(predicate: (Long) -> Boolean): List<Long>
-fun ShortArray.filter(predicate: (Short) -> Boolean): List<Short>
-fun <T> Iterable<T>.filter(predicate: (T) -> Boolean): List<T>
-fun <K, V> Map<out K, V>.filter(predicate: (Map.Entry<K, V>) -> Boolean): Map<K, V>
-fun UByteArray.filter(predicate: (UByte) -> Boolean): List<UByte>
-fun UIntArray.filter(predicate: (UInt) -> Boolean): List<UInt>
-fun ULongArray.filter(predicate: (ULong) -> Boolean): List<ULong>
-fun UShortArray.filter(predicate: (UShort) -> Boolean): List<UShort>
-fun <T> Sequence<T>.filter(predicate: (T) -> Boolean): Sequence<T>
-fun CharSequence.filter(predicate: (Char) -> Boolean): CharSequence
-fun String.filter(predicate: (Char) -> Boolean): String
-e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/ClothesScreen.kt:392:35 Unresolved reference 'it'.
-e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/ClothesScreen.kt:393:26 Overload resolution ambiguity between candidates:
-fun <T> Array<out T>.distinct(): List<T>
-fun BooleanArray.distinct(): List<Boolean>
-fun ByteArray.distinct(): List<Byte>
-fun CharArray.distinct(): List<Char>
-fun DoubleArray.distinct(): List<Double>
-fun FloatArray.distinct(): List<Float>
-fun IntArray.distinct(): List<Int>
-fun LongArray.distinct(): List<Long>
-fun ShortArray.distinct(): List<Short>
-fun <T> Iterable<T>.distinct(): List<T>
-fun <T> Sequence<T>.distinct(): Sequence<T>
-e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/ClothesScreen.kt:394:26 Overload resolution ambiguity between candidates:
-fun <T : Comparable<T>> Array<out T>.sorted(): List<T>
-fun ByteArray.sorted(): List<Byte>
-fun CharArray.sorted(): List<Char>
-fun DoubleArray.sorted(): List<Double>
-fun FloatArray.sorted(): List<Float>
-fun IntArray.sorted(): List<Int>
-fun LongArray.sorted(): List<Long>
-fun ShortArray.sorted(): List<Short>
-fun <T : Comparable<T>> Iterable<T>.sorted(): List<T>
-fun UByteArray.sorted(): List<UByte>
-fun UIntArray.sorted(): List<UInt>
-fun ULongArray.sorted(): List<ULong>
-fun UShortArray.sorted(): List<UShort>
-fun <T : Comparable<T>> Sequence<T>.sorted(): Sequence<T>
-e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/ClothesScreen.kt:395:26 Overload resolution ambiguity between candidates:
-fun <T> Iterable<T>.forEach(action: (T) -> Unit): Unit
-fun <K, V> Map<out K, V>.forEach(action: (Map.Entry<K, V>) -> Unit): Unit
-e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/ClothesScreen.kt:395:36 Cannot infer type for this parameter. Please specify it explicitly.
-e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/ClothesScreen.kt:396:29 @Composable invocations can only happen from the context of a @Composable function
-e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/ClothesScreen.kt:398:37 Unresolved reference 'ordersViewModel'.
-e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/ClothesScreen.kt:399:41 Unresolved reference 'ordersUiState'.
-e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/ClothesScreen.kt:404:37 Unresolved reference 'ordersViewModel'.
+e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/ClothesScreen.kt:10:43 Unresolved reference 'matchParentSize'.
+e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/ClothesScreen.kt:12:43 Cannot access 'val RowColumnParentData?.weight: Float': it is internal in file.
+e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/ContactsScreen.kt:11:43 Unresolved reference 'matchParentSize'.
 
 > Task :app-driver:compileDebugKotlin
-gradle/actions: Writing build results to /home/runner/work/_temp/.gradle-actions/build-results/__run_2-1774726679986.json
+gradle/actions: Writing build results to /home/runner/work/_temp/.gradle-actions/build-results/__run_3-1774734784021.json
 
 [Incubating] Problems report is available at: file:///home/runner/work/Flota/Flota/android-native/build/reports/problems/problems-report.html
 
@@ -550,5 +350,5 @@ You can use '--warning-mode all' to show the individual deprecation warnings and
 
 For more on this, please refer to https://docs.gradle.org/8.14.3/userguide/command_line_interface.html#sec:command_line_warnings in the Gradle documentation.
 
-BUILD FAILED in 1m 21s
+BUILD FAILED in 1m 20s
 100 actionable tasks: 96 executed, 4 up-to-date
