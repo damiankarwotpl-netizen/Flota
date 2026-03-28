@@ -14,6 +14,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Call
 import androidx.compose.material.icons.rounded.Chat
+import androidx.compose.material.icons.rounded.Email
 import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -21,10 +22,13 @@ import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Tab
+import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -49,13 +53,17 @@ fun ContactsScreen() {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     var isDialogOpen by remember { mutableStateOf(false) }
     var editedContact by remember { mutableStateOf<ContactListItem?>(null) }
+    val selectedTab = remember { mutableIntStateOf(0) }
 
-    val filteredContacts = remember(uiState.items, uiState.query) {
+    val searchableContacts = remember(uiState.items, uiState.query) {
         uiState.items.filter {
             val blob = "${it.name} ${it.surname} ${it.email} ${it.pesel} ${it.phone} ${it.workplace} ${it.apartment} ${it.notes}".lowercase()
             uiState.query.isBlank() || uiState.query.lowercase() in blob
         }
     }
+    val employeeContacts = remember(searchableContacts) { searchableContacts.filter(::isEmployeeContact) }
+    val futureContacts = remember(searchableContacts) { searchableContacts.filter(::isFutureContact) }
+    val plantContacts = remember(searchableContacts) { searchableContacts.filter { it.workplace.isNotBlank() } }
 
     ScreenColumn("Kontakty", "Szukaj kontaktów i wykonuj szybkie akcje bez opuszczania listy.") {
         item {
@@ -63,9 +71,26 @@ fun ContactsScreen() {
                 OutlinedTextField(
                     value = uiState.query,
                     onValueChange = viewModel::updateQuery,
-                    label = { Text("Szukaj kontaktu") },
+                    label = {
+                        Text(
+                            when (selectedTab.intValue) {
+                                0 -> "Szukaj pracownika"
+                                1 -> "Szukaj kontaktu Future"
+                                else -> "Szukaj zakładu"
+                            },
+                        )
+                    },
                     modifier = Modifier.fillMaxWidth(),
                 )
+                TabRow(selectedTabIndex = selectedTab.intValue) {
+                    listOf("Pracownicy", "Future", "Zakłady").forEachIndexed { index, title ->
+                        Tab(
+                            selected = selectedTab.intValue == index,
+                            onClick = { selectedTab.intValue = index },
+                            text = { Text(title) },
+                        )
+                    }
+                }
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.End,
@@ -87,39 +112,82 @@ fun ContactsScreen() {
             }
         }
 
-        if (filteredContacts.isEmpty()) {
-            item {
-                SectionCard {
-                    Text(
-                        text = "Brak kontaktów pasujących do wyszukiwania.",
-                        style = MaterialTheme.typography.bodyLarge,
-                    )
+        when (selectedTab.intValue) {
+            0 -> {
+                if (employeeContacts.isEmpty()) {
+                    item {
+                        SectionCard {
+                            Text(
+                                text = "Brak pracowników pasujących do wyszukiwania.",
+                                style = MaterialTheme.typography.bodyLarge,
+                            )
+                        }
+                    }
+                } else {
+                    employeeContacts.forEach { contact ->
+                        item {
+                            ContactCard(
+                                contact = contact,
+                                onCall = { openDialer(context, contact.phone) },
+                                onWhatsApp = { openWhatsApp(context, contact.phone) },
+                                onEmail = { openEmail(context, contact.email) },
+                                onEdit = {
+                                    editedContact = contact
+                                    viewModel.updateEditor(contact.toDraft())
+                                    isDialogOpen = true
+                                },
+                            )
+                        }
+                    }
                 }
             }
-        } else {
-            filteredContacts.forEach { contact ->
-                item {
-                    ContactCard(
-                        contact = contact,
-                        onCall = { openDialer(context, contact.phone) },
-                        onWhatsApp = { openWhatsApp(context, contact.phone) },
-                        onEdit = {
-                            editedContact = contact
-                            viewModel.updateEditor(
-                                ContactDraft(
-                                    name = contact.name,
-                                    surname = contact.surname,
-                                    email = contact.email,
-                                    pesel = contact.pesel,
-                                    phone = contact.phone,
-                                    workplace = contact.workplace,
-                                    apartment = contact.apartment,
-                                    notes = contact.notes,
-                                ),
+            1 -> {
+                if (futureContacts.isEmpty()) {
+                    item {
+                        SectionCard {
+                            Text("Brak kontaktów Future.")
+                        }
+                    }
+                } else {
+                    futureContacts.forEach { contact ->
+                        item {
+                            ContactCard(
+                                contact = contact,
+                                onCall = { openDialer(context, contact.phone) },
+                                onWhatsApp = { openWhatsApp(context, contact.phone) },
+                                onEmail = { openEmail(context, contact.email) },
+                                onEdit = {
+                                    editedContact = contact
+                                    viewModel.updateEditor(contact.toDraft())
+                                    isDialogOpen = true
+                                },
                             )
-                            isDialogOpen = true
-                        },
-                    )
+                        }
+                    }
+                }
+            }
+            else -> {
+                if (plantContacts.isEmpty()) {
+                    item {
+                        SectionCard {
+                            Text("Brak zakładów pasujących do wyszukiwania.")
+                        }
+                    }
+                } else {
+                    plantContacts
+                        .groupBy { it.workplace.trim() }
+                        .toSortedMap()
+                        .forEach { (workplace, contacts) ->
+                            item {
+                                SectionCard(title = workplace) {
+                                    contacts.forEach { contact ->
+                                        Text("${contact.name} ${contact.surname}".trim())
+                                        if (contact.phone.isNotBlank()) Text("Telefon: ${contact.phone}")
+                                        if (contact.email.isNotBlank()) Text("Email: ${contact.email}")
+                                    }
+                                }
+                            }
+                        }
                 }
             }
         }
@@ -151,6 +219,7 @@ private fun ContactCard(
     contact: ContactListItem,
     onCall: () -> Unit,
     onWhatsApp: () -> Unit,
+    onEmail: () -> Unit,
     onEdit: () -> Unit,
 ) {
     SectionCard(
@@ -213,6 +282,18 @@ private fun ContactCard(
                 )
                 Text("WhatsApp")
             }
+        }
+        Button(
+            onClick = onEmail,
+            modifier = Modifier.fillMaxWidth(),
+            enabled = contact.email.isNotBlank(),
+        ) {
+            Icon(
+                imageVector = Icons.Rounded.Email,
+                contentDescription = null,
+                modifier = Modifier.padding(end = 8.dp),
+            )
+            Text("Wyślij e-mail")
         }
     }
 }
@@ -385,3 +466,32 @@ private fun openWhatsApp(context: android.content.Context, phone: String) {
         ),
     )
 }
+
+private fun openEmail(context: android.content.Context, email: String) {
+    val normalizedEmail = email.trim()
+    if (normalizedEmail.isBlank()) return
+    context.startActivity(
+        Intent(
+            Intent.ACTION_SENDTO,
+            Uri.parse("mailto:${Uri.encode(normalizedEmail)}"),
+        ),
+    )
+}
+
+private fun ContactListItem.toDraft(): ContactDraft = ContactDraft(
+    name = name,
+    surname = surname,
+    email = email,
+    pesel = pesel,
+    phone = phone,
+    workplace = workplace,
+    apartment = apartment,
+    notes = notes,
+)
+
+private fun isFutureContact(contact: ContactListItem): Boolean {
+    val blob = "${contact.name} ${contact.surname} ${contact.workplace} ${contact.notes}".lowercase()
+    return "future" in blob || "kadry" in blob || "bryg" in blob
+}
+
+private fun isEmployeeContact(contact: ContactListItem): Boolean = !isFutureContact(contact)
