@@ -434,12 +434,6 @@ private fun AddContactDialog(
                             .clickable { isPlantPickerOpen = true },
                         readOnly = true,
                     )
-                    TextButton(
-                        onClick = { isPlantPickerOpen = true },
-                        modifier = Modifier.fillMaxWidth(),
-                    ) {
-                        Text("Wybierz zakład z listy")
-                    }
                 }
                 if (mode == ContactDialogMode.Plant) {
                     val selectedPosition = extractPositionFromNotes(draft.notes)
@@ -452,12 +446,6 @@ private fun AddContactDialog(
                             .clickable { isPositionPickerOpen = true },
                         readOnly = true,
                     )
-                    TextButton(
-                        onClick = { isPositionPickerOpen = true },
-                        modifier = Modifier.fillMaxWidth(),
-                    ) {
-                        Text("Wybierz stanowisko z listy")
-                    }
                 }
                 if (mode == ContactDialogMode.Employee) {
                     OutlinedTextField(

@@ -115,9 +115,6 @@ fun ClothesScreen() {
                                     .clickable { orderPlantPickerOpen = true },
                                 readOnly = true,
                             )
-                            TextButton(onClick = { orderPlantPickerOpen = true }, modifier = Modifier.fillMaxWidth()) {
-                                Text("Wybierz zakład z listy")
-                            }
                             if (ordersUiState.editor.plant.isNotBlank()) {
                                 Text("Wybrany zakład: ${ordersUiState.editor.plant}")
                             }
@@ -580,9 +577,6 @@ private fun SizeSelectField(
             .clickable { onOpenPicker() },
         readOnly = true,
     )
-    TextButton(onClick = onOpenPicker, modifier = Modifier.fillMaxWidth()) {
-        Text("Wybierz z listy")
-    }
 }
 
 private val CLOTH_PART_SIZE_OPTIONS = listOf("XS", "S", "M", "L", "XL", "2XL", "3XL", "4XL", "5XL")
