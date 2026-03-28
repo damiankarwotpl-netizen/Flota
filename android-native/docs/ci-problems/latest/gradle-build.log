@@ -6,18 +6,18 @@ Daemon will be stopped at the end of the build
 > Task :core-database:clean UP-TO-DATE
 > Task :app-admin:preBuild UP-TO-DATE
 > Task :app-admin:preDebugBuild UP-TO-DATE
-> Task :app-admin:mergeDebugNativeDebugMetadata NO-SOURCE
 > Task :app-admin:checkKotlinGradlePluginConfigurationErrors SKIPPED
 > Task :core-common:preBuild UP-TO-DATE
+> Task :app-admin:mergeDebugNativeDebugMetadata NO-SOURCE
 > Task :core-common:preDebugBuild UP-TO-DATE
 > Task :core-database:preBuild UP-TO-DATE
 > Task :core-database:preDebugBuild UP-TO-DATE
+> Task :app-admin:generateDebugResValues
 > Task :core-database:writeDebugAarMetadata
 > Task :core-common:writeDebugAarMetadata
-> Task :app-admin:generateDebugResValues
 > Task :core-common:generateDebugResValues
-> Task :core-common:generateDebugResources
 > Task :app-admin:checkDebugAarMetadata
+> Task :core-common:generateDebugResources
 > Task :core-common:packageDebugResources
 > Task :core-database:generateDebugResValues
 > Task :core-database:generateDebugResources
@@ -43,10 +43,10 @@ Daemon will be stopped at the end of the build
 > Task :app-admin:processDebugManifest
 > Task :core-common:checkKotlinGradlePluginConfigurationErrors SKIPPED
 > Task :app-admin:processDebugManifestForPackage
-> Task :core-database:checkKotlinGradlePluginConfigurationErrors SKIPPED
 > Task :core-common:javaPreCompileDebug
-> Task :app-admin:javaPreCompileDebug
+> Task :core-database:checkKotlinGradlePluginConfigurationErrors SKIPPED
 > Task :core-database:javaPreCompileDebug
+> Task :app-admin:javaPreCompileDebug
 > Task :app-admin:mergeDebugShaders
 > Task :app-admin:compileDebugShaders NO-SOURCE
 > Task :app-admin:generateDebugAssets UP-TO-DATE
@@ -66,10 +66,10 @@ Daemon will be stopped at the end of the build
 > Task :core-common:mergeDebugJniLibFolders
 > Task :core-common:mergeDebugNativeLibs NO-SOURCE
 > Task :core-common:copyDebugJniLibsProjectOnly
+> Task :app-admin:checkDebugDuplicateClasses
 > Task :core-database:mergeDebugJniLibFolders
 > Task :core-database:mergeDebugNativeLibs NO-SOURCE
 > Task :core-database:copyDebugJniLibsProjectOnly
-> Task :app-admin:checkDebugDuplicateClasses
 > Task :app-admin:validateSigningDebug
 > Task :app-admin:writeDebugAppMetadata
 > Task :app-admin:mergeDebugNativeLibs
@@ -93,8 +93,8 @@ Unable to strip the following libraries, packaging them as they are: libandroidx
 > Task :app-driver:mergeDebugResources
 > Task :app-driver:processDebugMainManifest
 > Task :app-driver:processDebugManifest
-> Task :app-driver:javaPreCompileDebug
 > Task :app-driver:processDebugManifestForPackage
+> Task :app-driver:javaPreCompileDebug
 > Task :app-driver:mergeDebugShaders
 > Task :app-driver:compileDebugShaders NO-SOURCE
 > Task :app-driver:generateDebugAssets UP-TO-DATE
@@ -113,30 +113,30 @@ Unable to strip the following libraries, packaging them as they are: libandroidx
 > Task :app-driver:writeDebugAppMetadata
 > Task :app-driver:writeDebugSigningConfigVersions
 > Task :app-driver:mergeExtDexDebug
-> Task :app-admin:mergeExtDexDebug
 > Task :core-common:compileDebugKotlin
 > Task :core-common:compileDebugJavaWithJavac NO-SOURCE
 > Task :core-common:bundleLibRuntimeToJarDebug
-> Task :core-common:processDebugJavaRes
 > Task :core-common:bundleLibCompileToJarDebug
+> Task :core-common:processDebugJavaRes
+> Task :app-admin:mergeExtDexDebug
 > Task :core-common:bundleLibRuntimeToDirDebug
 > Task :core-database:kspDebugKotlin
 > Task :core-database:compileDebugKotlin
 > Task :core-database:compileDebugJavaWithJavac
 > Task :core-database:bundleLibCompileToJarDebug
-> Task :core-database:processDebugJavaRes
 > Task :core-database:bundleLibRuntimeToJarDebug
+> Task :core-database:processDebugJavaRes
 > Task :core-database:bundleLibRuntimeToDirDebug
 > Task :app-admin:mergeLibDexDebug
 > Task :app-driver:mergeLibDexDebug
 
-> Task :app-admin:compileDebugKotlin
+> Task :app-admin:compileDebugKotlin FAILED
 e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/ClothesScreen.kt:10:43 Unresolved reference 'matchParentSize'.
+e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/ClothesScreen.kt:12:43 Cannot access 'val RowColumnParentData?.weight: Float': it is internal in file.
 e: file:///home/runner/work/Flota/Flota/android-native/app-admin/src/main/java/com/future/ultimate/admin/ui/screen/ContactsScreen.kt:11:43 Unresolved reference 'matchParentSize'.
 
-> Task :app-admin:compileDebugKotlin FAILED
 > Task :app-driver:compileDebugKotlin
-gradle/actions: Writing build results to /home/runner/work/_temp/.gradle-actions/build-results/__run_3-1774733646698.json
+gradle/actions: Writing build results to /home/runner/work/_temp/.gradle-actions/build-results/__run_3-1774734784021.json
 
 [Incubating] Problems report is available at: file:///home/runner/work/Flota/Flota/android-native/build/reports/problems/problems-report.html
 
@@ -350,5 +350,5 @@ You can use '--warning-mode all' to show the individual deprecation warnings and
 
 For more on this, please refer to https://docs.gradle.org/8.14.3/userguide/command_line_interface.html#sec:command_line_warnings in the Gradle documentation.
 
-BUILD FAILED in 1m 22s
+BUILD FAILED in 1m 20s
 100 actionable tasks: 96 executed, 4 up-to-date
