@@ -136,6 +136,7 @@ fun ContactsScreen() {
                         item {
                             ContactCard(
                                 contact = contact,
+                                showWorkplace = true,
                                 onCall = { openDialer(context, contact.phone) },
                                 onWhatsApp = { openWhatsApp(context, contact.phone) },
                                 onEmail = { openEmail(context, contact.email) },
@@ -162,6 +163,7 @@ fun ContactsScreen() {
                         item {
                             ContactCard(
                                 contact = contact,
+                                showWorkplace = false,
                                 onCall = { openDialer(context, contact.phone) },
                                 onWhatsApp = { openWhatsApp(context, contact.phone) },
                                 onEmail = { openEmail(context, contact.email) },
@@ -196,6 +198,48 @@ fun ContactsScreen() {
                                         if (position.isNotBlank()) Text("Stanowisko: $position")
                                         if (contact.phone.isNotBlank()) Text("Telefon: ${contact.phone}")
                                         if (contact.email.isNotBlank()) Text("Email: ${contact.email}")
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                            verticalAlignment = Alignment.CenterVertically,
+                                        ) {
+                                            Button(
+                                                onClick = { openDialer(context, contact.phone) },
+                                                modifier = Modifier.weight(1f),
+                                                enabled = contact.phone.isNotBlank(),
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Rounded.Call,
+                                                    contentDescription = null,
+                                                    modifier = Modifier.padding(end = 8.dp),
+                                                )
+                                                Text("Zadzwoń")
+                                            }
+                                            Button(
+                                                onClick = { openWhatsApp(context, contact.phone) },
+                                                modifier = Modifier.weight(1f),
+                                                enabled = contact.phone.isNotBlank(),
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Rounded.Chat,
+                                                    contentDescription = null,
+                                                    modifier = Modifier.padding(end = 8.dp),
+                                                )
+                                                Text("WhatsApp")
+                                            }
+                                        }
+                                        Button(
+                                            onClick = { openEmail(context, contact.email) },
+                                            modifier = Modifier.fillMaxWidth(),
+                                            enabled = contact.email.isNotBlank(),
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Rounded.Email,
+                                                contentDescription = null,
+                                                modifier = Modifier.padding(end = 8.dp),
+                                            )
+                                            Text("Wyślij e-mail")
+                                        }
                                     }
                                 }
                             }
@@ -237,6 +281,7 @@ private enum class ContactDialogMode {
 @Composable
 private fun ContactCard(
     contact: ContactListItem,
+    showWorkplace: Boolean = true,
     onCall: () -> Unit,
     onWhatsApp: () -> Unit,
     onEmail: () -> Unit,
@@ -259,7 +304,9 @@ private fun ContactCard(
                 )
             }
         }
-        Text("Zakład: ${contact.workplace.ifBlank { "Brak przypisanego zakładu" }}")
+        if (showWorkplace) {
+            Text("Zakład: ${contact.workplace.ifBlank { "Brak przypisanego zakładu" }}")
+        }
         if (contact.pesel.isNotBlank()) {
             Text("PESEL: ${contact.pesel}")
         }
@@ -269,9 +316,6 @@ private fun ContactCard(
         }
         if (contact.apartment.isNotBlank()) {
             Text("Mieszkanie: ${contact.apartment}")
-        }
-        if (contact.notes.isNotBlank()) {
-            Text("Uwagi: ${contact.notes}")
         }
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -340,6 +384,7 @@ private fun AddContactDialog(
         ContactDialogMode.Employee -> draft.name.isNotBlank() && draft.surname.isNotBlank() && draft.phone.isNotBlank()
     }
     var isPlantPickerOpen by remember { mutableStateOf(false) }
+    var isPositionPickerOpen by remember { mutableStateOf(false) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -398,19 +443,20 @@ private fun AddContactDialog(
                 }
                 if (mode == ContactDialogMode.Plant) {
                     val selectedPosition = extractPositionFromNotes(draft.notes)
-                    Text("Stanowisko *")
-                    Row(
+                    OutlinedTextField(
+                        value = selectedPosition,
+                        onValueChange = {},
+                        label = { Text("Stanowisko *") },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { isPositionPickerOpen = true },
+                        readOnly = true,
+                    )
+                    TextButton(
+                        onClick = { isPositionPickerOpen = true },
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
-                        listOf("zarząd", "kadry", "brygadzista").forEach { position ->
-                            Button(
-                                onClick = { onDraftChange(draft.copy(notes = updatePositionInNotes(draft.notes, position))) },
-                                modifier = Modifier.weight(1f),
-                            ) {
-                                Text(if (selectedPosition == position) "✓ $position" else position)
-                            }
-                        }
+                        Text("Wybierz stanowisko z listy")
                     }
                 }
                 if (mode == ContactDialogMode.Employee) {
@@ -494,6 +540,35 @@ private fun AddContactDialog(
             },
             confirmButton = {
                 TextButton(onClick = { isPlantPickerOpen = false }) {
+                    Text("Zamknij")
+                }
+            },
+        )
+    }
+
+    if (isPositionPickerOpen && mode == ContactDialogMode.Plant) {
+        AlertDialog(
+            onDismissRequest = { isPositionPickerOpen = false },
+            title = { Text("Wybierz stanowisko", fontWeight = FontWeight.Bold) },
+            text = {
+                androidx.compose.foundation.layout.Column(
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    listOf("zarząd", "kadry", "brygadzista").forEach { position ->
+                        Button(
+                            onClick = {
+                                onDraftChange(draft.copy(notes = updatePositionInNotes(draft.notes, position)))
+                                isPositionPickerOpen = false
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            Text(position)
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { isPositionPickerOpen = false }) {
                     Text("Zamknij")
                 }
             },
