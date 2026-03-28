@@ -1,6 +1,7 @@
 package com.future.ultimate.admin.ui.screen
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -30,6 +31,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -109,20 +111,17 @@ fun ClothesScreen() {
                             }
                         }
                         if (ordersTab.intValue == 0) {
-                            Box(modifier = Modifier.fillMaxWidth()) {
-                                OutlinedTextField(
-                                    value = ordersUiState.editor.plant,
-                                    onValueChange = {},
-                                    label = { Text("Zakład") },
-                                    modifier = Modifier.fillMaxWidth(),
-                                    readOnly = true,
-                                )
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxSize()
-                                        .clickable { orderPlantPickerOpen = true },
-                                )
-                            }
+                            OutlinedTextField(
+                                value = ordersUiState.editor.plant,
+                                onValueChange = {},
+                                label = { Text("Zakład") },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .pointerInput(Unit) {
+                                        detectTapGestures(onTap = { orderPlantPickerOpen = true })
+                                    },
+                                readOnly = true,
+                            )
                             if (ordersUiState.editor.plant.isNotBlank()) {
                                 Text("Wybrany zakład: ${ordersUiState.editor.plant}")
                             }
@@ -576,20 +575,17 @@ private fun SizeSelectField(
     value: String,
     onOpenPicker: () -> Unit,
 ) {
-    Box(modifier = Modifier.fillMaxWidth()) {
-        OutlinedTextField(
-            value = value,
-            onValueChange = {},
-            label = { Text(label) },
-            modifier = Modifier.fillMaxWidth(),
-            readOnly = true,
-        )
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .clickable { onOpenPicker() },
-        )
-    }
+    OutlinedTextField(
+        value = value,
+        onValueChange = {},
+        label = { Text(label) },
+        modifier = Modifier
+            .fillMaxWidth()
+            .pointerInput(Unit) {
+                detectTapGestures(onTap = { onOpenPicker() })
+            },
+        readOnly = true,
+    )
 }
 
 private val CLOTH_PART_SIZE_OPTIONS = listOf("XS", "S", "M", "L", "XL", "2XL", "3XL", "4XL", "5XL")

@@ -3,6 +3,7 @@ package com.future.ultimate.admin.ui.screen
 import android.content.Intent
 import android.net.Uri
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -37,6 +38,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -428,37 +430,31 @@ private fun AddContactDialog(
                     modifier = Modifier.fillMaxWidth(),
                 )
                 if (mode == ContactDialogMode.Plant || mode == ContactDialogMode.Employee) {
-                    Box(modifier = Modifier.fillMaxWidth()) {
-                        OutlinedTextField(
-                            value = draft.workplace,
-                            onValueChange = {},
-                            label = { Text(if (mode == ContactDialogMode.Plant) "Nazwa zakładu *" else "Zakład") },
-                            modifier = Modifier.fillMaxWidth(),
-                            readOnly = true,
-                        )
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .clickable { isPlantPickerOpen = true },
-                        )
-                    }
+                    OutlinedTextField(
+                        value = draft.workplace,
+                        onValueChange = {},
+                        label = { Text(if (mode == ContactDialogMode.Plant) "Nazwa zakładu *" else "Zakład") },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .pointerInput(Unit) {
+                                detectTapGestures(onTap = { isPlantPickerOpen = true })
+                            },
+                        readOnly = true,
+                    )
                 }
                 if (mode == ContactDialogMode.Plant) {
                     val selectedPosition = extractPositionFromNotes(draft.notes)
-                    Box(modifier = Modifier.fillMaxWidth()) {
-                        OutlinedTextField(
-                            value = selectedPosition,
-                            onValueChange = {},
-                            label = { Text("Stanowisko *") },
-                            modifier = Modifier.fillMaxWidth(),
-                            readOnly = true,
-                        )
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .clickable { isPositionPickerOpen = true },
-                        )
-                    }
+                    OutlinedTextField(
+                        value = selectedPosition,
+                        onValueChange = {},
+                        label = { Text("Stanowisko *") },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .pointerInput(Unit) {
+                                detectTapGestures(onTap = { isPositionPickerOpen = true })
+                            },
+                        readOnly = true,
+                    )
                 }
                 if (mode == ContactDialogMode.Employee) {
                     OutlinedTextField(
