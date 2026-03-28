@@ -106,7 +106,10 @@ class CarsViewModel(private val repository: AdminRepository) : ViewModel() {
             refreshDriverSuggestions()
         }.launchIn(viewModelScope)
         repository.observeContacts().onEach { contacts ->
-            contactDriverSuggestions = contacts.map { "${it.name} ${it.surname}".trim() }.filter { it.isNotBlank() }
+            contactDriverSuggestions = contacts
+                .filter(::isEmployeeTabContact)
+                .map { "${it.name} ${it.surname}".trim() }
+                .filter { it.isNotBlank() }
             refreshDriverSuggestions()
         }.launchIn(viewModelScope)
         repository.observeKnownCarDrivers().onEach { knownDrivers ->
@@ -320,6 +323,23 @@ private fun String.assignedDrivers(): List<String> = split(",")
     .map { it.trim() }
     .filter { it.isNotBlank() }
 
+private fun isEmployeeTabContact(item: ContactListItem): Boolean =
+    "#TAB_PRACOWNICY" in item.notes || ("#TAB_FUTURE" !in item.notes && "#TAB_ZAKLADY" !in item.notes)
+
+private fun employeeContactKey(name: String, surname: String): String =
+    "${name.trim().lowercase()}|${surname.trim().lowercase()}"
+
+private fun employeeContactKeys(items: List<ContactListItem>): Set<String> = items
+    .filter(::isEmployeeTabContact)
+    .map { employeeContactKey(it.name, it.surname) }
+    .toSet()
+
+private fun employeePlantNames(items: List<ContactListItem>): Set<String> = items
+    .filter(::isEmployeeTabContact)
+    .map { it.workplace.trim() }
+    .filter { it.isNotBlank() }
+    .toSet()
+
 class PayrollViewModel(private val repository: AdminRepository) : ViewModel() {
     private val _uiState = MutableStateFlow(PayrollUiState(operatorLabel = PatchLoader.fallbackUserLabel()))
     val uiState: StateFlow<PayrollUiState> = _uiState.asStateFlow()
@@ -342,12 +362,13 @@ class PayrollViewModel(private val repository: AdminRepository) : ViewModel() {
 
     init {
         repository.observeContacts().onEach { items ->
-            contactsCache = items
-            val knownKeys = items.map(::selectionKey).toSet()
+            val employeeContacts = items.filter(::isEmployeeTabContact)
+            contactsCache = employeeContacts
+            val knownKeys = employeeContacts.map(::selectionKey).toSet()
             _uiState.value = _uiState.value.copy(
-                contacts = items,
-                filteredRecipients = filterRecipients(items, _uiState.value.recipientQuery),
-                totalRecipients = items.size,
+                contacts = employeeContacts,
+                filteredRecipients = filterRecipients(employeeContacts, _uiState.value.recipientQuery),
+                totalRecipients = employeeContacts.size,
                 selectedRecipientKeys = _uiState.value.selectedRecipientKeys.intersect(knownKeys),
             )
         }.launchIn(viewModelScope)
@@ -1399,7 +1420,7 @@ class TableViewModel(private val repository: AdminRepository) : ViewModel() {
 
     init {
         repository.observeContacts().onEach { items ->
-            _uiState.value = _uiState.value.copy(items = items)
+            _uiState.value = _uiState.value.copy(items = items.filter(::isEmployeeTabContact))
         }.launchIn(viewModelScope)
     }
 
@@ -1464,8 +1485,18 @@ class TableViewModel(private val repository: AdminRepository) : ViewModel() {
 class WorkersViewModel(private val repository: AdminRepository) : ViewModel() {
     private val _uiState = MutableStateFlow(WorkersUiState())
     val uiState: StateFlow<WorkersUiState> = _uiState.asStateFlow()
+    private var employeeKeys: Set<String> = emptySet()
 
-    init { repository.observeWorkers().onEach { _uiState.value = _uiState.value.copy(items = it) }.launchIn(viewModelScope) }
+    init {
+        repository.observeContacts().onEach { contacts ->
+            employeeKeys = employeeContactKeys(contacts)
+        }.launchIn(viewModelScope)
+        repository.observeWorkers().onEach { items ->
+            _uiState.value = _uiState.value.copy(
+                items = items.filter { employeeContactKey(it.name, it.surname) in employeeKeys },
+            )
+        }.launchIn(viewModelScope)
+    }
     fun updateQuery(value: String) { _uiState.value = _uiState.value.copy(query = value) }
     fun updateEditor(draft: WorkerDraft) { _uiState.value = _uiState.value.copy(editor = draft) }
     fun edit(worker: com.future.ultimate.core.common.repository.WorkerListItem) {
@@ -1492,8 +1523,18 @@ class WorkersViewModel(private val repository: AdminRepository) : ViewModel() {
 class PlantsViewModel(private val repository: AdminRepository) : ViewModel() {
     private val _uiState = MutableStateFlow(PlantsUiState())
     val uiState: StateFlow<PlantsUiState> = _uiState.asStateFlow()
+    private var employeePlants: Set<String> = emptySet()
 
-    init { repository.observePlants().onEach { _uiState.value = _uiState.value.copy(items = it) }.launchIn(viewModelScope) }
+    init {
+        repository.observeContacts().onEach { contacts ->
+            employeePlants = employeePlantNames(contacts)
+        }.launchIn(viewModelScope)
+        repository.observePlants().onEach { items ->
+            _uiState.value = _uiState.value.copy(
+                items = items.filter { it.name.trim() in employeePlants },
+            )
+        }.launchIn(viewModelScope)
+    }
     fun updateQuery(value: String) { _uiState.value = _uiState.value.copy(query = value) }
     fun updateEditor(draft: PlantDraft) { _uiState.value = _uiState.value.copy(editor = draft) }
     fun edit(plant: com.future.ultimate.core.common.repository.PlantListItem) {
@@ -1519,8 +1560,18 @@ class PlantsViewModel(private val repository: AdminRepository) : ViewModel() {
 class ClothesSizesViewModel(private val repository: AdminRepository) : ViewModel() {
     private val _uiState = MutableStateFlow(ClothesSizesUiState())
     val uiState: StateFlow<ClothesSizesUiState> = _uiState.asStateFlow()
+    private var employeeKeys: Set<String> = emptySet()
 
-    init { repository.observeClothesSizes().onEach { _uiState.value = _uiState.value.copy(items = it) }.launchIn(viewModelScope) }
+    init {
+        repository.observeContacts().onEach { contacts ->
+            employeeKeys = employeeContactKeys(contacts)
+        }.launchIn(viewModelScope)
+        repository.observeClothesSizes().onEach { items ->
+            _uiState.value = _uiState.value.copy(
+                items = items.filter { employeeContactKey(it.name, it.surname) in employeeKeys },
+            )
+        }.launchIn(viewModelScope)
+    }
 
     fun updateQuery(value: String) { _uiState.value = _uiState.value.copy(query = value) }
     fun updateEditor(draft: ClothesSizeDraft) { _uiState.value = _uiState.value.copy(editor = draft) }
@@ -1564,11 +1615,17 @@ class ClothesOrdersViewModel(private val repository: AdminRepository) : ViewMode
     private val _uiState = MutableStateFlow(ClothesOrdersUiState())
     val uiState: StateFlow<ClothesOrdersUiState> = _uiState.asStateFlow()
     private var orderItemsJob: Job? = null
+    private var employeeKeys: Set<String> = emptySet()
 
     init {
+        repository.observeContacts().onEach { contacts ->
+            employeeKeys = employeeContactKeys(contacts)
+        }.launchIn(viewModelScope)
         repository.observeClothesOrders().onEach { _uiState.value = _uiState.value.copy(items = it) }.launchIn(viewModelScope)
         repository.observeClothesOrderWorkers().onEach { workers ->
-            _uiState.value = _uiState.value.copy(availableWorkers = workers)
+            _uiState.value = _uiState.value.copy(
+                availableWorkers = workers.filter { employeeContactKey(it.name, it.surname) in employeeKeys },
+            )
         }.launchIn(viewModelScope)
     }
 
