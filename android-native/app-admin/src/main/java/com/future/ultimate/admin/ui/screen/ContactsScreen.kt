@@ -34,6 +34,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -385,6 +387,7 @@ private fun AddContactDialog(
     }
     var isPlantPickerOpen by remember { mutableStateOf(false) }
     var isPositionPickerOpen by remember { mutableStateOf(false) }
+    val focusManager = LocalFocusManager.current
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -431,15 +434,14 @@ private fun AddContactDialog(
                         label = { Text(if (mode == ContactDialogMode.Plant) "Nazwa zakładu *" else "Zakład") },
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clickable { isPlantPickerOpen = true },
+                            .onFocusChanged { state ->
+                                if (state.isFocused) {
+                                    isPlantPickerOpen = true
+                                    focusManager.clearFocus(force = true)
+                                }
+                            },
                         readOnly = true,
                     )
-                    TextButton(
-                        onClick = { isPlantPickerOpen = true },
-                        modifier = Modifier.fillMaxWidth(),
-                    ) {
-                        Text("Wybierz zakład z listy")
-                    }
                 }
                 if (mode == ContactDialogMode.Plant) {
                     val selectedPosition = extractPositionFromNotes(draft.notes)
@@ -449,15 +451,14 @@ private fun AddContactDialog(
                         label = { Text("Stanowisko *") },
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clickable { isPositionPickerOpen = true },
+                            .onFocusChanged { state ->
+                                if (state.isFocused) {
+                                    isPositionPickerOpen = true
+                                    focusManager.clearFocus(force = true)
+                                }
+                            },
                         readOnly = true,
                     )
-                    TextButton(
-                        onClick = { isPositionPickerOpen = true },
-                        modifier = Modifier.fillMaxWidth(),
-                    ) {
-                        Text("Wybierz stanowisko z listy")
-                    }
                 }
                 if (mode == ContactDialogMode.Employee) {
                     OutlinedTextField(
