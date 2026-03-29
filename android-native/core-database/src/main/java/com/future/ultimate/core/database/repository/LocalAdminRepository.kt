@@ -861,6 +861,7 @@ class LocalAdminRepository(
 
     override suspend fun exportClothesOrderPdf(orderId: Long): String {
         val order = dao.getClothesOrder(orderId) ?: return ""
+        val plant = dao.getPlantByName(order.plant)
         val items = dao.getClothesOrderItems(orderId).map {
             ClothesOrderItemListItem(
                 id = it.id,
@@ -880,6 +881,8 @@ class LocalAdminRepository(
             orderId = order.id,
             date = order.date,
             plant = order.plant,
+            invoiceCompany = plant?.company.orEmpty(),
+            invoiceNip = plant?.nip.orEmpty(),
             status = order.status,
             description = order.orderDesc,
             items = items,
@@ -888,6 +891,7 @@ class LocalAdminRepository(
 
     override suspend fun exportClothesIssuePdf(orderId: Long): String {
         val order = dao.getClothesOrder(orderId) ?: return ""
+        val plant = dao.getPlantByName(order.plant)
         val items = dao.getUnissuedClothesOrderItems(orderId).map {
             ClothesOrderItemListItem(
                 id = it.id,
@@ -907,6 +911,8 @@ class LocalAdminRepository(
             orderId = order.id,
             date = order.date,
             plant = order.plant,
+            invoiceCompany = plant?.company.orEmpty(),
+            invoiceNip = plant?.nip.orEmpty(),
             status = order.status,
             description = order.orderDesc,
             items = items,
