@@ -41,6 +41,8 @@ data class ReportEntity(
 data class PlantEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val name: String,
+    val company: String = "",
+    val nip: String = "",
     val city: String = "",
     val address: String = "",
     val contactPhone: String = "",

@@ -34,6 +34,8 @@ data class WorkerDraft(
 data class PlantDraft(
     val id: Long? = null,
     val name: String = "",
+    val company: String = "",
+    val nip: String = "",
     val city: String = "",
     val address: String = "",
     val contactPhone: String = "",

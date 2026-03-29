@@ -1538,6 +1538,8 @@ class PlantsViewModel(private val repository: AdminRepository) : ViewModel() {
             editor = PlantDraft(
                 id = plant.id,
                 name = plant.name,
+                company = plant.company,
+                nip = plant.nip,
                 city = plant.city,
                 address = plant.address,
                 contactPhone = plant.contactPhone,
