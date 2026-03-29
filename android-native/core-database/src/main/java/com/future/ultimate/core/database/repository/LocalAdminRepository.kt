@@ -883,7 +883,6 @@ class LocalAdminRepository(
             plant = order.plant,
             invoiceCompany = plant?.company.orEmpty(),
             invoiceNip = plant?.nip.orEmpty(),
-            status = order.status,
             description = order.orderDesc,
             items = items,
         )
@@ -913,7 +912,6 @@ class LocalAdminRepository(
             plant = order.plant,
             invoiceCompany = plant?.company.orEmpty(),
             invoiceNip = plant?.nip.orEmpty(),
-            status = order.status,
             description = order.orderDesc,
             items = items,
         )

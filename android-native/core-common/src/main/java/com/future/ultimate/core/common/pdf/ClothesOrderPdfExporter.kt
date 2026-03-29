@@ -3,6 +3,7 @@ package com.future.ultimate.core.common.pdf
 import android.content.Context
 import android.graphics.Color
 import android.graphics.Paint
+import android.graphics.RectF
 import android.graphics.Typeface
 import android.graphics.pdf.PdfDocument
 import android.os.Environment
@@ -20,7 +21,6 @@ object ClothesOrderPdfExporter {
         plant: String,
         invoiceCompany: String,
         invoiceNip: String,
-        status: String,
         description: String,
         items: List<ClothesOrderItemListItem>,
     ): String {
@@ -31,11 +31,10 @@ object ClothesOrderPdfExporter {
             plant = plant,
             invoiceCompany = invoiceCompany,
             invoiceNip = invoiceNip,
-            status = status,
             description = description,
             items = items,
             title = "Zamówienie Agencja Future-group",
-            sectionTitle = "Zamówienie (łączna ilość każdej części odzieży)",
+            sectionTitle = "Zamówienie",
             filePrefix = "clothes_order",
         )
     }
@@ -47,7 +46,6 @@ object ClothesOrderPdfExporter {
         plant: String,
         invoiceCompany: String,
         invoiceNip: String,
-        status: String,
         description: String,
         items: List<ClothesOrderItemListItem>,
     ): String {
@@ -58,7 +56,6 @@ object ClothesOrderPdfExporter {
             plant = plant,
             invoiceCompany = invoiceCompany,
             invoiceNip = invoiceNip,
-            status = status,
             description = description,
             items = items.sortedWith(compareBy({ it.surname.lowercase() }, { it.name.lowercase() }, { it.item.lowercase() })),
             title = "Raport wydania odzieży",
@@ -74,7 +71,6 @@ object ClothesOrderPdfExporter {
         plant: String,
         invoiceCompany: String,
         invoiceNip: String,
-        status: String,
         description: String,
         items: List<ClothesOrderItemListItem>,
         title: String,
@@ -93,13 +89,24 @@ object ClothesOrderPdfExporter {
         val margin = 36f
         val contentWidth = pageWidth - (margin * 2)
         val titlePaint = paint(size = 18f, bold = true)
-        val subtitlePaint = paint(size = 10f, color = Color.DKGRAY)
-        val textPaint = paint(size = 10f)
-        val sectionPaint = paint(size = 12f, bold = true)
+        val textPaint = paint(size = 11f, color = Color.rgb(44, 44, 44))
+        val sectionPaint = paint(size = 13f, bold = true)
+        val sectionBgPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = Color.rgb(238, 242, 247)
+            style = Paint.Style.FILL
+        }
+        val cardFillPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = Color.rgb(250, 250, 250)
+            style = Paint.Style.FILL
+        }
         val linePaint = Paint().apply {
-            color = Color.LTGRAY
+            color = Color.rgb(210, 215, 222)
             strokeWidth = 1f
             style = Paint.Style.STROKE
+        }
+        val rowPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = Color.rgb(247, 249, 252)
+            style = Paint.Style.FILL
         }
 
         var pageNumber = 1
@@ -108,23 +115,25 @@ object ClothesOrderPdfExporter {
         var y = drawHeader(
             canvas = canvas,
             titlePaint = titlePaint,
-            subtitlePaint = subtitlePaint,
             textPaint = textPaint,
+            sectionPaint = sectionPaint,
+            cardFillPaint = cardFillPaint,
             linePaint = linePaint,
             orderId = orderId,
             date = date,
             plant = plant,
             invoiceCompany = invoiceCompany,
             invoiceNip = invoiceNip,
-            status = status,
             description = description,
             title = title,
             margin = margin,
             contentWidth = contentWidth,
         )
 
-        canvas.drawText(sectionTitle, margin, y, sectionPaint)
-        y += 18f
+        val sectionRect = RectF(margin, y - 14f, pageWidth - margin, y + 8f)
+        canvas.drawRoundRect(sectionRect, 10f, 10f, sectionBgPaint)
+        canvas.drawText(sectionTitle, margin + 10f, y, sectionPaint)
+        y += 24f
 
         val isOrderPdf = filePrefix == "clothes_order"
         val renderedLines = if (isOrderPdf) {
@@ -141,7 +150,7 @@ object ClothesOrderPdfExporter {
             }
         }
 
-        renderedLines.forEach { line ->
+        renderedLines.forEachIndexed { index, line ->
             val wrapped = wrapText(line, textPaint, contentWidth - 24f)
             val rowHeight = 20f + (wrapped.size * 14f)
 
@@ -153,24 +162,30 @@ object ClothesOrderPdfExporter {
                 y = drawHeader(
                     canvas = canvas,
                     titlePaint = titlePaint,
-                    subtitlePaint = subtitlePaint,
                     textPaint = textPaint,
+                    sectionPaint = sectionPaint,
+                    cardFillPaint = cardFillPaint,
                     linePaint = linePaint,
                     orderId = orderId,
                     date = date,
                     plant = plant,
                     invoiceCompany = invoiceCompany,
                     invoiceNip = invoiceNip,
-                    status = status,
                     description = description,
                     title = title,
                     margin = margin,
                     contentWidth = contentWidth,
                 )
-                canvas.drawText("$sectionTitle (cd.)", margin, y, sectionPaint)
-                y += 18f
+                val continuedRect = RectF(margin, y - 14f, pageWidth - margin, y + 8f)
+                canvas.drawRoundRect(continuedRect, 10f, 10f, sectionBgPaint)
+                canvas.drawText("$sectionTitle (cd.)", margin + 10f, y, sectionPaint)
+                y += 24f
             }
 
+            val rowRect = RectF(margin, y - 12f, pageWidth - margin, y + rowHeight - 4f)
+            if (((index + 1) % 2) == 0) {
+                canvas.drawRoundRect(rowRect, 6f, 6f, rowPaint)
+            }
             canvas.drawRect(margin, y - 12f, pageWidth - margin, y + rowHeight - 4f, linePaint)
             y = drawLines(canvas, wrapped, margin + 12f, y + 4f, textPaint)
             y += 10f
@@ -185,15 +200,15 @@ object ClothesOrderPdfExporter {
     private fun drawHeader(
         canvas: android.graphics.Canvas,
         titlePaint: Paint,
-        subtitlePaint: Paint,
         textPaint: Paint,
+        sectionPaint: Paint,
+        cardFillPaint: Paint,
         linePaint: Paint,
         orderId: Long,
         date: String,
         plant: String,
         invoiceCompany: String,
         invoiceNip: String,
-        status: String,
         description: String,
         title: String,
         margin: Float,
@@ -201,24 +216,26 @@ object ClothesOrderPdfExporter {
     ): Float {
         var y = 42f
         canvas.drawText(title, margin, y, titlePaint)
-        y += 18f
-        canvas.drawText("Eksport Android-native 1:1", margin, y, subtitlePaint)
         y += 24f
         val boxTop = y
         val metaLines = listOf(
             "ID: $orderId • Data: ${safe(date)}",
-            "Zakład: ${safe(plant)} • Status: ${safe(status)}",
+            "Zakład: ${safe(plant)}",
             "Dane do faktury:",
             safe(invoiceCompany),
             "NIP: ${safe(invoiceNip)}",
+            "Adres wysyłki:",
             "Szkolna 15, 47-225 Kędzierzyn-Koźle",
         )
         val descriptionLines = wrapText("Opis: ${safe(description)}", textPaint, contentWidth - 24f)
         val boxHeight = 18f + ((metaLines.size + descriptionLines.size) * 14f) + 12f
-        canvas.drawRect(margin, boxTop, margin + contentWidth, boxTop + boxHeight, linePaint)
+        val cardRect = RectF(margin, boxTop, margin + contentWidth, boxTop + boxHeight)
+        canvas.drawRoundRect(cardRect, 10f, 10f, cardFillPaint)
+        canvas.drawRoundRect(cardRect, 10f, 10f, linePaint)
         var textY = boxTop + 18f
         metaLines.forEach { line ->
-            canvas.drawText(line, margin + 12f, textY, textPaint)
+            val paint = if (line == "Dane do faktury:" || line == "Adres wysyłki:") sectionPaint else textPaint
+            canvas.drawText(line, margin + 12f, textY, paint)
             textY += 14f
         }
         textY = drawLines(canvas, descriptionLines, margin + 12f, textY, textPaint)
