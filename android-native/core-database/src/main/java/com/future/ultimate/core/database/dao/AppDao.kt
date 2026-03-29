@@ -134,6 +134,9 @@ interface AppDao {
     @Query("SELECT * FROM plants ORDER BY name")
     fun observePlants(): Flow<List<PlantEntity>>
 
+    @Query("SELECT * FROM plants WHERE lower(trim(name)) = lower(trim(:name)) LIMIT 1")
+    suspend fun getPlantByName(name: String): PlantEntity?
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsertPlant(entity: PlantEntity)
 
