@@ -1,5 +1,9 @@
 package com.future.ultimate.admin.ui.screen
 
+import android.content.ActivityNotFoundException
+import android.content.Context
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
@@ -36,6 +40,7 @@ import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import androidx.core.content.FileProvider
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.compose.material.icons.Icons
@@ -47,6 +52,8 @@ import com.future.ultimate.admin.ui.viewmodel.ClothesReportsViewModel
 import com.future.ultimate.admin.ui.viewmodel.ClothesOrdersViewModel
 import com.future.ultimate.admin.ui.viewmodel.ClothesSizesViewModel
 import com.future.ultimate.core.common.model.ClothesSizeDraft
+import com.future.ultimate.core.common.repository.ClothesOrderListItem
+import java.io.File
 import java.time.LocalDate
 
 @Composable
@@ -59,8 +66,10 @@ fun ClothesScreen() {
     var globalPartQuantities by remember { mutableStateOf(clothingParts.associateWith { "1" }) }
     var workerPartQuantities by remember { mutableStateOf<Map<Long, Map<String, String>>>(emptyMap()) }
     var isSizeDialogOpen by remember { mutableStateOf(false) }
+    var orderEditDialogItem by remember { mutableStateOf<ClothesOrderListItem?>(null) }
     val tabs = listOf("Rozmiary", "Zamówienia", "Raporty")
     val app = LocalContext.current.applicationContext as AdminApp
+    val context = LocalContext.current
     val focusManager = LocalFocusManager.current
     val sizesViewModel: ClothesSizesViewModel = viewModel(factory = AdminViewModelFactory(app.container.repository))
     val sizesUiState by sizesViewModel.uiState.collectAsStateWithLifecycle()
@@ -311,7 +320,10 @@ fun ClothesScreen() {
                         }
                     }
                     1 -> {
-                        val waitingOrders = ordersUiState.items.filter { it.status.trim().lowercase() == "zamówione" }
+                        val waitingOrders = ordersUiState.items.filter { order ->
+                            val normalized = order.status.trim().lowercase()
+                            normalized == "do zamówienia" || normalized == "oczekujące na dostawę"
+                        }
                         if (waitingOrders.isEmpty()) {
                             item { SectionCard { Text("Brak zamówień oczekujących.") } }
                         } else {
@@ -321,6 +333,44 @@ fun ClothesScreen() {
                                         Text("Zakład: ${order.plant.ifBlank { "-" }}")
                                         Text("Data: ${order.date}")
                                         Text("Status: ${order.status}")
+                                        Button(
+                                            onClick = {
+                                                ordersViewModel.exportOrderPdfForMail(order.id) { pdfPath ->
+                                                    if (pdfPath.isNotBlank()) {
+                                                        openOrderMailWithPdf(
+                                                            context = context,
+                                                            pdfPath = pdfPath,
+                                                            orderDescription = order.orderDesc.ifBlank { "${order.plant} • ${order.date}" },
+                                                        )
+                                                        ordersViewModel.setOrderStatus(order.id, "Oczekujące na dostawę")
+                                                    }
+                                                }
+                                            },
+                                            modifier = Modifier.fillMaxWidth(),
+                                        ) {
+                                            Text("Zamów")
+                                        }
+                                        Button(
+                                            onClick = {
+                                                ordersViewModel.editOrder(order)
+                                                orderEditDialogItem = order
+                                            },
+                                            modifier = Modifier.fillMaxWidth(),
+                                        ) {
+                                            Text("Edytuj")
+                                        }
+                                        Button(
+                                            onClick = { ordersViewModel.deleteOrder(order.id) },
+                                            modifier = Modifier.fillMaxWidth(),
+                                        ) {
+                                            Text("Usuń")
+                                        }
+                                        Button(
+                                            onClick = { ordersViewModel.setOrderStatus(order.id, "Zamówione") },
+                                            modifier = Modifier.fillMaxWidth(),
+                                        ) {
+                                            Text("Wydaj")
+                                        }
                                     }
                                 }
                             }
@@ -329,7 +379,7 @@ fun ClothesScreen() {
                     else -> {
                         val issueOrders = ordersUiState.items.filter { order ->
                             val normalized = order.status.trim().lowercase()
-                            normalized == "częściowo wydane" || normalized == "wydane"
+                            normalized == "zamówione" || normalized == "częściowo wydane" || normalized == "wydane"
                         }
                         if (issueOrders.isEmpty()) {
                             item { SectionCard { Text("Brak zamówień do wydania.") } }
@@ -430,6 +480,83 @@ fun ClothesScreen() {
         )
     }
 
+    orderEditDialogItem?.let { editingOrder ->
+        AlertDialog(
+            onDismissRequest = {
+                orderEditDialogItem = null
+                ordersViewModel.clearOrderEditor()
+            },
+            title = { Text("Edytuj zamówienie #${editingOrder.id}") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedTextField(
+                        value = ordersUiState.editor.plant,
+                        onValueChange = { ordersViewModel.updateEditor(ordersUiState.editor.copy(plant = it)) },
+                        label = { Text("Zakład") },
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    OutlinedTextField(
+                        value = ordersUiState.editor.date,
+                        onValueChange = { ordersViewModel.updateEditor(ordersUiState.editor.copy(date = it)) },
+                        label = { Text("Data") },
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    OutlinedTextField(
+                        value = ordersUiState.editor.orderDesc,
+                        onValueChange = { ordersViewModel.updateEditor(ordersUiState.editor.copy(orderDesc = it)) },
+                        label = { Text("Opis") },
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    OutlinedTextField(
+                        value = ordersUiState.editor.status,
+                        onValueChange = { ordersViewModel.updateEditor(ordersUiState.editor.copy(status = it)) },
+                        label = { Text("Status") },
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    ordersViewModel.save()
+                    orderEditDialogItem = null
+                    ordersViewModel.clearOrderEditor()
+                }) { Text("Zapisz") }
+            },
+            dismissButton = {
+                TextButton(onClick = {
+                    orderEditDialogItem = null
+                    ordersViewModel.clearOrderEditor()
+                }) { Text("Anuluj") }
+            },
+        )
+    }
+
+}
+
+private fun openOrderMailWithPdf(
+    context: Context,
+    pdfPath: String,
+    orderDescription: String,
+) {
+    val file = File(pdfPath)
+    if (!file.exists()) return
+    val attachmentUri: Uri = FileProvider.getUriForFile(
+        context,
+        "${context.packageName}.fileprovider",
+        file,
+    )
+    val sendIntent = Intent(Intent.ACTION_SEND).apply {
+        type = "application/pdf"
+        putExtra(Intent.EXTRA_SUBJECT, "Zamówienie odzieży: $orderDescription")
+        putExtra(Intent.EXTRA_TEXT, "W załączniku podsumowanie zamówienia PDF.")
+        putExtra(Intent.EXTRA_STREAM, attachmentUri)
+        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+    }
+    try {
+        context.startActivity(Intent.createChooser(sendIntent, "Wyślij zamówienie"))
+    } catch (_: ActivityNotFoundException) {
+        // Intentionally ignored: no email-capable app installed.
+    }
 }
 
 @Composable

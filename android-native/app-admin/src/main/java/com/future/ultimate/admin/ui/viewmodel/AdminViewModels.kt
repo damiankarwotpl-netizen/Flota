@@ -1782,7 +1782,7 @@ class ClothesOrdersViewModel(private val repository: AdminRepository) : ViewMode
             draft = state.editor.copy(
                 date = date,
                 plant = plant,
-                status = "Zamówione",
+                status = "Do zamówienia",
                 orderDesc = "$plant • $date",
             ),
             workerPartQuantities = scopedQuantities,
@@ -1944,6 +1944,28 @@ class ClothesOrdersViewModel(private val repository: AdminRepository) : ViewMode
             itemEditor = ClothesOrderItemDraft(),
             actionMessage = "Zamówienie usunięte",
         )
+    }
+
+    fun setOrderStatus(orderId: Long, status: String) = viewModelScope.launch {
+        val order = _uiState.value.items.find { it.id == orderId } ?: return@launch
+        repository.saveClothesOrder(
+            ClothesOrderDraft(
+                id = order.id,
+                date = order.date,
+                plant = order.plant,
+                status = status,
+                orderDesc = order.orderDesc,
+            ),
+        )
+        _uiState.value = _uiState.value.copy(actionMessage = "Status zmieniony na $status")
+    }
+
+    fun exportOrderPdfForMail(orderId: Long, onResult: (String) -> Unit) = viewModelScope.launch {
+        val path = repository.exportClothesOrderPdf(orderId)
+        _uiState.value = _uiState.value.copy(
+            actionMessage = if (path.isBlank()) "Nie znaleziono pozycji do eksportu PDF" else "PDF zamówienia: $path",
+        )
+        onResult(path)
     }
 
     fun markOrdered(orderId: Long) = viewModelScope.launch {
