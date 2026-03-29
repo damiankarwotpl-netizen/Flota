@@ -30,8 +30,8 @@ object ClothesOrderPdfExporter {
             status = status,
             description = description,
             items = items,
-            title = "Zamówienie odzieży roboczej",
-            sectionTitle = "Pozycje zamówienia",
+            title = "Zamówienie Agencja Future-group",
+            sectionTitle = "Zamówienie (łączna ilość każdej części odzieży)",
             filePrefix = "clothes_order",
         )
     }
@@ -114,13 +114,24 @@ object ClothesOrderPdfExporter {
         canvas.drawText(sectionTitle, margin, y, sectionPaint)
         y += 18f
 
-        items.forEachIndexed { index, item ->
-            val worker = "${item.name} ${item.surname}".trim().ifBlank { "Pracownik #${item.workerId}" }
-            val workerLines = wrapText("${index + 1}. $worker", textPaint, contentWidth - 24f)
-            val itemLines = wrapText("Pozycja: ${safe(item.item)}", textPaint, contentWidth - 24f)
-            val detailsLine = "Rozmiar: ${safe(item.size)} • Ilość: ${item.qty} • Status: ${if (item.issued) "wydane" else "niewydane"}"
-            val detailsLines = wrapText(detailsLine, textPaint, contentWidth - 24f)
-            val rowHeight = 20f + ((workerLines.size + itemLines.size + detailsLines.size) * 14f)
+        val isOrderPdf = filePrefix == "clothes_order"
+        val renderedLines = if (isOrderPdf) {
+            items.groupBy { safe(it.item) to safe(it.size) }
+                .toList()
+                .sortedWith(compareBy({ it.first.first.lowercase() }, { it.first.second.lowercase() }))
+                .mapIndexed { index, (key, grouped) ->
+                    "${index + 1}. ${key.first} ${key.second} - ${grouped.sumOf { it.qty }} sztuki"
+                }
+        } else {
+            items.mapIndexed { index, item ->
+                val worker = "${item.name} ${item.surname}".trim().ifBlank { "Pracownik #${item.workerId}" }
+                "${index + 1}. $worker • ${safe(item.item)} • ${safe(item.size)} • ${item.qty} szt. • ${if (item.issued) "wydane" else "niewydane"}"
+            }
+        }
+
+        renderedLines.forEach { line ->
+            val wrapped = wrapText(line, textPaint, contentWidth - 24f)
+            val rowHeight = 20f + (wrapped.size * 14f)
 
             if (y + rowHeight > pageHeight - 50f) {
                 document.finishPage(page)
@@ -147,9 +158,7 @@ object ClothesOrderPdfExporter {
             }
 
             canvas.drawRect(margin, y - 12f, pageWidth - margin, y + rowHeight - 4f, linePaint)
-            y = drawLines(canvas, workerLines, margin + 12f, y + 4f, textPaint)
-            y = drawLines(canvas, itemLines, margin + 12f, y + 2f, textPaint)
-            y = drawLines(canvas, detailsLines, margin + 12f, y + 2f, textPaint)
+            y = drawLines(canvas, wrapped, margin + 12f, y + 4f, textPaint)
             y += 10f
         }
 
@@ -183,6 +192,8 @@ object ClothesOrderPdfExporter {
         val metaLines = listOf(
             "ID: $orderId • Data: ${safe(date)}",
             "Zakład: ${safe(plant)} • Status: ${safe(status)}",
+            "Dane do faktury:",
+            "Agencja Future-group",
         )
         val descriptionLines = wrapText("Opis: ${safe(description)}", textPaint, contentWidth - 24f)
         val boxHeight = 18f + ((metaLines.size + descriptionLines.size) * 14f) + 12f

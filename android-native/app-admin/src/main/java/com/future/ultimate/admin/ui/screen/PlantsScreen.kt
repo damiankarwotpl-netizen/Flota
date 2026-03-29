@@ -45,7 +45,7 @@ fun PlantsScreen() {
 
     val filteredPlants = remember(uiState.items, uiState.query) {
         uiState.items.filter {
-            val blob = "${it.name} ${it.city} ${it.address} ${it.contactPhone} ${it.notes}".lowercase()
+            val blob = "${it.name} ${it.company} ${it.nip} ${it.city} ${it.address} ${it.contactPhone} ${it.notes}".lowercase()
             uiState.query.isBlank() || uiState.query.lowercase() in blob
         }
     }
@@ -148,6 +148,12 @@ private fun PlantCard(
         if (plant.address.isNotBlank()) {
             Text("Adres: ${plant.address}")
         }
+        if (plant.company.isNotBlank()) {
+            Text("Spółka: ${plant.company}")
+        }
+        if (plant.nip.isNotBlank()) {
+            Text("NIP: ${plant.nip}")
+        }
         Text("Telefon: ${plant.contactPhone.ifBlank { "Brak numeru" }}")
         if (plant.notes.isNotBlank()) {
             Text("Notatki: ${plant.notes}")
@@ -179,6 +185,14 @@ private fun PlantDialog(
                 verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
                 OutlinedTextField(draft.name, { onDraftChange(draft.copy(name = it)) }, label = { Text("Nazwa zakładu *") }, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(draft.company, { onDraftChange(draft.copy(company = it)) }, label = { Text("Spółka") }, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(
+                    draft.nip,
+                    { onDraftChange(draft.copy(nip = it.filter(Char::isDigit))) },
+                    label = { Text("NIP") },
+                    modifier = Modifier.fillMaxWidth(),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                )
                 OutlinedTextField(draft.city, { onDraftChange(draft.copy(city = it)) }, label = { Text("Miasto") }, modifier = Modifier.fillMaxWidth())
                 OutlinedTextField(draft.address, { onDraftChange(draft.copy(address = it)) }, label = { Text("Adres") }, modifier = Modifier.fillMaxWidth())
                 OutlinedTextField(

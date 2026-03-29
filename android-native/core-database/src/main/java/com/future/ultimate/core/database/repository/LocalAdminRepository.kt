@@ -513,6 +513,8 @@ class LocalAdminRepository(
             PlantListItem(
                 id = it.id,
                 name = it.name,
+                company = it.company,
+                nip = it.nip,
                 city = it.city,
                 address = it.address,
                 contactPhone = it.contactPhone,
@@ -526,6 +528,8 @@ class LocalAdminRepository(
             PlantEntity(
                 id = draft.id ?: 0,
                 name = draft.name.trim(),
+                company = draft.company.trim(),
+                nip = draft.nip.trim(),
                 city = draft.city.trim(),
                 address = draft.address.trim(),
                 contactPhone = draft.contactPhone.trim(),
@@ -1593,6 +1597,8 @@ class LocalAdminRepository(
 
     private fun createPlantDraft(headers: List<String>, row: List<String>): PlantDraft? {
         val name = row.valueFor(headers, "nazwazakladu", "zaklad", "plant", "nazwa")
+        val company = row.valueFor(headers, "spolka", "firma", "company")
+        val nip = row.valueFor(headers, "nip")
         val city = row.valueFor(headers, "miasto", "city")
         val address = row.valueFor(headers, "adres", "address")
         val contactPhone = row.valueFor(headers, "telefonkontaktowy", "telefonzakladu", "telefon", "phone", "contactphone")
@@ -1600,6 +1606,8 @@ class LocalAdminRepository(
         if (name.isBlank()) return null
         return PlantDraft(
             name = name,
+            company = company,
+            nip = nip,
             city = city,
             address = address,
             contactPhone = contactPhone,

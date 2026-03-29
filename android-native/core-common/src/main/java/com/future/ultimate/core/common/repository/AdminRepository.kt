@@ -77,6 +77,8 @@ data class WorkerListItem(
 data class PlantListItem(
     val id: Long,
     val name: String,
+    val company: String,
+    val nip: String,
     val city: String,
     val address: String,
     val contactPhone: String,
